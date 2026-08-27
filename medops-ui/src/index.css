@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+/* "brand" tokens back the teal clinical theme (currently used by the patient
+   dashboard) - kept separate from Tailwind's default palette/font so other
+   pages (login, doctor portal) are unaffected until they adopt it too. */
+@theme {
+  --color-brand-ink: #0c211f;
+  --color-brand-paper: #f3f7f6;
+  --color-brand-primary: #0d7d72;
+  --color-brand-primary-dark: #075a52;
+  --color-brand-primary-tint: #e6f5f2;
+  --color-brand-amber: #b9791f;
+  --color-brand-amber-tint: #fbf1e0;
+  --color-brand-rust: #ab4230;
+  --color-brand-rust-tint: #fbeae6;
+  --color-brand-success: #1f7a4d;
+  --color-brand-success-tint: #e2f5ea;
+  --color-brand-line: #dfe6e4;
+  --color-brand-muted: #5c6f6c;
+  --font-brand-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-brand-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.pulseline-path {
+  stroke-dasharray: 220;
+  stroke-dashoffset: 220;
+  animation: draw 2.4s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulseline-path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+

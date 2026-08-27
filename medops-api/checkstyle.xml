@@ -1,0 +1,137 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+    MedOps Checkstyle configuration.
+    Derived from the Google Java Style Guide, adapted for Spring Boot 3 / Java 21.
+
+    Key deviations from sun_checks.xml:
+      - LineLength raised to 120 (Google style default)
+      - FinalParameters removed (idiomatic in modern Java)
+      - JavadocVariable removed (Lombok-generated accessors document fields implicitly)
+      - JavadocPackage removed (package-info.java not mandatory)
+      - MissingJavadocMethod / JavadocType relaxed to warning-level annotations only
+      - MagicNumber allows common constants used in JPA column sizing and HTTP codes
+-->
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="error"/>
+    <property name="fileExtensions" value="java"/>
+
+    <!-- File-level checks -->
+    <module name="NewlineAtEndOfFile"/>
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="false"/>
+    </module>
+
+    <module name="TreeWalker">
+
+        <!-- ===== Naming Conventions ===== -->
+        <module name="TypeName"/>
+        <module name="MethodName"/>
+        <module name="ParameterName"/>
+        <module name="LocalVariableName"/>
+        <module name="MemberName"/>
+        <module name="PackageName"/>
+        <module name="StaticVariableName"/>
+        <module name="ConstantName"/>
+        <module name="LocalFinalVariableName"/>
+        <module name="ClassTypeParameterName"/>
+        <module name="MethodTypeParameterName"/>
+
+        <!-- ===== Imports ===== -->
+        <module name="AvoidStarImport"/>
+        <module name="UnusedImports"/>
+        <module name="RedundantImport"/>
+        <module name="IllegalImport"/>
+
+        <!-- ===== Size violations ===== -->
+        <!-- Google Java Style Guide uses 100; 120 is the practical modern standard -->
+        <module name="LineLength">
+            <property name="max" value="120"/>
+            <property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
+        </module>
+
+        <!-- ===== Whitespace ===== -->
+        <module name="GenericWhitespace"/>
+        <module name="MethodParamPad"/>
+        <module name="NoWhitespaceAfter"/>
+        <module name="NoWhitespaceBefore"/>
+        <module name="OperatorWrap"/>
+        <module name="ParenPad"/>
+        <module name="TypecastParenPad"/>
+        <module name="WhitespaceAfter"/>
+        <module name="WhitespaceAround">
+            <!-- Allow empty constructors/methods/lambdas -->
+            <property name="allowEmptyConstructors" value="true"/>
+            <property name="allowEmptyMethods" value="true"/>
+            <property name="allowEmptyTypes" value="true"/>
+            <property name="allowEmptyLoops" value="true"/>
+            <property name="allowEmptyLambdas" value="true"/>
+        </module>
+        <module name="EmptyLineSeparator">
+            <property name="allowNoEmptyLineBetweenFields" value="true"/>
+        </module>
+
+        <!-- ===== Block checks ===== -->
+        <module name="AvoidNestedBlocks"/>
+        <module name="EmptyBlock"/>
+        <module name="LeftCurly"/>
+        <module name="NeedBraces"/>
+        <module name="RightCurly"/>
+
+        <!-- ===== Coding ===== -->
+        <module name="EmptyStatement"/>
+        <module name="EqualsHashCode"/>
+        <module name="IllegalInstantiation"/>
+        <module name="InnerAssignment"/>
+        <module name="MissingSwitchDefault"/>
+        <module name="SimplifyBooleanExpression"/>
+        <module name="SimplifyBooleanReturn"/>
+        <module name="StringLiteralEquality"/>
+        <module name="SuperClone"/>
+        <module name="SuperFinalize"/>
+        <module name="UnnecessaryParentheses"/>
+        <module name="HiddenField">
+            <property name="ignoreConstructorParameter" value="true"/>
+            <property name="ignoreSetter" value="true"/>
+            <property name="setterCanReturnItsClass" value="true"/>
+        </module>
+
+        <!-- ===== Magic numbers ===== -->
+        <!--
+            JPA @Column length values (20, 40, 64, 100, 255, etc.) and HTTP codes
+            are legitimate literal constants in Spring Boot / JPA code. We allow:
+              -1, 0, 1, 2   - ubiquitous
+              8, 16, 20, 24, 32, 40, 64, 100, 128, 255, 256, 512, 1024 - sizing / crypto
+              400..599      - HTTP status codes
+        -->
+        <module name="MagicNumber">
+            <property name="ignoreNumbers"
+                      value="-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                             10, 16, 20, 24, 32, 40, 60, 64, 100,
+                             128, 255, 256, 512, 1000, 1024,
+                             400, 401, 403, 404, 409, 422, 429, 500, 503"/>
+            <property name="ignoreAnnotation" value="true"/>
+            <property name="ignoreHashCodeMethods" value="true"/>
+            <property name="ignoreFieldDeclaration" value="true"/>
+        </module>
+
+        <!-- ===== Design ===== -->
+        <module name="HideUtilityClassConstructor"/>
+        <module name="InterfaceIsType"/>
+        <module name="VisibilityModifier">
+            <property name="packageAllowed" value="false"/>
+            <property name="protectedAllowed" value="true"/>
+            <!-- Lombok @Builder and JPA entities use package-private constructors -->
+            <property name="allowPublicFinalFields" value="true"/>
+        </module>
+
+        <!-- ===== Miscellaneous ===== -->
+        <module name="UpperEll"/>
+        <module name="ArrayTypeStyle"/>
+        <module name="ModifiedControlVariable"/>
+    </module>
+</module>

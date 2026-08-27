@@ -1,0 +1,42 @@
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Misc
+hs_err_pid*
+replay_pid*
+.vscode/
+.cursor/
+.github/
+.amazonq/
+!.github/copilot-instructions.md
+
+# Docs
+guides/
+docs/
+plans/
+AGENTS.md
+CLAUDE.md
+BCD_DESIGN_REVIEW.md
+
+# Scripts
+*.sh    
+*.cmd
+*.ps1

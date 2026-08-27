@@ -1,0 +1,15 @@
+package com.medops.shared.audit;
+
+/**
+ * Categorizes {@link AuditEvent} records. Grows as new security-sensitive or clinically
+ * consequential actions (PHI access, record amendments, approvals, exports, ...) are added
+ * across capabilities.
+ */
+public enum AuditEventType {
+    AUTH_REGISTER,
+    AUTH_LOGIN_SUCCESS,
+    AUTH_LOGIN_FAILURE,
+    AUTH_TOKEN_REFRESH_SUCCESS,
+    AUTH_TOKEN_REFRESH_FAILURE,
+    AUTH_LOGOUT
+}
