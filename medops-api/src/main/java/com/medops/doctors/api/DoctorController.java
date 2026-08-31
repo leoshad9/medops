@@ -1,5 +1,7 @@
 package com.medops.doctors.api;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -8,11 +10,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.medops.auth.dto.AuthResponse;
+import com.medops.doctors.api.dto.DoctorPatientSummaryResponse;
 import com.medops.doctors.api.dto.DoctorProfileResponse;
+import com.medops.doctors.api.dto.DoctorSummaryResponse;
 import com.medops.doctors.api.dto.RegisterDoctorRequest;
+import com.medops.doctors.application.DoctorPatientRosterService;
 import com.medops.doctors.application.DoctorProfileService;
 import com.medops.doctors.application.DoctorRegistrationService;
 import com.medops.shared.response.ApiResponse;
@@ -27,6 +33,7 @@ public class DoctorController {
 
     private final DoctorRegistrationService doctorRegistrationService;
     private final DoctorProfileService doctorProfileService;
+    private final DoctorPatientRosterService doctorPatientRosterService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterDoctorRequest request) {
@@ -35,10 +42,25 @@ public class DoctorController {
                 .body(ApiResponse.success(response, "Doctor account created"));
     }
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('PATIENT','DOCTOR')")
+    public ResponseEntity<ApiResponse<List<DoctorSummaryResponse>>> list(
+            @RequestParam(required = false) String specialty) {
+        return ResponseEntity.ok(ApiResponse.success(doctorProfileService.listDoctors(specialty)));
+    }
+
     @GetMapping("/me")
     @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<ApiResponse<DoctorProfileResponse>> getMyProfile(Authentication authentication) {
         DoctorProfileResponse response = doctorProfileService.getMyProfile(authentication.getName());
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/me/patients")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<ApiResponse<List<DoctorPatientSummaryResponse>>> listMyPatients(
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(
+                doctorPatientRosterService.listMyPatients(authentication.getName())));
     }
 }

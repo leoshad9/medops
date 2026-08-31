@@ -32,8 +32,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
      * @param now the current timestamp
      * @return list of valid refresh tokens
      */
-    @Query("SELECT rt FROM RefreshToken rt WHERE rt.user.id = :userId " +
-           "AND rt.expiresAt > :now AND rt.revokedAt IS NULL")
+    @Query("SELECT rt FROM RefreshToken rt WHERE rt.user.id = :userId "
+           + "AND rt.expiresAt > :now AND rt.revokedAt IS NULL")
     List<RefreshToken> findValidTokensByUserId(@Param("userId") UUID userId, @Param("now") ZonedDateTime now);
 
     /**
@@ -58,7 +58,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
      * @param userId the user's ID
      * @param now the current timestamp
      */
-    @Query("UPDATE RefreshToken rt SET rt.revokedAt = :now " +
-           "WHERE rt.user.id = :userId AND rt.revokedAt IS NULL")
+    @Query("UPDATE RefreshToken rt SET rt.revokedAt = :now "
+           + "WHERE rt.user.id = :userId AND rt.revokedAt IS NULL")
     void revokeAllUserTokens(@Param("userId") UUID userId, @Param("now") ZonedDateTime now);
 }

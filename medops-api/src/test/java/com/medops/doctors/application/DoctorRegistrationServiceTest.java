@@ -17,6 +17,7 @@ import com.medops.auth.entity.User;
 import com.medops.auth.repository.RoleRepository;
 import com.medops.auth.repository.UserRepository;
 import com.medops.auth.service.TokenIssuanceService;
+import com.medops.cache.domain.DoctorDirectoryCache;
 import com.medops.doctors.api.dto.RegisterDoctorRequest;
 import com.medops.doctors.infrastructure.DoctorProfile;
 import com.medops.doctors.infrastructure.DoctorProfileRepository;
@@ -56,12 +57,14 @@ class DoctorRegistrationServiceTest {
     private TokenIssuanceService tokenIssuanceService;
     @Mock
     private AuditService auditService;
+    @Mock
+    private DoctorDirectoryCache doctorDirectoryCache;
 
     @InjectMocks
     private DoctorRegistrationService service;
 
     @Test
-    void registerDoctor_createsUserAndProfile_andReturnsTokens() {
+    void registerDoctorCreatesUserAndProfileAndReturnsTokens() {
         RegisterDoctorRequest request = new RegisterDoctorRequest(
                 EMAIL, PASSWORD, "Dr. Sarah Khan", "Cardiology", LICENSE_NUMBER, "+12345678901");
         Role doctorRole = Role.builder().id(UUID.randomUUID()).name("DOCTOR").build();
@@ -89,11 +92,12 @@ class DoctorRegistrationServiceTest {
         assertThat(profileCaptor.getValue().getSpecialty()).isEqualTo("Cardiology");
         assertThat(profileCaptor.getValue().getLicenseNumber()).isEqualTo(LICENSE_NUMBER);
 
+        verify(doctorDirectoryCache).evictAll();
         verify(auditService).recordEvent(eq(AuditEventType.AUTH_REGISTER), any(), eq(EMAIL));
     }
 
     @Test
-    void registerDoctor_throwsConflict_whenEmailAlreadyExists() {
+    void registerDoctorThrowsConflictWhenEmailAlreadyExists() {
         RegisterDoctorRequest request = new RegisterDoctorRequest(
                 EMAIL, PASSWORD, "Dr. Sarah Khan", "Cardiology", LICENSE_NUMBER, "+12345678901");
         when(userRepository.existsByEmail(EMAIL)).thenReturn(true);
@@ -105,7 +109,7 @@ class DoctorRegistrationServiceTest {
     }
 
     @Test
-    void registerDoctor_throwsConflict_whenLicenseNumberAlreadyExists() {
+    void registerDoctorThrowsConflictWhenLicenseNumberAlreadyExists() {
         RegisterDoctorRequest request = new RegisterDoctorRequest(
                 EMAIL, PASSWORD, "Dr. Sarah Khan", "Cardiology", LICENSE_NUMBER, "+12345678901");
         when(userRepository.existsByEmail(EMAIL)).thenReturn(false);

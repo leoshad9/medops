@@ -14,6 +14,7 @@ import com.medops.auth.entity.User;
 import com.medops.auth.repository.RoleRepository;
 import com.medops.auth.repository.UserRepository;
 import com.medops.auth.service.TokenIssuanceService;
+import com.medops.cache.domain.DoctorDirectoryCache;
 import com.medops.doctors.api.dto.RegisterDoctorRequest;
 import com.medops.doctors.infrastructure.DoctorProfile;
 import com.medops.doctors.infrastructure.DoctorProfileRepository;
@@ -35,6 +36,7 @@ public class DoctorRegistrationService {
     private final PasswordEncoder passwordEncoder;
     private final TokenIssuanceService tokenIssuanceService;
     private final AuditService auditService;
+    private final DoctorDirectoryCache doctorDirectoryCache;
 
     @Transactional
     public AuthResponse registerDoctor(RegisterDoctorRequest request) {
@@ -64,6 +66,7 @@ public class DoctorRegistrationService {
                 .build();
         doctorProfileRepository.save(Objects.requireNonNull(profile));
 
+        doctorDirectoryCache.evictAll();
         auditService.recordEvent(AuditEventType.AUTH_REGISTER, user.getId(), user.getEmail());
 
         return tokenIssuanceService.issue(user);

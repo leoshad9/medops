@@ -18,6 +18,7 @@ import com.medops.auth.dto.AuthResponse;
 import com.medops.auth.security.AuthRateLimitFilter;
 import com.medops.auth.security.JwtAuthenticationFilter;
 import com.medops.doctors.api.dto.RegisterDoctorRequest;
+import com.medops.doctors.application.DoctorPatientRosterService;
 import com.medops.doctors.application.DoctorProfileService;
 import com.medops.doctors.application.DoctorRegistrationService;
 import com.medops.shared.exception.ConflictException;
@@ -60,6 +61,9 @@ class DoctorControllerTest {
     @MockitoBean
     private DoctorProfileService doctorProfileService;
 
+    @MockitoBean
+    private DoctorPatientRosterService doctorPatientRosterService;
+
     private @NonNull String json(Object value) throws Exception {
         return Objects.requireNonNull(objectMapper.writeValueAsString(value));
     }
@@ -71,7 +75,7 @@ class DoctorControllerTest {
     }
 
     @Test
-    void register_returns201WithEnvelope_onSuccess() throws Exception {
+    void registerReturns201WithEnvelopeOnSuccess() throws Exception {
         when(doctorRegistrationService.registerDoctor(any())).thenReturn(SAMPLE_RESPONSE);
 
         mockMvc.perform(post("/api/v1/doctors")
@@ -83,7 +87,7 @@ class DoctorControllerTest {
     }
 
     @Test
-    void register_returns400_onBlankLicenseNumber() throws Exception {
+    void registerReturns400OnBlankLicenseNumber() throws Exception {
         RegisterDoctorRequest invalid = new RegisterDoctorRequest(
                 "doctor@medops.dev", "Password123!", "Dr. Sarah Khan", "Cardiology", " ", "+12345678901");
 
@@ -96,7 +100,7 @@ class DoctorControllerTest {
     }
 
     @Test
-    void register_returns409_onDuplicateLicenseNumber() throws Exception {
+    void registerReturns409OnDuplicateLicenseNumber() throws Exception {
         when(doctorRegistrationService.registerDoctor(any()))
                 .thenThrow(new ConflictException("An account with this license number already exists"));
 

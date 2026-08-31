@@ -32,6 +32,7 @@ public class PatientRegistrationService {
 
     private static final String PATIENT_ROLE = "PATIENT";
     private static final int MAX_MRN_ATTEMPTS = 5;
+    private static final int MRN_SEQUENCE_BOUND = 1_000_000;
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -75,7 +76,7 @@ public class PatientRegistrationService {
     private String generateUniqueMrn() {
         for (int attempt = 0; attempt < MAX_MRN_ATTEMPTS; attempt++) {
             String candidate = "MRN-" + Year.now(ZoneOffset.UTC) + "-"
-                    + String.format("%06d", secureRandom.nextInt(1_000_000));
+                    + String.format("%06d", secureRandom.nextInt(MRN_SEQUENCE_BOUND));
             if (!patientProfileRepository.existsByMrn(candidate)) {
                 return candidate;
             }

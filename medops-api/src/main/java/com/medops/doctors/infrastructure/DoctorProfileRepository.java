@@ -1,5 +1,6 @@
 package com.medops.doctors.infrastructure;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -10,4 +11,8 @@ public interface DoctorProfileRepository extends JpaRepository<DoctorProfile, UU
     Optional<DoctorProfile> findByUserId(UUID userId);
 
     boolean existsByLicenseNumber(String licenseNumber);
+
+    List<DoctorProfile> findAllByOrderByFullNameAsc();
+
+    List<DoctorProfile> findBySpecialtyIgnoreCaseOrderByFullNameAsc(String specialty);
 }
