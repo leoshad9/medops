@@ -27,6 +27,11 @@ sudo mkdir -p /usr/libexec/docker/cli-plugins
 sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
   -o /usr/libexec/docker/cli-plugins/docker-compose
 sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+# Compose v5+ needs Buildx >= 0.17 (AL2023 ships 0.12.x).
+BUILDX_VER="$(curl -fsSL https://api.github.com/repos/docker/buildx/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+')"
+sudo curl -SL "https://github.com/docker/buildx/releases/download/${BUILDX_VER}/buildx-${BUILDX_VER}.linux-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')" \
+  -o /usr/libexec/docker/cli-plugins/docker-buildx
+sudo chmod +x /usr/libexec/docker/cli-plugins/docker-buildx
 
 sudo mkdir -p /opt/medops
 sudo chown -R ec2-user:ec2-user /opt/medops
@@ -58,11 +63,16 @@ chmod 600 .env
 nano .env   # set real passwords / LLM values
 ```
 
-Optional first manual start:
+Optional first manual start (as **ec2-user**, never `sudo su`):
 
 ```bash
-chmod +x deploy/ec2-deploy.sh
-./deploy/ec2-deploy.sh
+bash deploy/ec2-deploy.sh
+```
+
+If `git fetch` fails (no GitHub deploy key), deploy the tree already on disk:
+
+```bash
+SKIP_GIT_SYNC=true bash deploy/ec2-deploy.sh
 ```
 
 ## 3. AWS / ALB
@@ -95,3 +105,25 @@ curl -sS http://127.0.0.1/actuator/health/liveness
 ```
 
 Then open the ALB URL; target group should become **Healthy**.
+
+## 6. pgAdmin (SSH tunnel)
+
+Postgres is bound to **127.0.0.1:5432 on the instance only**. Do not open 5432 in the security group.
+
+On your Windows machine (leave this window open):
+
+```powershell
+ssh -i medops.pem -N -L 5433:127.0.0.1:5432 ec2-user@3.26.240.12
+```
+
+In pgAdmin → Register → Server:
+
+| Field | Value |
+| --- | --- |
+| Host | `127.0.0.1` |
+| Port | `5433` |
+| Database | `POSTGRES_DB` from `/opt/medops/.env` |
+| Username | `POSTGRES_USER` from `.env` |
+| Password | `POSTGRES_PASSWORD` from `.env` |
+| SSL | Disable (the SSH tunnel is already encrypted) |
+
