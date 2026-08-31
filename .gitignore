@@ -19,13 +19,15 @@
 *.tar.gz
 *.rar
 
-# Misc
-hs_err_pid*
 replay_pid*
 .vscode/
 .cursor/
-.github/
 .amazonq/
+
+# Keep Actions workflows tracked; ignore other local .github tooling
+.github/*
+!.github/workflows/
+!.github/workflows/**
 !.github/copilot-instructions.md
 
 # Docs
@@ -36,7 +38,29 @@ AGENTS.md
 CLAUDE.md
 BCD_DESIGN_REVIEW.md
 
+# Local secrets
+.env
+**/.env
+!.env.example
+!**/.env.example
+
 # Scripts
-*.sh    
+*.sh
 *.cmd
 *.ps1
+medops.pem
+
+# Local clinical uploads (created at runtime; do not commit)
+medops-api/data/
+
+# Production / EC2 (local-only — do not push)
+medops-api/src/main/resources/application-prod.yml
+docker-compose.prod.yml
+deploy/
+.github/workflows/deploy-dev.yml
+medops-api/Dockerfile
+medops-api/.dockerignore
+medops-ui/Dockerfile
+medops-ui/.dockerignore
+medops-ui/nginx.conf
+.github/copilot-instructions.md

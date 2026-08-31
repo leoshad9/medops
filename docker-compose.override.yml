@@ -1,0 +1,18 @@
+# Local development overlay. Docker Compose applies this automatically on top of
+# docker-compose.yml, so `docker compose up -d` publishes the sidecar ports for a
+# medops-api instance running on the host (IDE or ./mvnw.cmd spring-boot:run).
+#
+# Explicit `-f` invocations (such as the prod deploy) skip this file.
+
+services:
+  redis:
+    ports:
+      - "6379:6379"
+
+  kafka:
+    ports:
+      - "9092:9092"
+
+  medops-ai:
+    ports:
+      - "8000:8000"

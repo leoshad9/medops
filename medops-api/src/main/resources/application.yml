@@ -1,42 +1,65 @@
 # ============================================================
-# MedOps API - Application Configuration
+# MedOps API - single config file (local defaults + test profile)
+# Redis/Kafka: docker compose up -d (ports 6379 / 9092)
+# Disable without brokers: MEDOPS_REDIS_ENABLED=false MEDOPS_MESSAGING_ENABLED=false
 # ============================================================
 
 spring:
   application:
     name: medops-api
 
-  # --- Database ---
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/medops}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:root}
     driver-class-name: org.postgresql.Driver
 
-  # --- JPA / Hibernate ---
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update        # Hibernate manages schema directly (no Flyway)
+      ddl-auto: update
     properties:
       hibernate:
-        "[format_sql]": true   # Pretty-print SQL in logs
-        "[hbm2ddl.create_namespaces]": true  # Create a capability's schema (e.g. "patients") before its tables
+        "[format_sql]": true
+        "[hbm2ddl.create_namespaces]": true
 
-  # --- Flyway Migrations ---
   flyway:
-    enabled: false
+    enabled: ${FLYWAY_ENABLED:false}
 
-# --- Server ---
+  servlet:
+    multipart:
+      max-file-size: 8MB
+      max-request-size: 8MB
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: medops-api-reports
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.medops.messaging
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    # Must be >= spring.servlet.multipart.max-request-size (default form/swallow caps are lower).
+    max-http-form-post-size: 8MB
+    max-swallow-size: 8MB
 
-# --- API Documentation ---
 springdoc:
   api-docs:
     path: /api-docs
 
-# --- Actuator ---
 management:
   endpoints:
     web:
@@ -45,16 +68,109 @@ management:
   endpoint:
     health:
       probes:
-        enabled: true          # Liveness & readiness probes for Kubernetes
+        enabled: true
+  health:
+    redis:
+      enabled: true
+    kafka:
+      enabled: true
 
-# --- JWT ---
 jwt:
-  secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
-  access-token-expiry-ms: ${JWT_ACCESS_EXPIRY_MS:900000}       # 15 minutes
-  refresh-token-expiry-ms: ${JWT_REFRESH_EXPIRY_MS:604800000}  # 7 days
+  # Required — set JWT_SECRET in the environment (local .env or IDE). No hardcoded default.
+  secret: ${JWT_SECRET}
+  access-token-expiry-ms: ${JWT_ACCESS_EXPIRY_MS:900000}
+  refresh-token-expiry-ms: ${JWT_REFRESH_EXPIRY_MS:604800000}
 
-# --- Logging ---
+resilience4j:
+  timelimiter:
+    instances:
+      reportSummarizer:
+        timeout-duration: 20s
+  circuitbreaker:
+    instances:
+      reportSummarizer:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+  retry:
+    instances:
+      reportSummarizer:
+        max-attempts: 2
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.ResourceAccessException
+
+medops:
+  security:
+    open-registration: true
+    api-docs-public: true
+  appointments:
+    zone: Asia/Kolkata
+    slot-minutes: 30
+    open: "09:00"
+    close: "17:00"
+  files:
+    root: ${MEDOPS_FILES_ROOT:./data/clinical-files}
+  redis:
+    enabled: ${MEDOPS_REDIS_ENABLED:true}
+  idempotency:
+    ttl: PT24H
+  messaging:
+    enabled: ${MEDOPS_MESSAGING_ENABLED:true}
+    appointments-topic: medops.appointments
+    reports-topic: medops.reports
+  ai:
+    # When true, Spring calls medops-ai (FastAPI). Provider keys live only in that service.
+    service-enabled: ${MEDOPS_AI_ENABLED:true}
+    service-base-url: ${MEDOPS_AI_BASE_URL:http://localhost:8000}
+    summary-cache-ttl: PT24H
+    doctor-list-cache-ttl: PT1M
+
 logging:
   level:
     root: ${LOG_LEVEL_ROOT:INFO}
     "[com.medops]": ${LOG_LEVEL_APP:INFO}
+
+---
+# SpringBootTest / @ActiveProfiles("test") — no live Redis or Kafka
+spring:
+  config:
+    activate:
+      on-profile: test
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: "0"
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+
+jwt:
+  secret: ${JWT_SECRET}
+
+medops:
+  security:
+    open-registration: true
+    api-docs-public: false
+  redis:
+    enabled: false
+  messaging:
+    enabled: false
+  ai:
+    service-enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  health:
+    redis:
+      enabled: false
+    kafka:
+      enabled: false
