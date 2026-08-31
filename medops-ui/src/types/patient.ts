@@ -30,6 +30,8 @@ export type AppointmentStatus = "COMPLETED" | "CANCELLED" | "UPCOMING";
 
 export interface AppointmentRecord {
   id: string;
+  doctorId?: string;
+  startsAt?: string;
   dateTime: string;
   doctorName: string;
   department: string;

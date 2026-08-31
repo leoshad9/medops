@@ -27,18 +27,18 @@ export function LoginBrandPanel() {
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${hospitalBg})` }}
       />
-      {/* Blue overlay so white text stays readable over any photo */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/90 via-blue-800/85 to-blue-600/70" />
+      {/* Green brand overlay so white text stays readable over any photo */}
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-ink/95 via-brand-primary-dark/90 to-brand-primary/75" />
 
       <div className="relative flex items-center gap-3">
-        <MedOpsLogo className="h-10 w-10 shrink-0" />
+        <MedOpsLogo className="h-10 w-10 shrink-0 text-white" />
         <div>
           <span className="text-2xl font-bold tracking-tight">MEDOPS</span>
-          <p className="text-sm text-blue-200">Healthcare Management System</p>
+          <p className="text-sm text-brand-primary-tint/90">Healthcare Management System</p>
         </div>
       </div>
 
-      <div className="relative mt-10 h-1 w-12 rounded-full bg-blue-400" />
+      <div className="relative mt-10 h-1 w-12 rounded-full bg-brand-primary-tint" />
 
       <h1 className="relative mt-6 text-4xl leading-tight font-bold">
         Simplifying Healthcare,
@@ -46,7 +46,7 @@ export function LoginBrandPanel() {
         Empowering Better Care
       </h1>
 
-      <p className="relative mt-4 max-w-md text-blue-100">
+      <p className="relative mt-4 max-w-md text-brand-primary-tint/95">
         MedOps helps hospitals and clinics manage patients, appointments,
         doctors, and records efficiently in one secure platform.
       </p>
@@ -59,7 +59,7 @@ export function LoginBrandPanel() {
             </div>
             <div>
               <p className="font-semibold">{title}</p>
-              <p className="text-sm text-blue-200">{description}</p>
+              <p className="text-sm text-brand-primary-tint/85">{description}</p>
             </div>
           </div>
         ))}

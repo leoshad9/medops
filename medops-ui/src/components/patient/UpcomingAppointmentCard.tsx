@@ -5,10 +5,24 @@ import { PATIENT_PATHS } from "../../lib/patientRoutes";
 import type { UpcomingAppointment } from "../../types/patient";
 
 interface UpcomingAppointmentCardProps {
-  appointment: UpcomingAppointment;
+  appointment: UpcomingAppointment | null;
 }
 
 export function UpcomingAppointmentCard({ appointment }: Readonly<UpcomingAppointmentCardProps>) {
+  if (!appointment) {
+    return (
+      <div className="rounded-2xl border border-brand-line bg-white p-5 shadow-xs">
+        <h2 className="font-bold text-brand-ink text-base">Upcoming Appointment</h2>
+        <p className="mt-4 text-sm text-brand-muted">No upcoming visit. Book a slot when you are ready.</p>
+        <Link
+          to={PATIENT_PATHS.book}
+          className="mt-4 inline-flex rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white hover:bg-brand-primary-dark"
+        >
+          Book Appointment
+        </Link>
+      </div>
+    );
+  }
   return (
     <div className="relative overflow-hidden rounded-2xl border border-brand-line bg-white p-5 shadow-xs">
       <div

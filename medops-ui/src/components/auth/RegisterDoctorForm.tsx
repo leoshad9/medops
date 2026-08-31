@@ -39,7 +39,7 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
             required
             value={fullName}
             onChange={(event) => setFullName(event.target.value)}
-            className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
             placeholder="Dr. Jane Doe"
           />
         </div>
@@ -58,7 +58,7 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
             placeholder="Enter your email"
           />
         </div>
@@ -77,7 +77,7 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
               required
               value={specialty}
               onChange={(event) => setSpecialty(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+              className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
               placeholder="Cardiology"
             />
           </div>
@@ -95,7 +95,7 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
               required
               value={licenseNumber}
               onChange={(event) => setLicenseNumber(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+              className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
               placeholder="LIC-000123"
             />
           </div>
@@ -115,7 +115,7 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
             required
             value={phoneNumber}
             onChange={(event) => setPhoneNumber(event.target.value)}
-            className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
             placeholder="+1 234 567 8901"
           />
         </div>
@@ -135,7 +135,7 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
             minLength={8}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-lg border border-slate-300 py-2.5 pr-10 pl-10 text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full rounded-lg border border-slate-300 py-2.5 pr-10 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
             placeholder="At least 8 characters"
           />
           <button
@@ -156,7 +156,7 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
       <button
         type="submit"
         disabled={isLoading}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-700 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-70"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-primary py-2.5 text-sm font-semibold text-white transition hover:bg-brand-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
       >
         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
         {isLoading ? "Creating Account..." : "Create Doctor Account"}

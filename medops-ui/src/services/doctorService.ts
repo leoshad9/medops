@@ -1,7 +1,6 @@
-import axios from "axios";
-
-import type { ApiResponse, ErrorResponse } from "../types/api";
+import type { ApiResponse } from "../types/api";
 import type { DoctorProfile } from "../types/doctor";
+import { messageFromApiError } from "../lib/apiError";
 import { api } from "./api";
 
 interface DoctorProfileResponse {
@@ -24,9 +23,6 @@ export async function getMyDoctorProfile(): Promise<DoctorProfile> {
       phoneNumber: data.phoneNumber,
     };
   } catch (error) {
-    if (axios.isAxiosError<ErrorResponse>(error) && error.response) {
-      throw new Error(error.response.data.error.message);
-    }
-    throw new Error("Unable to reach the server. Please try again.");
+    throw new Error(messageFromApiError(error, "Unable to load your profile. Please try again."));
   }
 }

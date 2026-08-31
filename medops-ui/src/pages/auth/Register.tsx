@@ -5,6 +5,7 @@ import { LoginBrandPanel } from "../../components/auth/LoginBrandPanel";
 import { RegisterDoctorForm } from "../../components/auth/RegisterDoctorForm";
 import { RegisterPatientForm } from "../../components/auth/RegisterPatientForm";
 import { useAuth } from "../../context/useAuth";
+import { messageFromApiError } from "../../lib/apiError";
 import { roleDashboardPath } from "../../lib/roles";
 import type { Role } from "../../types/auth";
 
@@ -23,7 +24,7 @@ export function Register() {
       const user = await register();
       navigate(roleDashboardPath(user.role), { replace: true });
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Something went wrong.");
+      setErrorMessage(messageFromApiError(error, "Unable to create your account. Please try again."));
     } finally {
       setIsLoading(false);
     }
@@ -37,19 +38,19 @@ export function Register() {
   return (
     <div className="flex min-h-screen">
       <LoginBrandPanel />
-      <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 px-4 py-8 sm:px-6 sm:py-12">
-        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl shadow-blue-900/10 sm:p-10">
+      <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-brand-primary-tint via-brand-paper to-brand-primary-tint/60 px-4 py-8 sm:px-6 sm:py-12">
+        <div className="w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl shadow-brand-ink/10 sm:p-10">
           <div className="flex flex-col items-center text-center">
-            <h1 className="text-2xl font-bold text-slate-900">Create Account</h1>
-            <p className="mt-1 text-sm text-slate-500">Join MedOps to get started</p>
+            <h1 className="text-2xl font-bold text-brand-ink">Create Account</h1>
+            <p className="mt-1 text-sm text-brand-muted">Join MedOps to get started</p>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
+          <div className="mt-6 grid grid-cols-2 gap-2 rounded-lg bg-brand-primary-tint p-1">
             <button
               type="button"
               onClick={() => selectRole("PATIENT")}
               className={`rounded-md py-2 text-sm font-semibold transition ${
-                role === "PATIENT" ? "bg-white text-blue-700 shadow" : "text-slate-500 hover:text-slate-700"
+                role === "PATIENT" ? "bg-white text-brand-primary-dark shadow" : "text-brand-muted hover:text-brand-ink"
               }`}
             >
               I&apos;m a Patient
@@ -58,7 +59,7 @@ export function Register() {
               type="button"
               onClick={() => selectRole("DOCTOR")}
               className={`rounded-md py-2 text-sm font-semibold transition ${
-                role === "DOCTOR" ? "bg-white text-blue-700 shadow" : "text-slate-500 hover:text-slate-700"
+                role === "DOCTOR" ? "bg-white text-brand-primary-dark shadow" : "text-brand-muted hover:text-brand-ink"
               }`}
             >
               I&apos;m a Doctor
@@ -79,9 +80,9 @@ export function Register() {
             />
           )}
 
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="mt-6 text-center text-sm text-brand-muted">
             Already have an account?{" "}
-            <Link to="/login" className="font-semibold text-blue-700 hover:text-blue-800">
+            <Link to="/login" className="font-semibold text-brand-primary-dark hover:text-brand-primary">
               Sign in
             </Link>
           </p>

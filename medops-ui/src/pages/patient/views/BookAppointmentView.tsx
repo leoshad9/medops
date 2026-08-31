@@ -1,30 +1,125 @@
-import { useState } from "react";
-import type { SubmitEvent } from "react";
+import { useEffect, useMemo, useState, type SubmitEvent } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle2, Send, Sparkles } from "lucide-react";
 
+import { clinicTodayYmd, formatClinicTime } from "../../../lib/clinicTime";
 import { PATIENT_PATHS } from "../../../lib/patientRoutes";
+import {
+  bookAppointment,
+  listDoctorSlots,
+  listDoctors,
+  type DoctorSummary,
+} from "../../../services/appointmentService";
 
 export function BookAppointmentView() {
-  const [department, setDepartment] = useState("");
-  const [doctor, setDoctor] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [doctors, setDoctors] = useState<DoctorSummary[]>([]);
+  const [specialty, setSpecialty] = useState("");
+  const [doctorId, setDoctorId] = useState("");
+  const [date, setDate] = useState(clinicTodayYmd());
+  const [startsAt, setStartsAt] = useState("");
+  const [slots, setSlots] = useState<string[]>([]);
   const [reason, setReason] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [loadingDoctors, setLoadingDoctors] = useState(true);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [booked, setBooked] = useState(false);
 
-  const handleSubmit = (e: SubmitEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
+  const specialties = useMemo(() => {
+    return Array.from(new Set(doctors.map((doctor) => doctor.specialty))).sort((a, b) => a.localeCompare(b));
+  }, [doctors]);
+
+  const visibleDoctors = specialty
+    ? doctors.filter((doctor) => doctor.specialty === specialty)
+    : doctors;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingDoctors(true); // oxlint-disable-line react/set-state-in-effect
+    listDoctors()
+      .then((result) => {
+        if (!cancelled) {
+          setDoctors(result);
+          setError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Unable to load doctors.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingDoctors(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (doctorId && !visibleDoctors.some((doctor) => doctor.id === doctorId)) {
+      setDoctorId(""); // oxlint-disable-line react/set-state-in-effect
+      setStartsAt("");
+      setSlots([]);
+    }
+  }, [doctorId, visibleDoctors]);
+
+  useEffect(() => {
+    if (!doctorId || !date) {
+      setSlots([]); // oxlint-disable-line react/set-state-in-effect
+      setStartsAt("");
+      return;
+    }
+    let cancelled = false;
+    setLoadingSlots(true);
+    listDoctorSlots(doctorId, date)
+      .then((result) => {
+        if (!cancelled) {
+          setSlots(result);
+          setStartsAt("");
+          setError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setSlots([]);
+          setError(err instanceof Error ? err.message : "Unable to load available times.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingSlots(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [doctorId, date]);
+
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await bookAppointment({ doctorId, startsAt, reason });
+      setBooked(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to book that appointment.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleReset = () => {
-    setDepartment("");
-    setDoctor("");
-    setDate("");
-    setTime("");
+    setSpecialty("");
+    setDoctorId("");
+    setDate(clinicTodayYmd());
+    setStartsAt("");
     setReason("");
-    setSubmitted(false);
+    setBooked(false);
+    setError(null);
   };
 
   return (
@@ -35,9 +130,9 @@ export function BookAppointmentView() {
             <Sparkles className="h-3.5 w-3.5" />
             <span>Online Scheduling</span>
           </div>
-          <h2 className="text-xl font-bold text-brand-ink mt-1">Request a New Appointment</h2>
+          <h2 className="text-xl font-bold text-brand-ink mt-1">Book a New Appointment</h2>
           <p className="text-xs text-brand-muted mt-0.5">
-            Select your preferred specialist and time slot. Our scheduling coordinator will confirm your visit.
+            Choose a specialist and an open slot. Your visit is confirmed as soon as you book.
           </p>
         </div>
 
@@ -45,51 +140,53 @@ export function BookAppointmentView() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label htmlFor="dept-select" className="text-xs font-semibold text-brand-ink">
-                Department <span className="text-brand-rust">*</span>
+                Specialty
               </label>
               <select
                 id="dept-select"
-                required
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
+                value={specialty}
+                onChange={(e) => setSpecialty(e.target.value)}
                 className="w-full rounded-xl border border-brand-line bg-white px-3.5 py-2.5 text-sm text-brand-ink focus:border-brand-primary focus:outline-hidden transition"
               >
-                <option value="">Select department</option>
-                <option value="Cardiology">Cardiology</option>
-                <option value="Dermatology">Dermatology</option>
-                <option value="General Medicine">General Medicine</option>
-                <option value="Orthopedics">Orthopedics</option>
-                <option value="Pediatrics">Pediatrics</option>
-                <option value="ENT">ENT</option>
+                <option value="">All specialties</option>
+                {specialties.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="space-y-1.5">
               <label htmlFor="doctor-select" className="text-xs font-semibold text-brand-ink">
-                Preferred Doctor
+                Doctor <span className="text-brand-rust">*</span>
               </label>
               <select
                 id="doctor-select"
-                value={doctor}
-                onChange={(e) => setDoctor(e.target.value)}
+                required
+                value={doctorId}
+                onChange={(e) => setDoctorId(e.target.value)}
+                disabled={loadingDoctors}
                 className="w-full rounded-xl border border-brand-line bg-white px-3.5 py-2.5 text-sm text-brand-ink focus:border-brand-primary focus:outline-hidden transition"
               >
-                <option value="">No preference (First available)</option>
-                <option value="Dr. Sarah Khan">Dr. Sarah Khan (Cardiology)</option>
-                <option value="Dr. Ahmed Ali">Dr. Ahmed Ali (General Medicine)</option>
-                <option value="Dr. Priya Mehta">Dr. Priya Mehta (Dermatology)</option>
-                <option value="Dr. Vikram Singh">Dr. Vikram Singh (Orthopedics)</option>
+                <option value="">{loadingDoctors ? "Loading doctors…" : "Select doctor"}</option>
+                {visibleDoctors.map((doctor) => (
+                  <option key={doctor.id} value={doctor.id}>
+                    {doctor.fullName} ({doctor.specialty})
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="space-y-1.5">
               <label htmlFor="date-input" className="text-xs font-semibold text-brand-ink">
-                Preferred Date <span className="text-brand-rust">*</span>
+                Date <span className="text-brand-rust">*</span>
               </label>
               <input
                 id="date-input"
                 type="date"
                 required
+                min={clinicTodayYmd()}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full rounded-xl border border-brand-line bg-white px-3.5 py-2.5 text-sm text-brand-ink focus:border-brand-primary focus:outline-hidden transition"
@@ -98,21 +195,30 @@ export function BookAppointmentView() {
 
             <div className="space-y-1.5">
               <label htmlFor="time-select" className="text-xs font-semibold text-brand-ink">
-                Preferred Time Slot <span className="text-brand-rust">*</span>
+                Time slot <span className="text-brand-rust">*</span>
               </label>
               <select
                 id="time-select"
                 required
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+                disabled={!doctorId || loadingSlots}
                 className="w-full rounded-xl border border-brand-line bg-white px-3.5 py-2.5 text-sm text-brand-ink focus:border-brand-primary focus:outline-hidden transition"
               >
-                <option value="">Select time slot</option>
-                <option value="9:00 AM">9:00 AM (Morning)</option>
-                <option value="10:30 AM">10:30 AM (Morning)</option>
-                <option value="1:00 PM">1:00 PM (Afternoon)</option>
-                <option value="3:30 PM">3:30 PM (Evening)</option>
+                <option value="">
+                  {loadingSlots ? "Loading slots…" : "Select time slot"}
+                </option>
+                {slots.map((slot) => (
+                  <option key={slot} value={slot}>
+                    {formatClinicTime(slot)}
+                  </option>
+                ))}
               </select>
+              {doctorId && !loadingSlots && slots.length === 0 && (
+                <p className="text-xs text-brand-muted">
+                  No open slots on this date. Sundays are closed; weekdays run 9:00 AM–5:00 PM.
+                </p>
+              )}
             </div>
           </div>
 
@@ -125,18 +231,25 @@ export function BookAppointmentView() {
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Briefly describe your symptoms or reason for the consultation (e.g. routine check-up, chest discomfort, skin rash)..."
+              placeholder="Briefly describe your symptoms or reason for the consultation…"
               className="w-full rounded-xl border border-brand-line bg-white p-3.5 text-sm text-brand-ink focus:border-brand-primary focus:outline-hidden transition"
             />
           </div>
 
+          {error && (
+            <p className="rounded-xl border border-brand-rust/30 bg-brand-rust-tint px-4 py-3 text-sm text-brand-rust">
+              {error}
+            </p>
+          )}
+
           <div className="flex items-center gap-3 pt-2">
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-primary-dark cursor-pointer shadow-2xs"
+              disabled={submitting || booked}
+              className="flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-primary-dark cursor-pointer shadow-2xs disabled:opacity-60"
             >
               <Send className="h-4 w-4" />
-              <span>Request Appointment</span>
+              <span>{submitting ? "Booking…" : "Book Appointment"}</span>
             </button>
             <button
               type="button"
@@ -147,15 +260,13 @@ export function BookAppointmentView() {
             </button>
           </div>
 
-          {/* Submission confirmation banner */}
-          {submitted && (
-            <div className="mt-4 flex items-start gap-3 rounded-xl border border-brand-success/30 bg-brand-success-tint p-4 text-brand-success animate-in fade-in slide-in-from-top-2">
+          {booked && (
+            <div className="mt-4 flex items-start gap-3 rounded-xl border border-brand-success/30 bg-brand-success-tint p-4 text-brand-success">
               <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="text-sm font-bold">Appointment Request Sent</p>
+                <p className="text-sm font-bold">Appointment booked</p>
                 <p className="text-xs text-brand-success/90">
-                  We have received your appointment request for <strong>{department}</strong> on{" "}
-                  <strong>{date || "your requested date"}</strong> at <strong>{time}</strong>. Our care coordinator will contact you shortly to confirm.
+                  Your visit is confirmed. You can reschedule or cancel from Appointments until it starts.
                 </p>
                 <div className="pt-2">
                   <Link

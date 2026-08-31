@@ -26,7 +26,7 @@ export interface AuthContextValue {
   logout: () => Promise<void>;
 }
 
-export const AuthContext = createContext<AuthContextValue | null>(null);
+export const AuthContext = createContext<AuthContextValue | null>(null); // oxlint-disable-line react/only-export-components
 
 export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [tokens, setTokens] = useState<AuthTokens | null>(readStoredTokens);

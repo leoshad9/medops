@@ -1,8 +1,6 @@
 @import "tailwindcss";
 
-/* "brand" tokens back the teal clinical theme (currently used by the patient
-   dashboard) - kept separate from Tailwind's default palette/font so other
-   pages (login, doctor portal) are unaffected until they adopt it too. */
+/* "brand" tokens back the teal clinical theme shared by auth + patient portal. */
 @theme {
   --color-brand-ink: #0c211f;
   --color-brand-paper: #f3f7f6;

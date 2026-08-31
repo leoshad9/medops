@@ -1,7 +1,6 @@
-import axios from "axios";
-
-import type { ApiResponse, ErrorResponse } from "../types/api";
+import type { ApiResponse } from "../types/api";
 import type { AuthTokens, LoginRequest, RegisterDoctorRequest, RegisterPatientRequest } from "../types/auth";
+import { messageFromApiError } from "../lib/apiError";
 import { api } from "./api";
 
 export async function login(request: LoginRequest): Promise<AuthTokens> {
@@ -9,10 +8,7 @@ export async function login(request: LoginRequest): Promise<AuthTokens> {
     const response = await api.post<ApiResponse<AuthTokens>>("/auth/login", request);
     return response.data.data;
   } catch (error) {
-    if (axios.isAxiosError<ErrorResponse>(error) && error.response) {
-      throw new Error(error.response.data.error.message);
-    }
-    throw new Error("Unable to reach the server. Please try again.");
+    throw new Error(messageFromApiError(error, "Unable to sign in. Please try again."));
   }
 }
 
@@ -21,10 +17,7 @@ export async function registerPatient(request: RegisterPatientRequest): Promise<
     const response = await api.post<ApiResponse<AuthTokens>>("/v1/patients", request);
     return response.data.data;
   } catch (error) {
-    if (axios.isAxiosError<ErrorResponse>(error) && error.response) {
-      throw new Error(error.response.data.error.message);
-    }
-    throw new Error("Unable to reach the server. Please try again.");
+    throw new Error(messageFromApiError(error, "Unable to create your account. Please try again."));
   }
 }
 
@@ -33,10 +26,7 @@ export async function registerDoctor(request: RegisterDoctorRequest): Promise<Au
     const response = await api.post<ApiResponse<AuthTokens>>("/v1/doctors", request);
     return response.data.data;
   } catch (error) {
-    if (axios.isAxiosError<ErrorResponse>(error) && error.response) {
-      throw new Error(error.response.data.error.message);
-    }
-    throw new Error("Unable to reach the server. Please try again.");
+    throw new Error(messageFromApiError(error, "Unable to create your doctor account. Please try again."));
   }
 }
 

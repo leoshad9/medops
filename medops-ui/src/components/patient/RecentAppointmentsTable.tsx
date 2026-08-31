@@ -41,7 +41,14 @@ export function RecentAppointmentsTable({ appointments }: Readonly<RecentAppoint
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-line/60">
-            {appointments.map((appointment) => (
+            {appointments.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-sm text-brand-muted">
+                  No appointments yet.
+                </td>
+              </tr>
+            ) : (
+              appointments.map((appointment) => (
               <tr key={appointment.id} className="transition hover:bg-brand-paper/50">
                 <td className="py-3 font-brand-mono text-xs font-medium text-brand-ink">{appointment.dateTime}</td>
                 <td className="py-3 font-medium text-brand-ink">{appointment.doctorName}</td>
@@ -60,7 +67,8 @@ export function RecentAppointmentsTable({ appointments }: Readonly<RecentAppoint
                   </Link>
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>

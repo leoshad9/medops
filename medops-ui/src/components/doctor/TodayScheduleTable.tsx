@@ -4,6 +4,8 @@ import type { ClinicalAppointmentStatus, TodayAppointment } from "../../types/do
 
 interface TodayScheduleTableProps {
   appointments: TodayAppointment[];
+  completingId?: string | null;
+  onComplete?: (appointmentId: string) => void;
 }
 
 function renderStatusBadge(status: ClinicalAppointmentStatus) {
@@ -39,7 +41,11 @@ function renderStatusBadge(status: ClinicalAppointmentStatus) {
   }
 }
 
-export function TodayScheduleTable({ appointments }: Readonly<TodayScheduleTableProps>) {
+export function TodayScheduleTable({
+  appointments,
+  completingId,
+  onComplete,
+}: Readonly<TodayScheduleTableProps>) {
   return (
     <div className="rounded-xl border border-brand-line bg-white shadow-xs">
       <div className="flex items-center justify-between border-b border-brand-line px-6 py-4">
@@ -93,12 +99,18 @@ export function TodayScheduleTable({ appointments }: Readonly<TodayScheduleTable
                 </td>
                 <td className="px-6 py-4">{renderStatusBadge(apt.status)}</td>
                 <td className="px-6 py-4 text-right">
-                  <button
-                    type="button"
-                    className="rounded-lg border border-brand-line bg-white px-3 py-1.5 text-xs font-semibold text-brand-primary-dark transition hover:bg-brand-primary hover:text-white"
-                  >
-                    Open Chart
-                  </button>
+                  {apt.status === "CONFIRMED" && onComplete ? (
+                    <button
+                      type="button"
+                      disabled={completingId === apt.id}
+                      onClick={() => onComplete(apt.id)}
+                      className="rounded-lg border border-brand-line bg-white px-3 py-1.5 text-xs font-semibold text-brand-primary-dark transition hover:bg-brand-primary hover:text-white disabled:opacity-60"
+                    >
+                      {completingId === apt.id ? "Completing…" : "Complete visit"}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-brand-muted">—</span>
+                  )}
                 </td>
               </tr>
             ))}

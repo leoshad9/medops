@@ -20,7 +20,10 @@ export function NotificationsPanel({ notifications }: Readonly<NotificationsPane
       </div>
 
       <div className="mt-3 divide-y divide-brand-line/60">
-        {notifications.map((notification, index) => (
+        {notifications.length === 0 ? (
+          <p className="py-4 text-sm text-brand-muted">No recent activity yet.</p>
+        ) : (
+          notifications.map((notification, index) => (
           <div key={notification.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
             <span
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${CHIP_STYLES[index % CHIP_STYLES.length]}`}
@@ -33,7 +36,8 @@ export function NotificationsPanel({ notifications }: Readonly<NotificationsPane
             </div>
             <span className="text-xs whitespace-nowrap text-brand-muted">{notification.timeAgo}</span>
           </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

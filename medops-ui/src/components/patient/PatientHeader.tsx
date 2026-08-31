@@ -1,6 +1,5 @@
-import { Bell, LogOut, Menu } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
 
-import { useAuth } from "../../context/useAuth";
 import { getTimeOfDayGreeting } from "../../lib/greeting";
 import type { PatientProfile } from "../../types/patient";
 
@@ -28,7 +27,6 @@ export function PatientHeader({
   onOpenMobileMenu,
   onViewNotifications,
 }: Readonly<PatientHeaderProps>) {
-  const { logout } = useAuth();
   const firstName = profile.name.split(" ")[0];
   const greeting = getTimeOfDayGreeting();
 
@@ -96,16 +94,6 @@ export function PatientHeader({
             <p className="font-brand-mono text-xs text-brand-muted mt-0.5">{profile.mrn}</p>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="flex items-center gap-1.5 rounded-lg border border-brand-line bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-700 hover:border-red-200 cursor-pointer shadow-2xs"
-          title="Sign Out"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          <span className="hidden md:inline">Sign Out</span>
-        </button>
       </div>
     </header>
   );

@@ -6,6 +6,8 @@ import type { DoctorProfile } from "../../types/doctor";
 interface DoctorHeaderProps {
   profile: DoctorProfile;
   unreadAlertsCount: number;
+  title?: string;
+  subtitle?: string;
 }
 
 function initialsOf(name: string): string {
@@ -16,8 +18,14 @@ function initialsOf(name: string): string {
   return (first + last).toUpperCase() || "DR";
 }
 
-export function DoctorHeader({ profile, unreadAlertsCount }: Readonly<DoctorHeaderProps>) {
-  const greeting = getTimeOfDayGreeting();
+export function DoctorHeader({
+  profile,
+  unreadAlertsCount,
+  title,
+  subtitle,
+}: Readonly<DoctorHeaderProps>) {
+  const heading = title ?? `${getTimeOfDayGreeting()}, ${profile.name}`;
+  const sub = subtitle ?? `Clinical Command Center · ${profile.specialty} Division`;
 
   return (
     <div className="relative flex flex-col justify-between gap-4 border-b border-brand-line pb-6 sm:flex-row sm:items-center">
@@ -32,12 +40,8 @@ export function DoctorHeader({ profile, unreadAlertsCount }: Readonly<DoctorHead
             {profile.specialty}
           </span>
         </div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-brand-ink">
-          {greeting}, {profile.name}
-        </h1>
-        <p className="mt-0.5 text-sm text-brand-muted">
-          Clinical Command Center · {profile.specialty} Division
-        </p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-brand-ink">{heading}</h1>
+        <p className="mt-0.5 text-sm text-brand-muted">{sub}</p>
       </div>
 
       <div className="flex items-center gap-3">

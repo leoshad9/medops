@@ -1,11 +1,17 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
+import { DoctorLayout } from "../components/doctor/DoctorLayout";
 import { PatientLayout } from "../components/patient/PatientLayout";
 import { useAuth } from "../context/useAuth";
 import { roleDashboardPath } from "../lib/roles";
 import { Login } from "../pages/auth/Login";
 import { Register } from "../pages/auth/Register";
+import { DoctorAppointmentsView } from "../pages/doctor/AppointmentsView";
 import { DoctorDashboard } from "../pages/doctor/Dashboard";
+import { DoctorLabsView } from "../pages/doctor/LabsView";
+import { DoctorPatientChartView } from "../pages/doctor/PatientChartView";
+import { DoctorPatientsView } from "../pages/doctor/PatientsView";
+import { DoctorPrescriptionsView } from "../pages/doctor/PrescriptionsView";
 import { PatientDashboard } from "../pages/patient/Dashboard";
 import { AppointmentsView } from "../pages/patient/views/AppointmentsView";
 import { BillingView } from "../pages/patient/views/BillingView";
@@ -33,8 +39,15 @@ export function AppRoutes() {
       />
 
       <Route element={<ProtectedRoute allowedRoles={["DOCTOR"]} />}>
-        <Route path="/doctor" element={<Navigate to="/doctor/dashboard" replace />} />
-        <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
+        <Route path="/doctor" element={<DoctorLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<DoctorDashboard />} />
+          <Route path="appointments" element={<DoctorAppointmentsView />} />
+          <Route path="patients" element={<DoctorPatientsView />} />
+          <Route path="patients/:patientId" element={<DoctorPatientChartView />} />
+          <Route path="prescriptions" element={<DoctorPrescriptionsView />} />
+          <Route path="labs" element={<DoctorLabsView />} />
+        </Route>
       </Route>
       <Route element={<ProtectedRoute allowedRoles={["PATIENT"]} />}>
         <Route path="/patient" element={<PatientLayout />}>

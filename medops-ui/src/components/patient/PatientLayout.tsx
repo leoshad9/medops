@@ -51,7 +51,7 @@ export function PatientLayout() {
       <main className="flex-1 space-y-6 p-4 sm:p-8 max-w-7xl w-full">
         <PatientHeader
           profile={resolvedProfile}
-          unreadNotificationCount={data.unreadNotificationCount}
+          unreadNotificationCount={0}
           title={meta.title}
           subtitle={meta.subtitle}
           onOpenMobileMenu={() => setMobileSidebarOpen(true)}
