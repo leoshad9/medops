@@ -5,6 +5,12 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+if [[ "$(id -u)" -eq 0 ]]; then
+  echo "Do not run this as root. Exit sudo and run as ec2-user."
+  echo "Root has no GitHub SSH key, and Docker files would be owned by root."
+  exit 1
+fi
+
 BRANCH="${DEPLOY_BRANCH:-dev}"
 BASE_COMPOSE_FILE="${BASE_COMPOSE_FILE:-docker-compose.yml}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
@@ -33,10 +39,34 @@ for file in "$BASE_COMPOSE_FILE" "$COMPOSE_FILE"; do
   fi
 done
 
-echo "==> Syncing git branch $BRANCH"
-git fetch --prune origin
-git checkout "$BRANCH"
-git reset --hard "origin/$BRANCH"
+sync_git() {
+  echo "==> Syncing git branch $BRANCH"
+  if git fetch --prune origin; then
+    git checkout "$BRANCH"
+    git reset --hard "origin/$BRANCH"
+    return
+  fi
+
+  local origin_url https_url
+  origin_url="$(git remote get-url origin)"
+  if [[ "$origin_url" == git@github.com:* ]]; then
+    https_url="https://github.com/${origin_url#git@github.com:}"
+    echo "==> SSH fetch failed; retrying via $https_url"
+    GIT_TERMINAL_PROMPT=0 git fetch --prune "$https_url" "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"
+    git checkout "$BRANCH"
+    git reset --hard "origin/$BRANCH"
+    return
+  fi
+
+  echo "git fetch failed. Set SKIP_GIT_SYNC=true to deploy the files already on disk."
+  exit 1
+}
+
+if [[ "${SKIP_GIT_SYNC:-}" == "true" ]]; then
+  echo "==> Skipping git sync (SKIP_GIT_SYNC=true)"
+else
+  sync_git
+fi
 
 echo "==> Building and starting stack"
 "${COMPOSE[@]}" up -d --build --remove-orphans

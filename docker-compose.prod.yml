@@ -15,6 +15,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Localhost only — never publish 5432 on 0.0.0.0. Reach it via SSH tunnel.
+    ports:
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medops} -d ${POSTGRES_DB:-medops}"]
       interval: 5s
