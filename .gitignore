@@ -44,23 +44,12 @@ BCD_DESIGN_REVIEW.md
 !.env.example
 !**/.env.example
 
-# Scripts
+# Scripts (track deploy helpers)
 *.sh
+!deploy/*.sh
 *.cmd
 *.ps1
 medops.pem
 
 # Local clinical uploads (created at runtime; do not commit)
 medops-api/data/
-
-# Production / EC2 (local-only — do not push)
-medops-api/src/main/resources/application-prod.yml
-docker-compose.prod.yml
-deploy/
-.github/workflows/deploy-dev.yml
-medops-api/Dockerfile
-medops-api/.dockerignore
-medops-ui/Dockerfile
-medops-ui/.dockerignore
-medops-ui/nginx.conf
-.github/copilot-instructions.md

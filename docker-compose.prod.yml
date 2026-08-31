@@ -1,0 +1,83 @@
+# Server / ALB stack. Do NOT use for local IDE (use docker-compose.yml + override).
+#
+# On EC2:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env up -d --build
+#
+# Publishes host port 80 → UI nginx (container 8080). ALB target = instance:80.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-medops}
+      POSTGRES_USER: ${POSTGRES_USER:-medops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medops} -d ${POSTGRES_DB:-medops}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    restart: unless-stopped
+
+  kafka:
+    restart: unless-stopped
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+  medops-ai:
+    restart: unless-stopped
+
+  medops-api:
+    build: ./medops-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      medops-ai:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-medops}
+      DB_USERNAME: ${POSTGRES_USER:-medops}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP: kafka:9092
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      MEDOPS_AI_ENABLED: ${MEDOPS_AI_ENABLED:-true}
+      MEDOPS_AI_BASE_URL: http://medops-ai:8000
+      MEDOPS_REDIS_ENABLED: "true"
+      MEDOPS_MESSAGING_ENABLED: "true"
+      MEDOPS_FILES_ROOT: /data/clinical-files
+      SERVER_PORT: 8080
+    volumes:
+      - clinical_files:/data/clinical-files
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 60s
+
+  medops-ui:
+    build: ./medops-ui
+    restart: unless-stopped
+    depends_on:
+      medops-api:
+        condition: service_healthy
+    ports:
+      - "${HOST_HTTP_PORT:-80}:8080"
+
+volumes:
+  postgres_data:
+  clinical_files:
