@@ -1,9 +1,8 @@
-# Server / ALB stack. Do NOT use for local IDE (use docker-compose.yml + override).
+# Server stack (EC2, DuckDNS). Do NOT use for local IDE (use docker-compose.yml + override).
 #
-# On EC2:
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env up -d --build
-#
-# Publishes host port 80 → UI nginx (container 8080). ALB target = instance:80.
+# Git checkout may live at /home/ec2-user/medops or /opt/medops; ACME/certs are host paths:
+#   /opt/medops-acme  /opt/medops-certs
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env up -d --build
 
 services:
   postgres:
@@ -80,6 +79,10 @@ services:
         condition: service_healthy
     ports:
       - "${HOST_HTTP_PORT:-80}:8080"
+      - "${HOST_HTTPS_PORT:-443}:8443"
+    volumes:
+      - /opt/medops-acme:/var/www/certbot:ro
+      - /opt/medops-certs:/etc/nginx/certs:ro
 
 volumes:
   postgres_data:
