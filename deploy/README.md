@@ -2,21 +2,22 @@
 
 ALB: `http://medops-alb-1371426590.ap-southeast-2.elb.amazonaws.com`
 
-## 1. GitHub Actions (OIDC + SSM)
+## 1. GitHub Actions (Access Keys + SSM)
 
-No SSH from GitHub. The runner assumes `github-actions-ssm-role` and runs `deploy/ec2-deploy.sh` on the instance via SSM.
+No SSH from GitHub. The runner uses IAM access keys to send an SSM command that runs `deploy/ec2-deploy.sh` on the instance as `ec2-user`.
 
 **Settings → Secrets and variables → Actions**
 
 | Type | Name | Value |
 | --- | --- | --- |
-| Secret | `AWS_ROLE_ARN` | `arn:aws:iam::919800784220:role/github-actions-ssm-role` |
-| Variable or secret | `AWS_REGION` | `ap-southeast-2` |
-| Variable or secret | `EC2_INSTANCE_ID` | `i-076902fa975b6d261` |
+| Secret | `AWS_ACCESS_KEY_ID` | Your IAM access key ID |
+| Secret | `AWS_SECRET_ACCESS_KEY` | Your IAM secret access key |
+| Secret or variable | `AWS_REGION` | `ap-southeast-2` |
+| Secret or variable | `EC2_INSTANCE_ID` | `i-076902fa975b6d261` |
 
-The instance must have the SSM agent and an instance profile that allows SSM (`AmazonSSMManagedInstanceCore`). The IAM role used by Actions must trust GitHub OIDC (`token.actions.githubusercontent.com`) for this repo.
+The instance must have the SSM agent running and an instance profile attached with SSM permissions (`AmazonSSMManagedInstanceCore`).
 
-EC2 GitHub deploy key still does `git fetch` inside `/home/ec2-user/medops`. Port 22 can stay limited to your laptop.
+EC2 GitHub deploy key handles `git fetch` inside `/home/ec2-user/medops`. Port 22 can stay restricted to your own IP.
 
 ## 2. One-time EC2 prep
 
