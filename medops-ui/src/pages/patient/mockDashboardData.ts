@@ -179,9 +179,9 @@ export const mockPatientDashboard: PatientDashboardData = {
     insuranceProvider: "Star Health",
     policyStatus: "Policy active",
     invoices: [
-      { id: "inv-1", invoiceNumber: "INV-2108", date: "20 Aug 2026", description: "General Medicine consult", amount: "₹1,850", status: "DUE" },
+      { id: "inv-1", invoiceNumber: "INV-2108", date: "20 Aug 2026", description: "General Medicine consult", amount: "₹1,850", status: "ISSUED" },
       { id: "inv-2", invoiceNumber: "INV-2087", date: "10 Aug 2026", description: "Dermatology consult", amount: "₹1,200", status: "PAID", receiptUrl: "/receipts/INV-2087.pdf" },
-      { id: "inv-3", invoiceNumber: "INV-1994", date: "28 Jul 2026", description: "Orthopedics — cancelled", amount: "₹0", status: "WAIVED" },
+      { id: "inv-3", invoiceNumber: "INV-1994", date: "28 Jul 2026", description: "Orthopedics — cancelled", amount: "₹0", status: "VOID" },
       { id: "inv-4", invoiceNumber: "INV-1932", date: "15 Jul 2026", description: "Cardiology follow-up", amount: "₹2,600", status: "PAID", receiptUrl: "/receipts/INV-1932.pdf" },
     ],
   },

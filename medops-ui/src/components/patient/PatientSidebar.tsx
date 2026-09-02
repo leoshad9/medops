@@ -5,7 +5,6 @@ import {
   CreditCard,
   FlaskConical,
   Folder,
-  Headset,
   HelpCircle,
   LayoutDashboard,
   LogOut,
@@ -58,7 +57,7 @@ export function PatientSidebar({ mobileOpen = false, onCloseMobile }: Readonly<P
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-brand-line bg-white px-4 py-6 font-brand-sans transition-transform duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans transition-transform duration-200 lg:static lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -82,16 +81,16 @@ export function PatientSidebar({ mobileOpen = false, onCloseMobile }: Readonly<P
           )}
         </div>
 
-        <nav className="mt-4 flex-1 space-y-1 overflow-y-auto">
+        <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto">
           {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
             <NavLink
               key={id}
               to={PATIENT_PATHS[id]}
               onClick={onCloseMobile}
               className={({ isActive }) =>
-                `flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition cursor-pointer ${
+                `relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition cursor-pointer ${
                   isActive
-                    ? "bg-brand-primary-tint text-brand-primary-dark font-semibold shadow-2xs"
+                    ? "bg-brand-primary-tint text-brand-primary-dark font-semibold shadow-2xs before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-brand-primary"
                     : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                 }`
               }
@@ -110,22 +109,7 @@ export function PatientSidebar({ mobileOpen = false, onCloseMobile }: Readonly<P
           ))}
         </nav>
 
-        <div className="mt-auto pt-3 border-t border-brand-line space-y-3">
-          <div className="rounded-xl border border-brand-primary-tint bg-gradient-to-br from-brand-primary-tint via-[#f4faf9] to-white p-3.5">
-            <p className="text-xs font-semibold text-brand-ink">Need help?</p>
-            <p className="mt-1 text-[11px] leading-relaxed text-brand-muted">
-              Our support team can help with your account, billing, or scheduling questions.
-            </p>
-            <NavLink
-              to={PATIENT_PATHS.help}
-              onClick={onCloseMobile}
-              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-primary py-1.5 text-xs font-semibold text-brand-primary-dark transition hover:bg-brand-primary hover:text-white cursor-pointer bg-white"
-            >
-              <Headset className="h-3.5 w-3.5" />
-              Contact Support
-            </NavLink>
-          </div>
-
+        <div className="mt-auto shrink-0 border-t border-brand-line pt-3">
           <button
             type="button"
             onClick={() => void logout()}

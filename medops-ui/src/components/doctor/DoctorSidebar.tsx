@@ -25,7 +25,7 @@ export function DoctorSidebar() {
   const { logout } = useAuth();
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-brand-line bg-white px-4 py-6 font-brand-sans">
+    <aside className="flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans">
       <div className="flex items-center gap-2 border-b border-brand-line px-2 pb-6">
         <MedOpsLogo className="h-8 w-8 text-brand-primary" />
         <div>
@@ -34,7 +34,7 @@ export function DoctorSidebar() {
         </div>
       </div>
 
-      <nav className="mt-4 flex-1 space-y-0.5">
+      <nav className="mt-4 min-h-0 flex-1 space-y-0.5 overflow-y-auto">
         {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
           <NavLink
             key={label}
@@ -54,7 +54,7 @@ export function DoctorSidebar() {
         ))}
       </nav>
 
-      <div className="mt-auto pt-4 border-t border-brand-line space-y-3">
+      <div className="mt-auto shrink-0 border-t border-brand-line pt-4 space-y-3">
         <div className="rounded-xl border border-brand-primary-tint bg-gradient-to-br from-brand-primary-tint to-white p-4">
           <p className="text-sm font-semibold text-brand-ink">On-Call Support</p>
           <p className="mt-1 text-xs leading-relaxed text-brand-muted">

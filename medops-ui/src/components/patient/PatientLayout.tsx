@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { PATIENT_PATHS, PATIENT_VIEW_METADATA, patientViewFromPath } from "../../lib/patientRoutes";
@@ -11,14 +11,16 @@ import { PatientSidebar } from "./PatientSidebar";
 export interface PatientPortalContext {
   data: PatientDashboardData;
   profile: PatientProfile;
+  patientId: string | null;
 }
 
 export function PatientLayout() {
   const data = mockPatientDashboard;
   const location = useLocation();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<PatientProfile | null>(null);
+  const [profile, setProfile] = useState<(PatientProfile & { id: string }) | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +31,7 @@ export function PatientLayout() {
         }
       })
       .catch(() => {
-        // Fallback to mock data if backend endpoint is unavailable
+        // Fallback to mock header data if backend endpoint is unavailable
       });
     return () => {
       cancelled = true;
@@ -37,7 +39,7 @@ export function PatientLayout() {
   }, []);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [location.pathname]);
 
   const activeView = patientViewFromPath(location.pathname);
@@ -45,10 +47,10 @@ export function PatientLayout() {
   const resolvedProfile = profile ?? data.profile;
 
   return (
-    <div className="flex min-h-screen bg-brand-paper font-brand-sans text-brand-ink">
+    <div className="flex h-dvh overflow-hidden bg-brand-paper font-brand-sans text-brand-ink">
       <PatientSidebar mobileOpen={mobileSidebarOpen} onCloseMobile={() => setMobileSidebarOpen(false)} />
 
-      <main className="flex-1 space-y-6 p-4 sm:p-8 max-w-7xl w-full">
+      <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto space-y-6 p-4 sm:p-8 max-w-7xl w-full">
         <PatientHeader
           profile={resolvedProfile}
           unreadNotificationCount={0}
@@ -59,7 +61,15 @@ export function PatientLayout() {
         />
 
         <div className="animate-in fade-in duration-150">
-          <Outlet context={{ data, profile: resolvedProfile } satisfies PatientPortalContext} />
+          <Outlet
+            context={
+              {
+                data,
+                profile: resolvedProfile,
+                patientId: profile?.id ?? null,
+              } satisfies PatientPortalContext
+            }
+          />
         </div>
       </main>
     </div>

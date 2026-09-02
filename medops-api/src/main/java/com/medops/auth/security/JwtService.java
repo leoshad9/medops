@@ -20,7 +20,9 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.WeakKeyException;
 
 @Service
 public final class JwtService {
@@ -31,9 +33,34 @@ public final class JwtService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     public JwtService(JwtProperties jwtProperties) {
-        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.secret()));
+        try {
+            this.key = Keys.hmacShaKeyFor(decodeSigningSecret(jwtProperties.secret()));
+        } catch (WeakKeyException e) {
+            throw new IllegalArgumentException(
+                    "JWT_SECRET must decode to at least 32 bytes. Generate with: openssl rand -base64 32",
+                    e);
+        }
         this.accessTokenExpiryMs = jwtProperties.accessTokenExpiryMs();
         this.refreshTokenExpiryMs = jwtProperties.refreshTokenExpiryMs();
+    }
+
+    /**
+     * Accepts standard Base64 or Base64URL (the latter uses {@code -} and {@code _}).
+     * Docs historically suggested {@code openssl rand -hex 32}; those hex strings are valid
+     * standard Base64 and still decode here.
+     */
+    static byte[] decodeSigningSecret(String secret) {
+        String trimmed = secret.trim();
+        boolean urlAlphabet = trimmed.indexOf('-') >= 0 || trimmed.indexOf('_') >= 0;
+        try {
+            return urlAlphabet
+                    ? Decoders.BASE64URL.decode(trimmed)
+                    : Decoders.BASE64.decode(trimmed);
+        } catch (DecodingException e) {
+            throw new IllegalArgumentException(
+                    "JWT_SECRET must be Base64 or Base64URL of at least 32 random bytes. Generate with: openssl rand -base64 32",
+                    e);
+        }
     }
 
     // JJWT 0.12.6's JwtBuilder only accepts java.util.Date for issuedAt/expiration

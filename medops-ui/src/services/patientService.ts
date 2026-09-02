@@ -4,6 +4,7 @@ import { messageFromApiError } from "../lib/apiError";
 import { api } from "./api";
 
 interface PatientProfileResponse {
+  id: string;
   email: string;
   fullName: string;
   mrn: string;
@@ -12,10 +13,11 @@ interface PatientProfileResponse {
   phoneNumber: string;
 }
 
-export async function getMyProfile(): Promise<PatientProfile> {
+export async function getMyProfile(): Promise<PatientProfile & { id: string }> {
   try {
     const response = await api.get<ApiResponse<PatientProfileResponse>>("/v1/patients/me");
-    return { name: response.data.data.fullName, mrn: response.data.data.mrn };
+    const d = response.data.data;
+    return { id: d.id, name: d.fullName, mrn: d.mrn };
   } catch (error) {
     throw new Error(messageFromApiError(error, "Unable to load your profile. Please try again."));
   }

@@ -89,7 +89,7 @@ export interface MedicalDocumentItem {
   fileSize?: string;
 }
 
-export type InvoiceStatus = "DUE" | "PAID" | "WAIVED";
+export type InvoiceStatus = "DRAFT" | "ISSUED" | "PARTIALLY_PAID" | "PAID" | "VOID";
 
 export interface BillingInvoice {
   id: string;
