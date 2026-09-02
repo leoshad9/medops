@@ -72,6 +72,15 @@ fi
 echo "==> Building and starting stack"
 "${COMPOSE[@]}" up -d --build --remove-orphans
 
+# Drop stopped containers, unused images, and build cache from previous deploys.
+# Never pass --volumes: postgres_data and clinical_files must stay.
+prune_unused_docker() {
+  echo "==> Pruning unused Docker data (volumes kept)"
+  sudo docker container prune -f || true
+  sudo docker image prune -af || true
+  sudo docker builder prune -af || true
+}
+
 HTTPS_PORT="${HOST_HTTPS_PORT:-443}"
 echo "==> Waiting for health on :$HTTP_PORT / :$HTTPS_PORT"
 for i in $(seq 1 90); do
@@ -81,6 +90,7 @@ for i in $(seq 1 90); do
     || curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health" >/dev/null 2>&1; then
     echo "Healthy after $((i * 2))s"
     "${COMPOSE[@]}" ps
+    prune_unused_docker
     exit 0
   fi
   sleep 2
@@ -89,4 +99,5 @@ done
 echo "Deploy finished but health check did not pass in time."
 "${COMPOSE[@]}" ps
 "${COMPOSE[@]}" logs --tail=100 medops-api medops-ui medops-ai || true
+prune_unused_docker
 exit 1
