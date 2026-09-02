@@ -59,7 +59,6 @@ class ClinicalReportControllerTest {
     void passthroughIdempotency() {
         when(idempotencyExecutor.execute(any(), any(), any(), any(), eq(ClinicalReportResponse.class), any()))
                 .thenAnswer(invocation -> {
-                    @SuppressWarnings("unchecked")
                     Supplier<ClinicalReportResponse> action = invocation.getArgument(5);
                     return action.get();
                 });

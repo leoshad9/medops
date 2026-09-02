@@ -37,7 +37,6 @@ import static org.mockito.Mockito.when;
  * Unit tests for {@link DoctorRegistrationService}. Pure Mockito - no Spring context.
  */
 @ExtendWith(MockitoExtension.class)
-@SuppressWarnings("null")
 class DoctorRegistrationServiceTest {
 
     private static final String EMAIL = "doctor@medops.dev";

@@ -74,7 +74,7 @@ public class SecurityConfig {
                     headers.frameOptions(frame -> frame.deny());
                     headers.referrerPolicy(referrer -> referrer.policy(
                             ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
-                    headers.permissionsPolicy(permissions -> permissions.policy(
+                    headers.permissionsPolicyHeader(permissions -> permissions.policy(
                             "camera=(), microphone=(), geolocation=()"));
                     // HSTS: enable after ALB terminates HTTPS (avoid forcing HTTPS on plain :80).
                     headers.httpStrictTransportSecurity(hsts -> hsts.disable());

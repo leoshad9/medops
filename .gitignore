@@ -20,7 +20,8 @@
 *.rar
 
 replay_pid*
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .cursor/
 .amazonq/
 
@@ -54,3 +55,5 @@ medops.pem
 
 # Local clinical uploads (created at runtime; do not commit)
 medops-api/data/
+/.vscode
+/medops-api/.settings

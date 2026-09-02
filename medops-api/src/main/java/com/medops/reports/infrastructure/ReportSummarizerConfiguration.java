@@ -10,8 +10,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.web.client.ClientHttpRequestFactories;
-import org.springframework.boot.web.client.ClientHttpRequestFactorySettings;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -124,8 +124,8 @@ public class ReportSummarizerConfiguration {
         private final RestClient restClient;
 
         FastApiReportSummarizer(AiClientProperties properties) {
-            ClientHttpRequestFactory factory = ClientHttpRequestFactories.get(
-                    ClientHttpRequestFactorySettings.DEFAULTS
+            ClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.detect()
+                    .build(ClientHttpRequestFactorySettings.defaults()
                             .withConnectTimeout(Duration.ofSeconds(5))
                             .withReadTimeout(Duration.ofSeconds(20)));
             this.restClient = RestClient.builder()

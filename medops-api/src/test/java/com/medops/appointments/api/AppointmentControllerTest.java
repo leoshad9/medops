@@ -67,7 +67,6 @@ class AppointmentControllerTest {
     void passthroughIdempotency() {
         when(idempotencyExecutor.execute(any(), any(), any(), any(), eq(AppointmentResponse.class), any()))
                 .thenAnswer(invocation -> {
-                    @SuppressWarnings("unchecked")
                     Supplier<AppointmentResponse> action = invocation.getArgument(5);
                     return action.get();
                 });

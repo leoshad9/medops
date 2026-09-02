@@ -192,8 +192,7 @@ class AuthServiceTest {
                 .thenReturn(AuthResponse.of(ACCESS_TOKEN, RAW_REFRESH_TOKEN, 900_000L));
     }
 
-    @SuppressWarnings("null") // Mockito's any() returns a placeholder null while recording the matcher stack
-    private static @NonNull RefreshToken anyRefreshToken() {
+    private static RefreshToken anyRefreshToken() {
         return any(RefreshToken.class);
     }
 
