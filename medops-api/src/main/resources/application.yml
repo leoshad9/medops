@@ -79,7 +79,7 @@ jwt:
   # Required — set JWT_SECRET in the environment (local .env or IDE). No hardcoded default.
   secret: ${JWT_SECRET}
   access-token-expiry-ms: ${JWT_ACCESS_EXPIRY_MS:900000}
-  refresh-token-expiry-ms: ${JWT_REFRESH_EXPIRY_MS:604800000}
+  refresh-token-expiry-ms: ${JWT_REFRESH_EXPIRY_MS:28800000}
 
 resilience4j:
   timelimiter:
