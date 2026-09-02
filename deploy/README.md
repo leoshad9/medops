@@ -4,14 +4,19 @@ ALB: `http://medops-alb-1371426590.ap-southeast-2.elb.amazonaws.com`
 
 ## 1. GitHub Actions secrets
 
-Repo → **Settings** → **Secrets and variables** → **Actions**:
+Repo → **Settings** → **Secrets and variables** → **Actions**. Do **not** commit `medops.pem`.
 
 | Secret | Value |
 | --- | --- |
-| `EC2_HOST` | EC2 public IP (e.g. `3.26.240.12`) — **not** the ALB DNS |
+| `EC2_HOST` | `medops.duckdns.org` (or the instance public IP) |
 | `EC2_USER` | `ec2-user` |
-| `EC2_SSH_KEY` | Full `medops.pem` contents (`BEGIN`/`END` lines included) |
+| `EC2_SSH_PRIVATE_KEY` | Full `medops.pem` (`BEGIN`/`END` lines included) |
+| `EC2_SSH_KEY` | Same as above (legacy name; either secret works) |
 | `EC2_PORT` | `22` (optional) |
+
+The workflow SSHs as `ec2-user` into **`/home/ec2-user/medops`**, then `git fetch`/`reset` (EC2 GitHub deploy key) and `sudo docker compose … up -d --build`.
+
+GitHub-hosted runners are **not** your laptop IP. Keep the security group as-is until secrets are set; then allow port 22 from Actions (or a bastion), not permanently `0.0.0.0/0` if you can avoid it.
 
 ## 2. One-time EC2 prep
 

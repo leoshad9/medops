@@ -17,7 +17,8 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-.env}"
 
 # Explicit -f skips docker-compose.override.yml (local port publishing).
-COMPOSE=(docker compose -f "$BASE_COMPOSE_FILE" -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
+# sudo: this instance's ec2-user is not in the docker group yet.
+COMPOSE=(sudo docker compose -f "$BASE_COMPOSE_FILE" -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Missing $ENV_FILE in $ROOT_DIR"
@@ -71,9 +72,12 @@ fi
 echo "==> Building and starting stack"
 "${COMPOSE[@]}" up -d --build --remove-orphans
 
-echo "==> Waiting for health on :$HTTP_PORT"
+HTTPS_PORT="${HOST_HTTPS_PORT:-443}"
+echo "==> Waiting for health on :$HTTP_PORT / :$HTTPS_PORT"
 for i in $(seq 1 90); do
-  if curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health/liveness" >/dev/null 2>&1 \
+  if curl -fsSk "https://127.0.0.1:${HTTPS_PORT}/actuator/health/liveness" >/dev/null 2>&1 \
+    || curl -fsSk "https://127.0.0.1:${HTTPS_PORT}/actuator/health" >/dev/null 2>&1 \
+    || curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health/liveness" >/dev/null 2>&1 \
     || curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health" >/dev/null 2>&1; then
     echo "Healthy after $((i * 2))s"
     "${COMPOSE[@]}" ps
