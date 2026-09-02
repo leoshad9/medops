@@ -98,14 +98,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles login attempts against a locked or disabled account.
-     *
-     * @param ex the account status exception
-     * @return 403 Forbidden
+     * Handles login lockout after too many failed passwords for the same email.
      */
-    @ExceptionHandler({LockedException.class, DisabledException.class})
-    public ResponseEntity<ErrorResponse> handleAccountStatus(Exception ex) {
-        return build(HttpStatus.FORBIDDEN, "PERMISSION_DENIED", ex.getMessage(), null);
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<ErrorResponse> handleLocked(LockedException ex) {
+        return build(HttpStatus.FORBIDDEN, "PERMISSION_DENIED",
+                "Too many failed sign-in attempts. Try again later.", null);
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ErrorResponse> handleDisabled(DisabledException ex) {
+        return build(HttpStatus.FORBIDDEN, "PERMISSION_DENIED", "Account is disabled", null);
     }
 
     /**

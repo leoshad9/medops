@@ -42,4 +42,14 @@ public final class RedisRateLimiterStore implements RateLimiterStore {
             throw new ServiceUnavailableException("Rate limiter temporarily unavailable", ex);
         }
     }
+
+    @Override
+    public void reset(String key) {
+        try {
+            redisTemplate.delete("ratelimit:" + key);
+        } catch (RuntimeException ex) {
+            log.error("Redis rate limiter unavailable");
+            throw new ServiceUnavailableException("Rate limiter temporarily unavailable", ex);
+        }
+    }
 }

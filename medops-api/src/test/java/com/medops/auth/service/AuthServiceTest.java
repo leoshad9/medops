@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 
 import com.medops.auth.dto.AuthResponse;
 import com.medops.auth.dto.LoginRequest;
@@ -24,6 +25,7 @@ import com.medops.auth.exception.InvalidRefreshTokenException;
 import com.medops.auth.repository.RefreshTokenRepository;
 import com.medops.auth.repository.UserRepository;
 import com.medops.auth.security.JwtService;
+import com.medops.ratelimit.domain.RateLimiterStore;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
 
@@ -63,6 +65,8 @@ class AuthServiceTest {
     private AuditService auditService;
     @Mock
     private TokenIssuanceService tokenIssuanceService;
+    @Mock
+    private RateLimiterStore rateLimiterStore;
 
     @InjectMocks
     private AuthService authService;
@@ -70,17 +74,20 @@ class AuthServiceTest {
     @Test
     void login_returnsTokensOnSuccessfulAuthentication() {
         User user = userWithId(EMAIL);
+        when(rateLimiterStore.tryAcquire(any(), eq(5), any())).thenReturn(true);
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
         stubIssueTokens();
 
         AuthResponse response = authService.login(new LoginRequest(EMAIL, PASSWORD));
 
         assertThat(response.accessToken()).isEqualTo(ACCESS_TOKEN);
+        verify(rateLimiterStore).reset("login-lock|" + EMAIL);
         verify(auditService).recordEvent(AuditEventType.AUTH_LOGIN_SUCCESS, user.getId(), EMAIL);
     }
 
     @Test
     void login_recordsFailureAuditAndPropagatesException_onBadCredentials() {
+        when(rateLimiterStore.tryAcquire(any(), eq(5), any())).thenReturn(true);
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad credentials"));
         LoginRequest request = new LoginRequest(EMAIL, PASSWORD);
 
@@ -89,7 +96,20 @@ class AuthServiceTest {
 
         assertThat(exception.getMessage()).isEqualTo("bad credentials");
         verify(auditService).recordEvent(AuditEventType.AUTH_LOGIN_FAILURE, null, EMAIL);
+        verify(rateLimiterStore, never()).reset(any());
         verify(userRepository, never()).findByEmail(any());
+    }
+
+    @Test
+    void login_locksAfterFailedAttemptBudget() {
+        when(rateLimiterStore.tryAcquire(any(), eq(5), any())).thenReturn(false);
+        LoginRequest request = new LoginRequest(EMAIL, PASSWORD);
+
+        LockedException exception = assertThrows(LockedException.class, () -> authService.login(request));
+
+        assertThat(exception.getMessage()).contains("Too many failed sign-in attempts");
+        verify(auditService).recordEvent(AuditEventType.AUTH_LOGIN_LOCKED, null, EMAIL);
+        verify(authenticationManager, never()).authenticate(any());
     }
 
     @Test

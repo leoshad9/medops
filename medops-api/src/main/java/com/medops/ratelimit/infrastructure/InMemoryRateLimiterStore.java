@@ -36,6 +36,11 @@ public final class InMemoryRateLimiterStore implements RateLimiterStore {
         }
     }
 
+    @Override
+    public void reset(String key) {
+        windowsByClient.remove(key);
+    }
+
     private static final class Window {
         private long windowStartMillis;
         private int count;

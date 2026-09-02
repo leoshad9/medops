@@ -19,4 +19,17 @@ class InMemoryRateLimiterStoreTest {
         assertThat(store.tryAcquire("login|127.0.0.1", 10, window)).isFalse();
         assertThat(store.tryAcquire("login|10.0.0.2", 10, window)).isTrue();
     }
+
+    @Test
+    void resetClearsWindow() {
+        InMemoryRateLimiterStore store = new InMemoryRateLimiterStore();
+        Duration window = Duration.ofMinutes(15);
+
+        for (int i = 0; i < 5; i++) {
+            assertThat(store.tryAcquire("login-lock|a@b.c", 5, window)).isTrue();
+        }
+        assertThat(store.tryAcquire("login-lock|a@b.c", 5, window)).isFalse();
+        store.reset("login-lock|a@b.c");
+        assertThat(store.tryAcquire("login-lock|a@b.c", 5, window)).isTrue();
+    }
 }

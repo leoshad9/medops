@@ -12,4 +12,9 @@ public interface RateLimiterStore {
      * @return {@code true} if the caller may proceed; {@code false} if the window is exhausted
      */
     boolean tryAcquire(String key, int maxAttempts, Duration window);
+
+    /**
+     * Clears the window for {@code key} (for example after a successful login).
+     */
+    void reset(String key);
 }

@@ -25,8 +25,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Guards login, registration, booking, and clinical upload POSTs with a shared fixed-window
- * rate limit (Redis in multi-instance deployments). Fail closed when the store is unavailable.
+ * Guards login, token refresh, registration, booking, and clinical upload POSTs with a shared
+ * fixed-window rate limit (Redis in multi-instance deployments). Fail closed when the store is
+ * unavailable.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
@@ -34,7 +35,11 @@ import lombok.RequiredArgsConstructor;
 public final class AuthRateLimitFilter extends OncePerRequestFilter {
 
     private static final Set<String> LIMITED_PATHS = Set.of(
-            "/api/auth/login", "/api/v1/patients", "/api/v1/doctors", "/api/v1/appointments");
+            "/api/auth/login",
+            "/api/auth/refresh",
+            "/api/v1/patients",
+            "/api/v1/doctors",
+            "/api/v1/appointments");
     private static final int MAX_ATTEMPTS_PER_WINDOW = 10;
     private static final Duration WINDOW = Duration.ofMinutes(1);
 
