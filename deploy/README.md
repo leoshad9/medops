@@ -2,21 +2,21 @@
 
 ALB: `http://medops-alb-1371426590.ap-southeast-2.elb.amazonaws.com`
 
-## 1. GitHub Actions secrets
+## 1. GitHub Actions (OIDC + SSM)
 
-Repo → **Settings** → **Secrets and variables** → **Actions**. Do **not** commit `medops.pem`.
+No SSH from GitHub. The runner assumes `github-actions-ssm-role` and runs `deploy/ec2-deploy.sh` on the instance via SSM.
 
-| Secret | Value |
-| --- | --- |
-| `EC2_HOST` | `medops.duckdns.org` (or the instance public IP) |
-| `EC2_USER` | `ec2-user` |
-| `EC2_SSH_PRIVATE_KEY` | Full `medops.pem` (`BEGIN`/`END` lines included) |
-| `EC2_SSH_KEY` | Same as above (legacy name; either secret works) |
-| `EC2_PORT` | `22` (optional) |
+**Settings → Secrets and variables → Actions**
 
-The workflow SSHs as `ec2-user` into **`/home/ec2-user/medops`**, then `git fetch`/`reset` (EC2 GitHub deploy key) and `sudo docker compose … up -d --build`.
+| Type | Name | Value |
+| --- | --- | --- |
+| Secret | `AWS_ROLE_ARN` | `arn:aws:iam::919800784220:role/github-actions-ssm-role` |
+| Variable or secret | `AWS_REGION` | `ap-southeast-2` |
+| Variable or secret | `EC2_INSTANCE_ID` | `i-076902fa975b6d261` |
 
-GitHub-hosted runners are **not** your laptop IP. Keep the security group as-is until secrets are set; then allow port 22 from Actions (or a bastion), not permanently `0.0.0.0/0` if you can avoid it.
+The instance must have the SSM agent and an instance profile that allows SSM (`AmazonSSMManagedInstanceCore`). The IAM role used by Actions must trust GitHub OIDC (`token.actions.githubusercontent.com`) for this repo.
+
+EC2 GitHub deploy key still does `git fetch` inside `/home/ec2-user/medops`. Port 22 can stay limited to your laptop.
 
 ## 2. One-time EC2 prep
 
