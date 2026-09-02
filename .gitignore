@@ -50,6 +50,7 @@ BCD_DESIGN_REVIEW.md
 *.cmd
 *.ps1
 medops.pem
+.DS_Store
 
 # Local clinical uploads (created at runtime; do not commit)
 medops-api/data/
