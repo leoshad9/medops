@@ -134,15 +134,19 @@ logging:
     "[com.medops]": ${LOG_LEVEL_APP:INFO}
 
 ---
-# SpringBootTest / @ActiveProfiles("test") — no live Redis or Kafka
+# SpringBootTest / @ActiveProfiles("test")
 spring:
   config:
     activate:
       on-profile: test
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   flyway:
-    enabled: true
-    baseline-on-migrate: true
-    baseline-version: "0"
+    enabled: false
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
@@ -150,7 +154,9 @@ spring:
       - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: dGVzdC1zZWNyZXQta2V5LWZvci1tZWRvcHMtdGVzdGluZy1vbmx5LTMyYnl0ZQ==
+  access-token-expiry-ms: 900000
+  refresh-token-expiry-ms: 28800000
 
 medops:
   security:

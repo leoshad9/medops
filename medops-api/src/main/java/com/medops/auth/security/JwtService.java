@@ -58,7 +58,8 @@ public final class JwtService {
                     : Decoders.BASE64.decode(trimmed);
         } catch (DecodingException e) {
             throw new IllegalArgumentException(
-                    "JWT_SECRET must be Base64 or Base64URL of at least 32 random bytes. Generate with: openssl rand -base64 32",
+                    "JWT_SECRET must be Base64 or Base64URL of at least 32 random bytes."
+                            + " Generate with: openssl rand -base64 32",
                     e);
         }
     }

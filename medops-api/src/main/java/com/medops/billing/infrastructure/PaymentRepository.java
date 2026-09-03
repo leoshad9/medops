@@ -13,6 +13,8 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
     List<Payment> findByInvoiceIdOrderByCreatedAtDesc(UUID invoiceId);
 
-    @Query("SELECT COALESCE(SUM(p.amountCents), 0) FROM Payment p WHERE p.invoice.id = :invoiceId AND p.status = :status")
-    long sumAmountCentsByInvoiceIdAndStatus(@Param("invoiceId") UUID invoiceId, @Param("status") PaymentStatus status);
+    @Query("SELECT COALESCE(SUM(p.amountCents), 0) FROM Payment p"
+            + " WHERE p.invoice.id = :invoiceId AND p.status = :status")
+    long sumAmountCentsByInvoiceIdAndStatus(
+            @Param("invoiceId") UUID invoiceId, @Param("status") PaymentStatus status);
 }

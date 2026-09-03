@@ -62,7 +62,8 @@ public class AdminBillingController {
             Authentication auth,
             @PathVariable UUID invoiceId) {
         UUID actorId = resolveUserId(auth);
-        return ResponseEntity.ok(ApiResponse.success(invoiceService.issue(invoiceId, actorId, auth.getName()), "Invoice issued"));
+        InvoiceResponse issued = invoiceService.issue(invoiceId, actorId, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(issued, "Invoice issued"));
     }
 
     @PostMapping("/invoices/{invoiceId}/void")
@@ -70,7 +71,8 @@ public class AdminBillingController {
             Authentication auth,
             @PathVariable UUID invoiceId) {
         UUID actorId = resolveUserId(auth);
-        return ResponseEntity.ok(ApiResponse.success(invoiceService.voidInvoice(invoiceId, actorId, auth.getName()), "Invoice voided"));
+        InvoiceResponse voided = invoiceService.voidInvoice(invoiceId, actorId, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(voided, "Invoice voided"));
     }
 
     @GetMapping("/invoices/{invoiceId}")
@@ -98,7 +100,8 @@ public class AdminBillingController {
             Authentication auth,
             @PathVariable UUID paymentId) {
         UUID actorId = resolveUserId(auth);
-        return ResponseEntity.ok(ApiResponse.success(paymentService.refund(paymentId, actorId, auth.getName()), "Payment refunded"));
+        PaymentResponse refunded = paymentService.refund(paymentId, actorId, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(refunded, "Payment refunded"));
     }
 
     @GetMapping("/invoices/{invoiceId}/payments")
