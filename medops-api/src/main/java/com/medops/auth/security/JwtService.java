@@ -64,9 +64,6 @@ public final class JwtService {
         }
     }
 
-    // JJWT 0.12.6's JwtBuilder only accepts java.util.Date for issuedAt/expiration
-    // (no Instant overload exists, confirmed against the latest jjwt source), so
-    // Date.from(instant) is the required bridge at this API boundary.
     public String generateAccessToken(UserDetails userDetails) {
         Instant now = Instant.now();
         List<String> authorities = new ArrayList<>();
