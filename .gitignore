@@ -57,3 +57,4 @@ medops.pem
 medops-api/data/
 /.vscode
 /medops-api/.settings
+/.claude
