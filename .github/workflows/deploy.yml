@@ -35,13 +35,13 @@ jobs:
           fi
 
           SCRIPT=$(cat <<EOF
-          cd /home/ec2-user/medops
+          cd /home/ssm-user/medops
           export DEPLOY_BRANCH=${DEPLOY_BRANCH}
           bash deploy/ec2-deploy.sh
           EOF
           )
           B64=$(printf '%s' "$SCRIPT" | base64 -w0)
-          PARAMS=$(jq -n --arg c "echo ${B64} | base64 -d | sudo -u ec2-user -H bash -s" '{commands:[$c]}')
+          PARAMS=$(jq -n --arg c "echo ${B64} | base64 -d | bash -s" '{commands:[$c]}')
 
           COMMAND_ID="$(aws ssm send-command \
             --instance-ids "$EC2_INSTANCE_ID" \

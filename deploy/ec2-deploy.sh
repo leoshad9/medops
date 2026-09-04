@@ -5,12 +5,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-if [[ "$(id -u)" -eq 0 ]]; then
-  echo "Do not run this as root. Exit sudo and run as ec2-user."
-  echo "Root has no GitHub SSH key, and Docker files would be owned by root."
-  exit 1
-fi
-
 BRANCH="${DEPLOY_BRANCH:-dev}"
 BASE_COMPOSE_FILE="${BASE_COMPOSE_FILE:-docker-compose.yml}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
