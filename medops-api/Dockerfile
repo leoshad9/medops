@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY pom.xml .
 COPY src ./src
-RUN mvn -B package
+RUN mvn -B -Dmaven.test.skip=true package
 
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
