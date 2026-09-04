@@ -6,7 +6,7 @@ COPY pom.xml .
 COPY src ./src
 RUN mvn -B -Dmaven.test.skip=true package
 
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:25-jre-jammy
 WORKDIR /app
 
 RUN useradd --system --uid 10001 --no-create-home appuser
