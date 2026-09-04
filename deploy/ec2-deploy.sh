@@ -25,8 +25,6 @@ set -a
 source "$ENV_FILE"
 set +a
 
-HTTP_PORT="${HOST_HTTP_PORT:-80}"
-
 for file in "$BASE_COMPOSE_FILE" "$COMPOSE_FILE"; do
   if [[ ! -f "$file" ]]; then
     echo "Missing $file in $ROOT_DIR"
@@ -80,22 +78,22 @@ prune_unused_docker() {
   sudo docker builder prune -af || true
 }
 
-HTTPS_PORT="${HOST_HTTPS_PORT:-443}"
-echo "==> Waiting for health on :$HTTP_PORT / :$HTTPS_PORT"
-for i in $(seq 1 90); do
-  if curl -fsSk "https://127.0.0.1:${HTTPS_PORT}/actuator/health/liveness" >/dev/null 2>&1 \
-    || curl -fsSk "https://127.0.0.1:${HTTPS_PORT}/actuator/health" >/dev/null 2>&1 \
-    || curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health/liveness" >/dev/null 2>&1 \
-    || curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health" >/dev/null 2>&1; then
-    echo "Healthy after $((i * 2))s"
+echo "==> Verifying all containers are healthy"
+for i in $(seq 1 30); do
+  UNHEALTHY=$("${COMPOSE[@]}" ps --format json 2>/dev/null \
+    | grep -c '"Health":"unhealthy"' || true)
+  NOT_RUNNING=$("${COMPOSE[@]}" ps --format json 2>/dev/null \
+    | grep -c '"State":"exited"' || true)
+  if [[ "$UNHEALTHY" -eq 0 && "$NOT_RUNNING" -eq 0 ]]; then
+    echo "All containers healthy after $((i * 5))s"
     "${COMPOSE[@]}" ps
     prune_unused_docker
     exit 0
   fi
-  sleep 2
+  sleep 5
 done
 
-echo "Deploy finished but health check did not pass in time."
+echo "Deploy finished but some containers are not healthy."
 "${COMPOSE[@]}" ps
 "${COMPOSE[@]}" logs --tail=100 medops-api medops-ui medops-ai || true
 prune_unused_docker
