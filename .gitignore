@@ -58,3 +58,4 @@ medops-api/data/
 /.vscode
 /medops-api/.settings
 /.claude
+medops-api/effective-pom.xml
