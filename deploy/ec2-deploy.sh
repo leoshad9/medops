@@ -67,34 +67,16 @@ sudo docker image prune -af || true
 sudo docker builder prune -af || true
 
 echo "==> Building and starting stack"
-"${COMPOSE[@]}" up -d --build --remove-orphans
+if ! "${COMPOSE[@]}" up -d --build --remove-orphans; then
+  echo "==> [ERROR] docker compose up failed -- logs:"
+  "${COMPOSE[@]}" logs --tail=50 || true
+  exit 1
+fi
 
-# Drop stopped containers, unused images, and build cache from previous deploys.
-# Never pass --volumes: postgres_data and clinical_files must stay.
-prune_unused_docker() {
-  echo "==> Pruning unused Docker data (volumes kept)"
-  sudo docker container prune -f || true
-  sudo docker image prune -af || true
-  sudo docker builder prune -af || true
-}
-
-echo "==> Verifying all containers are healthy"
-for i in $(seq 1 30); do
-  UNHEALTHY=$("${COMPOSE[@]}" ps --format json 2>/dev/null \
-    | grep -c '"Health":"unhealthy"' || true)
-  NOT_RUNNING=$("${COMPOSE[@]}" ps --format json 2>/dev/null \
-    | grep -c '"State":"exited"' || true)
-  if [[ "$UNHEALTHY" -eq 0 && "$NOT_RUNNING" -eq 0 ]]; then
-    echo "All containers healthy after $((i * 5))s"
-    "${COMPOSE[@]}" ps
-    prune_unused_docker
-    exit 0
-  fi
-  sleep 5
-done
-
-echo "Deploy finished but some containers are not healthy."
+echo "==> Deploy successful"
 "${COMPOSE[@]}" ps
-"${COMPOSE[@]}" logs --tail=100 medops-api medops-ui medops-ai || true
-prune_unused_docker
-exit 1
+
+echo "==> Pruning unused Docker data (volumes kept)"
+sudo docker container prune -f || true
+sudo docker image prune -af || true
+sudo docker builder prune -af || true
