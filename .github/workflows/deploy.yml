@@ -30,7 +30,7 @@ jobs:
       - name: Deploy via SSM
         env:
           AWS_REGION: ${{ vars.AWS_REGION }}
-          EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
           DEPLOY_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
