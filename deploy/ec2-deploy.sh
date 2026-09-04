@@ -20,11 +20,6 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-# shellcheck disable=SC1090
-set -a
-source "$ENV_FILE"
-set +a
-
 for file in "$BASE_COMPOSE_FILE" "$COMPOSE_FILE"; do
   if [[ ! -f "$file" ]]; then
     echo "Missing $file in $ROOT_DIR"
