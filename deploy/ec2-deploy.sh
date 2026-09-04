@@ -11,7 +11,7 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-.env}"
 
 # Explicit -f skips docker-compose.override.yml (local port publishing).
-# sudo: this instance's ec2-user is not in the docker group yet.
+# sudo: ssm-user is not in the docker group, so docker commands use sudo.
 COMPOSE=(sudo docker compose -f "$BASE_COMPOSE_FILE" -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
 if [[ ! -f "$ENV_FILE" ]]; then

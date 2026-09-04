@@ -41,7 +41,7 @@ jobs:
           EOF
           )
           B64=$(printf '%s' "$SCRIPT" | base64 -w0)
-          PARAMS=$(jq -n --arg c "echo ${B64} | base64 -d | bash -s" '{commands:[$c]}')
+          PARAMS=$(jq -n --arg c "echo ${B64} | base64 -d | sudo -u ssm-user -H bash -s" '{commands:[$c]}')
 
           COMMAND_ID="$(aws ssm send-command \
             --instance-ids "$EC2_INSTANCE_ID" \
