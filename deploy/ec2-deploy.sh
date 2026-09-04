@@ -63,6 +63,11 @@ else
   sync_git
 fi
 
+echo "==> Pruning unused Docker data before build (volumes kept)"
+sudo docker container prune -f || true
+sudo docker image prune -af || true
+sudo docker builder prune -af || true
+
 echo "==> Building and starting stack"
 "${COMPOSE[@]}" up -d --build --remove-orphans
 
