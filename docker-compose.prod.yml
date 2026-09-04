@@ -1,6 +1,6 @@
 # Server stack (EC2, DuckDNS). Do NOT use for local IDE (use docker-compose.yml + override).
 #
-# Git checkout may live at /home/ec2-user/medops or /opt/medops; ACME/certs are host paths:
+# Git checkout lives at /home/ssm-user/medops; ACME/certs are host paths:
 #   /opt/medops-acme  /opt/medops-certs
 # docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env up -d --build
 

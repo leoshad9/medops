@@ -9,6 +9,9 @@ concurrency:
   group: deploy-ec2
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: SSM deploy
