@@ -1,5 +1,5 @@
 # Build Vite SPA, serve with nginx (proxies /api to medops-api).
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
