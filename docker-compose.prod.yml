@@ -61,6 +61,7 @@ services:
       MEDOPS_REDIS_ENABLED: "true"
       MEDOPS_MESSAGING_ENABLED: "true"
       MEDOPS_FILES_ROOT: /data/clinical-files
+      MEDOPS_SECURITY_OPEN_REGISTRATION: ${MEDOPS_SECURITY_OPEN_REGISTRATION:-false}
       SERVER_PORT: 8080
     volumes:
       - clinical_files:/data/clinical-files
