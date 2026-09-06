@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from urllib.parse import urlparse
 
 import httpx
 
@@ -42,6 +43,9 @@ class GenerateContentClient:
         if not model or not base:
             raise LlmUnavailableError("LLM model/base URL is not configured")
 
+        parsed_base = urlparse(base)
+        base_host = (parsed_base.hostname or "").lower()
+
         # Google Generative API expects a v1beta path and either an API key
         # query parameter or an Authorization header. Use the working URL
         # pattern when the base is the Google generative endpoint.
@@ -52,7 +56,7 @@ class GenerateContentClient:
                 return "****"
             return key[:4] + "..." + key[-4:]
 
-        if "generativelanguage.googleapis.com" in base:
+        if base_host == "generativelanguage.googleapis.com":
             if settings.llm_use_bearer:
                 url = base.rstrip("/") + f"/v1beta/models/{model}:generateContent"
                 headers = {"Content-Type": "application/json", "Authorization": f"Bearer {settings.llm_api_key.strip()}"}
