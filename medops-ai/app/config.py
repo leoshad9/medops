@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,33 +12,10 @@ PROVIDER_CHAT_COMPLETIONS = "chat_completions"
 class Settings(BaseSettings):
     """Env-backed config. Secrets never go in source control."""
 
-    # Load environment from nearby .env files (workspace root or service folder)
-    # so the service can pick up the repo-level .env when run from the workspace.
-    _here = Path(__file__).parent
-    _candidates = [(_here / ".." / ".env"), (_here / ".env")]
-    for _p in _candidates:
-        try:
-            _fp = _p.resolve()
-        except Exception:
-            continue
-        if _fp.exists():
-            try:
-                with _fp.open("r", encoding="utf-8") as _f:
-                    for _line in _f:
-                        _line = _line.strip()
-                        if not _line or _line.startswith("#") or "=" not in _line:
-                            continue
-                        _k, _v = _line.split("=", 1)
-                        _k = _k.strip()
-                        _v = _v.strip().strip('"').strip("'")
-                        if _k and _k not in os.environ:
-                            os.environ[_k] = _v
-            except Exception:
-                # Best-effort: if reading fails, continue without hard failure.
-                pass
-
+    # Prefer an explicit repo-level .env when present (medops/.env)
+    repo_env: ClassVar[Path] = (Path(__file__).parent / ".." / ".." / ".env").resolve()
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(repo_env) if repo_env.exists() else ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -55,7 +33,11 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = 20.0
     llm_max_attempts: int = 3
     llm_retry_backoff_seconds: float = 1.0
+    # Maximum backoff cap (seconds) for retries (applies to jittered backoff)
+    llm_max_backoff_seconds: float = 30.0
     max_pdf_chars: int = 12_000
+    # When true, send credentials in Authorization: Bearer <token>
+    llm_use_bearer: bool = False
 
     def resolved_provider(self) -> str | None:
         if not self.llm_api_key.strip():

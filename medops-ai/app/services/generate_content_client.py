@@ -9,6 +9,7 @@ import time
 import httpx
 
 from app.config import settings
+from app.utils.logging_utils import redact_headers
 from app.services.llm_types import (
     ChatResult,
     LlmRateLimitError,
@@ -41,11 +42,31 @@ class GenerateContentClient:
         if not model or not base:
             raise LlmUnavailableError("LLM model/base URL is not configured")
 
-        url = base.rstrip("/") + f"/models/{model}:generateContent"
-        headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": settings.llm_api_key.strip(),
-        }
+        # Google Generative API expects a v1beta path and either an API key
+        # query parameter or an Authorization header. Use the working URL
+        # pattern when the base is the Google generative endpoint.
+        def _masked(key: str) -> str:
+            if not key:
+                return "(none)"
+            if len(key) <= 8:
+                return "****"
+            return key[:4] + "..." + key[-4:]
+
+        if "generativelanguage.googleapis.com" in base:
+            if settings.llm_use_bearer:
+                url = base.rstrip("/") + f"/v1beta/models/{model}:generateContent"
+                headers = {"Content-Type": "application/json", "Authorization": f"Bearer {settings.llm_api_key.strip()}"}
+            else:
+                url = base.rstrip("/") + f"/v1beta/models/{model}:generateContent?key={settings.llm_api_key.strip()}"
+                headers = {"Content-Type": "application/json"}
+            logger.info("llm_request target=%s model=%s headers=%s", base, model, redact_headers(headers))
+        else:
+            url = base.rstrip("/") + f"/models/{model}:generateContent"
+            headers = {
+                "Content-Type": "application/json",
+                "x-goog-api-key": settings.llm_api_key.strip(),
+            }
+            logger.info("llm_request target=%s model=%s headers=%s", base, model, redact_headers(headers))
         payload = {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": user}]}],
@@ -151,7 +172,12 @@ def _build_result(response: httpx.Response, latency_ms: int, *, model: str) -> C
 
 
 def _backoff_seconds(attempt: int) -> float:
-    return settings.llm_retry_backoff_seconds * attempt
+    try:
+        from app.utils.logging_utils import jittered_backoff
+
+        return jittered_backoff(settings.llm_retry_backoff_seconds, attempt, settings.llm_max_backoff_seconds)
+    except Exception:
+        return settings.llm_retry_backoff_seconds * attempt
 
 
 def _provider_error(response: httpx.Response) -> tuple[str | None, str | None]:

@@ -52,10 +52,20 @@ class ChatCompletionsClient:
             ],
         }
         url = base.rstrip("/") + "/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {settings.llm_api_key.strip()}",
-            "Content-Type": "application/json",
-        }
+        # Prefer Authorization Bearer when explicitly requested; otherwise
+        # use the configured API key as a Bearer token (best-effort).
+        if settings.llm_use_bearer:
+            headers = {"Authorization": f"Bearer {settings.llm_api_key.strip()}", "Content-Type": "application/json"}
+        else:
+            headers = {"Authorization": f"Bearer {settings.llm_api_key.strip()}", "Content-Type": "application/json"}
+        # redact sensitive header values before logging
+        try:
+            from app.utils.logging_utils import redact_headers
+
+            safe_headers = redact_headers(headers)
+        except Exception:
+            safe_headers = {k: (v if k.lower() not in ("authorization",) else "****") for k, v in headers.items()}
+        logger.info("llm_request target=%s model=%s headers=%s", url, model, safe_headers)
         return await _run_with_retry(url, headers, payload, model=model)
 
 
@@ -158,8 +168,14 @@ def _build_result(response: httpx.Response, latency_ms: int, *, model: str) -> C
 
 
 def _backoff_seconds(attempt: int, *, rate_limited: bool) -> float:
-    base = settings.llm_retry_backoff_seconds * attempt
-    return max(base, 2.0 * attempt) if rate_limited else base
+    try:
+        from app.utils.logging_utils import jittered_backoff
+
+        base = settings.llm_retry_backoff_seconds * (2 if rate_limited else 1)
+        return jittered_backoff(base, attempt, settings.llm_max_backoff_seconds)
+    except Exception:
+        base = settings.llm_retry_backoff_seconds * attempt
+        return max(base, 2.0 * attempt) if rate_limited else base
 
 
 def _provider_error(response: httpx.Response) -> tuple[str | None, str | None]:
