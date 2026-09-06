@@ -58,14 +58,8 @@ class ChatCompletionsClient:
             headers = {"Authorization": f"Bearer {settings.llm_api_key.strip()}", "Content-Type": "application/json"}
         else:
             headers = {"Authorization": f"Bearer {settings.llm_api_key.strip()}", "Content-Type": "application/json"}
-        # redact sensitive header values before logging
-        try:
-            from app.utils.logging_utils import redact_headers
-
-            safe_headers = redact_headers(headers)
-        except Exception:
-            safe_headers = {k: (v if k.lower() not in ("authorization",) else "****") for k, v in headers.items()}
-        logger.info("llm_request target=%s model=%s headers=%s", url, model, safe_headers)
+        # Do not log request headers to avoid leaking credentials.
+        logger.info("llm_request target=%s model=%s", url, model)
         return await _run_with_retry(url, headers, payload, model=model)
 
 
