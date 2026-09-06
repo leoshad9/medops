@@ -68,6 +68,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(csrf -> csrf.disable())
                 .headers(headers -> {
                     headers.contentTypeOptions(Customizer.withDefaults());
                     headers.frameOptions(frame -> frame.deny());
@@ -75,7 +76,6 @@ public class SecurityConfig {
                             ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
                     headers.permissionsPolicyHeader(permissions -> permissions.policy(
                             "camera=(), microphone=(), geolocation=()"));
-                    // HSTS: enable after ALB terminates HTTPS (avoid forcing HTTPS on plain :80).
                     headers.httpStrictTransportSecurity(hsts -> hsts.disable());
                 })
                 .authorizeHttpRequests(auth -> {

@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # API dialects (wire protocol), not vendor product names.
@@ -7,6 +10,31 @@ PROVIDER_CHAT_COMPLETIONS = "chat_completions"
 
 class Settings(BaseSettings):
     """Env-backed config. Secrets never go in source control."""
+
+    # Load environment from nearby .env files (workspace root or service folder)
+    # so the service can pick up the repo-level .env when run from the workspace.
+    _here = Path(__file__).parent
+    _candidates = [(_here / ".." / ".env"), (_here / ".env")]
+    for _p in _candidates:
+        try:
+            _fp = _p.resolve()
+        except Exception:
+            continue
+        if _fp.exists():
+            try:
+                with _fp.open("r", encoding="utf-8") as _f:
+                    for _line in _f:
+                        _line = _line.strip()
+                        if not _line or _line.startswith("#") or "=" not in _line:
+                            continue
+                        _k, _v = _line.split("=", 1)
+                        _k = _k.strip()
+                        _v = _v.strip().strip('"').strip("'")
+                        if _k and _k not in os.environ:
+                            os.environ[_k] = _v
+            except Exception:
+                # Best-effort: if reading fails, continue without hard failure.
+                pass
 
     model_config = SettingsConfigDict(
         env_file=".env",
