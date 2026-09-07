@@ -74,7 +74,7 @@ export function PatientLayout() {
           title={meta.title}
           subtitle={meta.subtitle}
           onOpenMobileMenu={() => setMobileSidebarOpen(true)}
-          onViewNotifications={() => void navigate(PATIENT_PATHS.dashboard)}
+          onViewNotifications={() => void navigate(PATIENT_PATHS.notifications)}
         />
 
         <div className="animate-in fade-in duration-150">

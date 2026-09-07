@@ -1,5 +1,9 @@
 package com.medops.auth.security;
 
+import java.util.Collection;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -28,21 +32,28 @@ public class MedOpsUserDetailsService implements UserDetailsService {
     }
 
     /**
-     * Builds a {@link UserDetails} view from an already-loaded {@link User}, avoiding a
+     * Builds a {@link MedOpsUser} view from an already-loaded {@link User}, avoiding a
      * redundant lookup for callers (e.g. registration, token refresh) that already hold
      * the entity within an active transaction.
      */
     public UserDetails buildUserDetails(User user) {
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getEmail())
-                .password(user.getPasswordHash())
-                .authorities(user.getRoles().stream()
-                        .map(role -> "ROLE_" + role.getName())
-                        .toArray(String[]::new))
-                .accountExpired(false)
-                .accountLocked(user.getStatus() == UserStatus.LOCKED)
-                .credentialsExpired(false)
-                .disabled(user.getStatus() != UserStatus.ACTIVE)
-                .build();
+        Collection<? extends GrantedAuthority> authorities = user.getRoles().stream()
+                .map(role -> "ROLE_" + role.getName())
+                .map(SimpleGrantedAuthority::new)
+                .toList();
+
+        String primaryRole = user.getRoles().stream()
+                .findFirst()
+                .map(role -> role.getName())
+                .orElse("PATIENT");
+
+        return new MedOpsUser(
+                user.getId(),
+                user.getEmail(),
+                user.getPasswordHash(),
+                primaryRole,
+                authorities,
+                user.getStatus() == UserStatus.ACTIVE,
+                user.getStatus() != UserStatus.LOCKED);
     }
 }

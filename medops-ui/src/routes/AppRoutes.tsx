@@ -19,6 +19,7 @@ import { BookAppointmentView } from "../pages/patient/views/BookAppointmentView"
 import { HelpSupportView } from "../pages/patient/views/HelpSupportView";
 import { LabReportsView } from "../pages/patient/views/LabReportsView";
 import { MedicalRecordsView } from "../pages/patient/views/MedicalRecordsView";
+import { NotificationsView } from "../pages/patient/views/NotificationsView";
 import { PrescriptionsView } from "../pages/patient/views/PrescriptionsView";
 import { ProfileView } from "../pages/patient/views/ProfileView";
 import { ProtectedRoute } from "./ProtectedRoute";
@@ -53,6 +54,7 @@ export function AppRoutes() {
         <Route path="/patient" element={<PatientLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<PatientDashboard />} />
+          <Route path="notifications" element={<NotificationsView />} />
           <Route path="appointments" element={<AppointmentsView />} />
           <Route path="book" element={<BookAppointmentView />} />
           <Route path="prescriptions" element={<PrescriptionsView />} />

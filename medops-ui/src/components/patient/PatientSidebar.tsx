@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
+  Bell,
   Calendar,
   CalendarPlus,
   CreditCard,
@@ -27,6 +28,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "notifications", label: "Notifications", icon: Bell },
   { id: "appointments", label: "Appointments", icon: Calendar },
   { id: "book", label: "Book Appointment", icon: CalendarPlus },
   { id: "prescriptions", label: "Prescriptions", icon: Pill },

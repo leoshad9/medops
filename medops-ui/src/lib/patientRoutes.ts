@@ -1,5 +1,6 @@
 export type PatientViewKey =
   | "dashboard"
+  | "notifications"
   | "appointments"
   | "book"
   | "prescriptions"
@@ -11,6 +12,7 @@ export type PatientViewKey =
 
 export const PATIENT_PATHS: Record<PatientViewKey, string> = {
   dashboard: "/patient/dashboard",
+  notifications: "/patient/notifications",
   appointments: "/patient/appointments",
   book: "/patient/book",
   prescriptions: "/patient/prescriptions",
@@ -23,6 +25,10 @@ export const PATIENT_PATHS: Record<PatientViewKey, string> = {
 
 export const PATIENT_VIEW_METADATA: Record<PatientViewKey, { title?: string; subtitle?: string }> = {
   dashboard: {},
+  notifications: {
+    title: "Notifications",
+    subtitle: "Everything we've sent you — read and unread.",
+  },
   appointments: {
     title: "Appointments",
     subtitle: "All your upcoming and past visits in one place.",

@@ -85,7 +85,9 @@ public final class JwtService {
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
-            return extractUsername(token).equals(userDetails.getUsername());
+            Claims claims = parseClaims(token);
+            return claims.getExpiration().after(new Date())
+                    && claims.getSubject().equals(userDetails.getUsername());
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }

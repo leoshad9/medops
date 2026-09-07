@@ -9,9 +9,13 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ allowedRoles }: Readonly<ProtectedRouteProps>) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading, isSessionDead } = useAuth();
 
-  if (!isAuthenticated || !user) {
+  if (isLoading) {
+    return null;
+  }
+
+  if (isSessionDead || !isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
 

@@ -9,7 +9,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.medops.auth.dto.AuthResponse;
+import com.medops.auth.dto.UserInfo;
 import com.medops.auth.entity.RefreshToken;
 import com.medops.auth.entity.User;
 import com.medops.auth.repository.RefreshTokenRepository;
@@ -32,7 +32,7 @@ public class TokenIssuanceService {
     private final JwtService jwtService;
 
     @Transactional
-    public AuthResponse issue(User user) {
+    public SessionResult issue(User user) {
         UserDetails userDetails = userDetailsService.buildUserDetails(user);
 
         String accessToken = jwtService.generateAccessToken(userDetails);
@@ -46,6 +46,11 @@ public class TokenIssuanceService {
                 .build());
         refreshTokenRepository.save(refreshToken);
 
-        return AuthResponse.of(accessToken, rawRefreshToken, jwtService.getAccessTokenExpiryMs());
+        String primaryRole = user.getRoles().stream()
+                .findFirst()
+                .map(role -> role.getName())
+                .orElse("PATIENT");
+
+        return new SessionResult(accessToken, rawRefreshToken, new UserInfo(user.getId(), user.getEmail(), primaryRole));
     }
 }

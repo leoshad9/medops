@@ -16,6 +16,8 @@ import com.medops.auth.entity.Role;
 import com.medops.auth.entity.User;
 import com.medops.auth.repository.RoleRepository;
 import com.medops.auth.repository.UserRepository;
+import com.medops.auth.security.JwtService;
+import com.medops.auth.service.SessionResult;
 import com.medops.auth.service.TokenIssuanceService;
 import com.medops.patients.api.dto.RegisterPatientRequest;
 import com.medops.patients.infrastructure.PatientProfile;
@@ -40,6 +42,7 @@ public class PatientRegistrationService {
     private final PasswordEncoder passwordEncoder;
     private final TokenIssuanceService tokenIssuanceService;
     private final AuditService auditService;
+    private final JwtService jwtService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -70,7 +73,8 @@ public class PatientRegistrationService {
 
         auditService.recordEvent(AuditEventType.AUTH_REGISTER, user.getId(), user.getEmail());
 
-        return tokenIssuanceService.issue(user);
+        SessionResult session = tokenIssuanceService.issue(user);
+        return AuthResponse.of(session.accessToken(), session.refreshToken(), jwtService.getAccessTokenExpiryMs());
     }
 
     private String generateUniqueMrn() {

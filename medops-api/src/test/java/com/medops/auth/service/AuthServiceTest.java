@@ -16,8 +16,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
 
-import com.medops.auth.dto.AuthResponse;
 import com.medops.auth.dto.LoginRequest;
+import com.medops.auth.dto.UserInfo;
 import com.medops.auth.entity.RefreshToken;
 import com.medops.auth.entity.User;
 import com.medops.auth.entity.UserStatus;
@@ -78,7 +78,7 @@ class AuthServiceTest {
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
         stubIssueTokens();
 
-        AuthResponse response = authService.login(new LoginRequest(EMAIL, PASSWORD));
+        SessionResult response = authService.login(new LoginRequest(EMAIL, PASSWORD));
 
         assertThat(response.accessToken()).isEqualTo(ACCESS_TOKEN);
         verify(rateLimiterStore).reset("login-lock|" + EMAIL);
@@ -125,7 +125,7 @@ class AuthServiceTest {
         when(refreshTokenRepository.findByTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.of(existingToken));
         stubIssueTokens();
 
-        AuthResponse response = authService.refresh(RAW_REFRESH_TOKEN);
+        SessionResult response = authService.refresh(RAW_REFRESH_TOKEN);
 
         assertNotNull(existingToken.getRevokedAt(), "presented refresh token should be revoked on rotation");
         assertThat(response.accessToken()).isEqualTo(ACCESS_TOKEN);
@@ -159,7 +159,7 @@ class AuthServiceTest {
                 assertThrows(InvalidRefreshTokenException.class, () -> authService.refresh(RAW_REFRESH_TOKEN));
 
         assertThat(exception.getMessage()).isEqualTo("Refresh token is invalid, expired, or revoked");
-        verify(refreshTokenRepository, never()).save(anyRefreshToken());
+        verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
     }
 
     @Test
@@ -183,17 +183,17 @@ class AuthServiceTest {
 
         authService.logout(RAW_REFRESH_TOKEN);
 
-        verify(refreshTokenRepository, never()).save(anyRefreshToken());
+        verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
         verify(auditService, never()).recordEvent(any(), any(), any());
     }
 
     private void stubIssueTokens() {
         when(tokenIssuanceService.issue(any(User.class)))
-                .thenReturn(AuthResponse.of(ACCESS_TOKEN, RAW_REFRESH_TOKEN, 900_000L));
-    }
-
-    private static RefreshToken anyRefreshToken() {
-        return any(RefreshToken.class);
+                .thenAnswer(invocation -> {
+                    User user = invocation.getArgument(0);
+                    return new SessionResult(ACCESS_TOKEN, RAW_REFRESH_TOKEN,
+                            new UserInfo(user.getId(), user.getEmail(), "PATIENT"));
+                });
     }
 
     private static @NonNull RefreshToken activeRefreshToken(User user) {

@@ -1,6 +1,7 @@
 package com.medops.auth.controller;
 
 import java.util.Objects;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
@@ -20,13 +21,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.medops.auth.dto.AuthResponse;
 import com.medops.auth.dto.LoginRequest;
-import com.medops.auth.dto.RefreshRequest;
+import com.medops.auth.dto.UserInfo;
 import com.medops.auth.exception.InvalidRefreshTokenException;
 import com.medops.auth.security.AuthRateLimitFilter;
 import com.medops.auth.security.JwtAuthenticationFilter;
+import com.medops.auth.security.JwtService;
 import com.medops.auth.service.AuthService;
+import com.medops.auth.service.SessionResult;
 
 /**
  * HTTP-level tests for {@link AuthController}: request validation, the {@code ApiResponse}
@@ -42,10 +44,12 @@ import com.medops.auth.service.AuthService;
 @AutoConfigureMockMvc(addFilters = false)
 class AuthControllerTest {
 
-    private static final AuthResponse SAMPLE_RESPONSE =
-            new AuthResponse("access-token", "refresh-token", "Bearer", 900L);
+    private static final UserInfo SAMPLE_USER = new UserInfo(UUID.randomUUID(), "user@medops.dev", "PATIENT");
+    private static final SessionResult SAMPLE_RESPONSE =
+            new SessionResult("access-token", "refresh-token", SAMPLE_USER);
 
     private static final @NonNull MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
+    private static final String REFRESH_COOKIE = "MEDOPS_REFRESH";
 
     @Autowired
     private MockMvc mockMvc;
@@ -55,6 +59,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private JwtService jwtService;
 
     private @NonNull String json(Object value) throws Exception {
         return Objects.requireNonNull(objectMapper.writeValueAsString(value));
@@ -70,7 +77,8 @@ class AuthControllerTest {
                                 new LoginRequest("user@medops.dev", "Password123!"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.tokenType").value("Bearer"));
+                .andExpect(jsonPath("$.data.email").value("user@medops.dev"))
+                .andExpect(jsonPath("$.data.role").value("PATIENT"));
     }
 
     @Test
@@ -91,10 +99,9 @@ class AuthControllerTest {
         when(authService.refresh(any())).thenReturn(SAMPLE_RESPONSE);
 
         mockMvc.perform(post("/api/auth/refresh")
-                        .contentType(JSON)
-                        .content(json(new RefreshRequest("some-refresh-token"))))
+                        .cookie(new jakarta.servlet.http.Cookie(REFRESH_COOKIE, "some-refresh-token")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.accessToken").value("access-token"));
+                .andExpect(jsonPath("$.data.email").value("user@medops.dev"));
     }
 
     @Test
@@ -102,8 +109,14 @@ class AuthControllerTest {
         when(authService.refresh(any())).thenThrow(new InvalidRefreshTokenException());
 
         mockMvc.perform(post("/api/auth/refresh")
-                        .contentType(JSON)
-                        .content(json(new RefreshRequest("bad-token"))))
+                        .cookie(new jakarta.servlet.http.Cookie(REFRESH_COOKIE, "bad-token")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.status").value("UNAUTHENTICATED"));
+    }
+
+    @Test
+    void refresh_returns401_whenCookieMissing() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.status").value("UNAUTHENTICATED"));
     }
@@ -111,8 +124,13 @@ class AuthControllerTest {
     @Test
     void logout_returns204() throws Exception {
         mockMvc.perform(post("/api/auth/logout")
-                        .contentType(JSON)
-                        .content(json(new RefreshRequest("some-refresh-token"))))
+                        .cookie(new jakarta.servlet.http.Cookie(REFRESH_COOKIE, "some-refresh-token")))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void logout_returns204_whenCookieMissing() throws Exception {
+        mockMvc.perform(post("/api/auth/logout"))
                 .andExpect(status().isNoContent());
     }
 }

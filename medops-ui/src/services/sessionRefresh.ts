@@ -1,42 +1,30 @@
-import axios from "axios";
-
-import { clearStoredTokens, readStoredTokens, writeStoredTokens } from "../lib/tokenStorage";
+import { api } from "./api";
 import type { ApiResponse } from "../types/api";
-import type { AuthTokens } from "../types/auth";
+import type { AuthUser } from "../types/auth";
 
-// Deliberately a bare axios call rather than the shared `api` instance: routing the
-// refresh through the same interceptors that trigger it would recurse on failure.
-async function performRefresh(): Promise<AuthTokens | null> {
-  const current = readStoredTokens();
-  if (!current) {
-    return null;
-  }
-
+// Uses the shared `api` instance (withCredentials: true) so the refresh token cookie
+// is sent automatically — the request body is empty because the backend reads the
+// token from the cookie. Safe from recursion: the response interceptor in api.ts
+// excludes /auth/* endpoints from retry, so a 401 here is never retried.
+async function performRefresh(): Promise<AuthUser | null> {
   try {
-    const response = await axios.post<ApiResponse<AuthTokens>>(
-      "/api/auth/refresh",
-      { refreshToken: current.refreshToken },
-      { headers: { "Content-Type": "application/json" } },
-    );
-    const tokens = response.data.data;
-    writeStoredTokens(tokens);
-    return tokens;
+    const response = await api.post<ApiResponse<AuthUser>>("/auth/refresh");
+    return response.data.data;
   } catch {
     // The refresh token is expired, revoked, or already rotated away — the session
-    // is genuinely over, so drop it and let subscribers redirect to the login page.
-    clearStoredTokens();
+    // is genuinely over, so let subscribers redirect to the login page.
     return null;
   }
 }
 
-let inFlight: Promise<AuthTokens | null> | null = null;
+let inFlight: Promise<AuthUser | null> | null = null;
 
 /**
- * Exchanges the stored refresh token for a new token pair, returning null when the
- * session cannot be renewed. Concurrent callers share one request so a burst of
- * parallel 401s cannot rotate the refresh token more than once.
+ * Exchanges the refresh-token cookie for a new access/refresh token pair, returning
+ * null when the session cannot be renewed. Concurrent callers share one request so
+ * a burst of parallel 401s cannot rotate the refresh token more than once.
  */
-export function refreshSession(): Promise<AuthTokens | null> {
+export function refreshSession(): Promise<AuthUser | null> {
   inFlight ??= performRefresh().finally(() => {
     inFlight = null;
   });

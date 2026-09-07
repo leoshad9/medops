@@ -16,6 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 import com.medops.shared.config.MedopsSecurityProperties;
@@ -68,7 +69,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .ignoringRequestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout"))
                 .headers(headers -> {
                     headers.contentTypeOptions(Customizer.withDefaults());
                     headers.frameOptions(frame -> frame.deny());
@@ -76,7 +79,9 @@ public class SecurityConfig {
                             ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
                     headers.permissionsPolicyHeader(permissions -> permissions.policy(
                             "camera=(), microphone=(), geolocation=()"));
-                    headers.httpStrictTransportSecurity(hsts -> hsts.disable());
+                    headers.httpStrictTransportSecurity(hsts -> hsts
+                            .includeSubDomains(true)
+                            .maxAgeInSeconds(31536000));
                 })
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(ALWAYS_PUBLIC).permitAll();
@@ -87,6 +92,7 @@ public class SecurityConfig {
                     if (securityProperties.apiDocsPublic()) {
                         auth.requestMatchers(DOCS_PUBLIC).permitAll();
                     }
+                    // Deny all other actuator endpoints by default; health is exposed via ALWAYS_PUBLIC above.
                     auth.requestMatchers("/actuator/**").denyAll();
                     auth.anyRequest().authenticated();
                 })

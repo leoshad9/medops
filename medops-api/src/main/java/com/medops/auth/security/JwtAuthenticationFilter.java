@@ -14,13 +14,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Authenticates requests bearing a valid JWT access token in the {@code Authorization} header.
- * Runs once per request, ahead of the standard username/password filter.
+ * Authenticates requests bearing a valid JWT access token, either in the
+ * {@code Authorization} header (API clients) or the {@code MEDOPS_ACCESS} HttpOnly cookie
+ * (browser SPA). Runs once per request, ahead of the standard username/password filter.
  */
 @Component
 @RequiredArgsConstructor
@@ -38,13 +40,11 @@ public final class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        String authHeader = request.getHeader(AUTH_HEADER);
-        if (!StringUtils.hasText(authHeader) || !authHeader.startsWith(BEARER_PREFIX)) {
+        String token = resolveToken(request);
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        String token = authHeader.substring(BEARER_PREFIX.length());
 
         try {
             String username = jwtService.extractUsername(token);
@@ -63,5 +63,22 @@ public final class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String resolveToken(HttpServletRequest request) {
+        String authHeader = request.getHeader(AUTH_HEADER);
+        if (StringUtils.hasText(authHeader) && authHeader.startsWith(BEARER_PREFIX)) {
+            return authHeader.substring(BEARER_PREFIX.length());
+        }
+
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if (CookieConstants.ACCESS.equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+
+        return null;
     }
 }

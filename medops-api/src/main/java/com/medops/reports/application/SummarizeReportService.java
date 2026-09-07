@@ -23,9 +23,11 @@ import com.medops.shared.audit.AuditService;
 import com.medops.shared.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SummarizeReportService {
 
     private final ClinicalReportRepository reportRepository;
@@ -43,7 +45,11 @@ public class SummarizeReportService {
     @Transactional
     public void summarizeIfAbsent(UUID reportId) {
         ClinicalReport report = reportRepository.findById(reportId).orElse(null);
-        if (report == null || report.hasSummary()) {
+        if (report == null) {
+            log.warn("Summarize requested for unknown reportId={}", reportId);
+            return;
+        }
+        if (report.hasSummary()) {
             return;
         }
         applySummary(report);

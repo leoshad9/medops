@@ -1,25 +1,22 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
-import { isAccessTokenExpired, parseAuthUser } from "../lib/jwt";
-import {
-  clearStoredTokens,
-  readStoredTokens,
-  subscribeToStoredTokens,
-  writeStoredTokens,
-} from "../lib/tokenStorage";
 import {
   login as loginRequest,
   logout as logoutRequest,
   registerDoctor as registerDoctorRequest,
   registerPatient as registerPatientRequest,
 } from "../services/authService";
+import { api } from "../services/api";
 import { refreshSession } from "../services/sessionRefresh";
-import type { AuthTokens, AuthUser, RegisterDoctorRequest, RegisterPatientRequest } from "../types/auth";
+import type { ApiResponse } from "../types/api";
+import type { AuthUser, RegisterDoctorRequest, RegisterPatientRequest } from "../types/auth";
 
 export interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
+  isSessionDead: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   registerPatient: (request: RegisterPatientRequest) => Promise<AuthUser>;
   registerDoctor: (request: RegisterDoctorRequest) => Promise<AuthUser>;
@@ -29,63 +26,86 @@ export interface AuthContextValue {
 export const AuthContext = createContext<AuthContextValue | null>(null); // oxlint-disable-line react/only-export-components
 
 export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const [tokens, setTokens] = useState<AuthTokens | null>(readStoredTokens);
-  const user = useMemo(() => (tokens ? parseAuthUser(tokens.accessToken) : null), [tokens]);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSessionDead, setIsSessionDead] = useState(false);
 
-  // Token storage is also written by the axios refresh interceptor, so mirror it
-  // here instead of assuming this provider is the only writer.
-  useEffect(() => subscribeToStoredTokens(setTokens), []);
-
-  // On load an access token may already have lapsed (e.g. a tab left open). Renew it
-  // up front so a stale session is resolved even on a view that issues no requests.
+  // On mount, restore the session from the HttpOnly access-token cookie by asking
+  // the backend who is signed in. The cookie is not readable by JavaScript, so
+  // there is no local token to parse — /auth/me is the only way to know.
   useEffect(() => {
-    const stored = readStoredTokens();
-    if (stored && isAccessTokenExpired(stored.accessToken)) {
-      void refreshSession();
-    }
+    let cancelled = false;
+    void api.get<ApiResponse<AuthUser>>("/auth/me")
+      .then((response) => {
+        if (!cancelled) setUser(response.data.data);
+      })
+      .catch(() => {
+        if (!cancelled) setUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const applyTokens = useCallback((nextTokens: AuthTokens): AuthUser => {
-    const nextUser = parseAuthUser(nextTokens.accessToken);
-    if (!nextUser) {
-      throw new Error("Signed in successfully but the session token could not be read.");
-    }
-
-    writeStoredTokens(nextTokens);
-    return nextUser;
+  const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
+    const loggedInUser = await loginRequest({ email, password });
+    setUser(loggedInUser);
+    return loggedInUser;
   }, []);
-
-  const login = useCallback(
-    async (email: string, password: string) => applyTokens(await loginRequest({ email, password })),
-    [applyTokens],
-  );
 
   const registerPatient = useCallback(
-    async (request: RegisterPatientRequest) => applyTokens(await registerPatientRequest(request)),
-    [applyTokens],
+    async (request: RegisterPatientRequest): Promise<AuthUser> => {
+      const registeredUser = await registerPatientRequest(request);
+      setUser(registeredUser);
+      return registeredUser;
+    },
+    [],
   );
 
   const registerDoctor = useCallback(
-    async (request: RegisterDoctorRequest) => applyTokens(await registerDoctorRequest(request)),
-    [applyTokens],
+    async (request: RegisterDoctorRequest): Promise<AuthUser> => {
+      const registeredUser = await registerDoctorRequest(request);
+      setUser(registeredUser);
+      return registeredUser;
+    },
+    [],
   );
 
   const logout = useCallback(async () => {
-    if (tokens) {
-      // Best-effort: revoke the refresh token server-side, but log out locally
-      // either way so a network failure never traps the user in a signed-in UI.
-      try {
-        await logoutRequest(tokens.refreshToken);
-      } catch {
-        // ignored — local session is cleared below regardless
-      }
+    try {
+      await logoutRequest();
+    } catch {
+      // ignored — local session is cleared below regardless
     }
-    clearStoredTokens();
-  }, [tokens]);
+    setUser(null);
+  }, []);
+
+  // When the axios interceptor refreshes a 401, the new access token arrives as a
+  // cookie, but the user identity may have changed (e.g. role update). Re-fetch
+  // /auth/me so the UI reflects the current session. If refresh fails, the session
+  // is genuinely over — flag it so the router can redirect to login.
+  useEffect(() => {
+    const handler = () => {
+      void refreshSession().then((refreshed) => {
+        if (refreshed) {
+          setUser(refreshed);
+          setIsSessionDead(false);
+        } else {
+          setUser(null);
+          setIsSessionDead(true);
+        }
+      });
+    };
+    window.addEventListener("medops:session-refreshed", handler);
+    return () => window.removeEventListener("medops:session-refreshed", handler);
+  }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isAuthenticated: user !== null, login, registerPatient, registerDoctor, logout }),
-    [user, login, registerPatient, registerDoctor, logout],
+    () => ({ user, isAuthenticated: user !== null, isLoading, isSessionDead, login, registerPatient, registerDoctor, logout }),
+    [user, isLoading, isSessionDead, login, registerPatient, registerDoctor, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

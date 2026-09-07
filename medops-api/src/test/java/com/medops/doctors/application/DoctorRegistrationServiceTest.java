@@ -12,10 +12,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.medops.auth.dto.AuthResponse;
+import com.medops.auth.dto.UserInfo;
 import com.medops.auth.entity.Role;
 import com.medops.auth.entity.User;
 import com.medops.auth.repository.RoleRepository;
 import com.medops.auth.repository.UserRepository;
+import com.medops.auth.security.JwtService;
+import com.medops.auth.service.SessionResult;
 import com.medops.auth.service.TokenIssuanceService;
 import com.medops.cache.domain.DoctorDirectoryCache;
 import com.medops.doctors.api.dto.RegisterDoctorRequest;
@@ -57,6 +60,8 @@ class DoctorRegistrationServiceTest {
     @Mock
     private AuditService auditService;
     @Mock
+    private JwtService jwtService;
+    @Mock
     private DoctorDirectoryCache doctorDirectoryCache;
 
     @InjectMocks
@@ -74,7 +79,9 @@ class DoctorRegistrationServiceTest {
         when(roleRepository.findByName("DOCTOR")).thenReturn(Optional.of(doctorRole));
         when(passwordEncoder.encode(PASSWORD)).thenReturn(ENCODED_PASSWORD);
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(tokenIssuanceService.issue(any(User.class))).thenReturn(expectedTokens);
+        when(tokenIssuanceService.issue(any(User.class)))
+                .thenReturn(new SessionResult("access", "refresh", new UserInfo(UUID.randomUUID(), EMAIL, "DOCTOR")));
+        when(jwtService.getAccessTokenExpiryMs()).thenReturn(900_000L);
 
         AuthResponse response = service.registerDoctor(request);
 

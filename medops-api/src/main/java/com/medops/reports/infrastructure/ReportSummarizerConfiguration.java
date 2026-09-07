@@ -6,6 +6,8 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
@@ -85,6 +87,7 @@ public class ReportSummarizerConfiguration {
         private final CircuitBreaker circuitBreaker;
         private final Retry retry;
         private final TimeLimiter timeLimiter;
+        private final ExecutorService executor = Executors.newCachedThreadPool();
 
         ResilientReportSummarizer(
                 ReportSummarizer delegate,
@@ -104,7 +107,7 @@ public class ReportSummarizerConfiguration {
             Supplier<ReportSummary> withRetry = Retry.decorateSupplier(retry, withCb);
             Callable<ReportSummary> withTimeout = TimeLimiter.decorateFutureSupplier(
                     timeLimiter,
-                    () -> java.util.concurrent.CompletableFuture.supplyAsync(withRetry));
+                    () -> java.util.concurrent.CompletableFuture.supplyAsync(withRetry, executor));
             try {
                 return withTimeout.call();
             } catch (Exception ex) {

@@ -10,7 +10,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.medops.auth.dto.AuthResponse;
 import com.medops.auth.dto.LoginRequest;
 import com.medops.auth.entity.RefreshToken;
 import com.medops.auth.entity.User;
@@ -40,7 +39,7 @@ public class AuthService {
     private final RateLimiterStore rateLimiterStore;
 
     @Transactional
-    public AuthResponse login(LoginRequest request) {
+    public SessionResult login(LoginRequest request) {
         String lockKey = lockoutKey(request.email());
         if (!rateLimiterStore.tryAcquire(lockKey, MAX_FAILED_LOGINS, LOCKOUT_WINDOW)) {
             auditService.recordEvent(AuditEventType.AUTH_LOGIN_LOCKED, null, request.email());
@@ -67,7 +66,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse refresh(String rawRefreshToken) {
+    public SessionResult refresh(String rawRefreshToken) {
         String tokenHash = jwtService.hashToken(rawRefreshToken);
         RefreshToken existingToken = refreshTokenRepository.findByTokenHash(tokenHash).orElse(null);
 

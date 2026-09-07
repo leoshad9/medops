@@ -1,18 +1,14 @@
 import axios from "axios";
-import type { InternalAxiosRequestConfig } from "axios";
 
-import { isAccessTokenExpired } from "../lib/jwt";
-import { readStoredTokens } from "../lib/tokenStorage";
 import { refreshSession } from "./sessionRefresh";
 
 export const api = axios.create({
   baseURL: "/api",
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
-
-type RetriableConfig = InternalAxiosRequestConfig & { retriedAfterRefresh?: boolean };
 
 // The auth endpoints either need no token or manage tokens themselves, so they must
 // never be intercepted for refresh.
@@ -20,26 +16,18 @@ function isAuthEndpoint(url: string | undefined): boolean {
   return url?.startsWith("/auth/") ?? false;
 }
 
-api.interceptors.request.use(async (config) => {
-  if (isAuthEndpoint(config.url)) {
-    return config;
-  }
-
-  let tokens = readStoredTokens();
-  if (tokens && isAccessTokenExpired(tokens.accessToken)) {
-    tokens = await refreshSession();
-  }
-  if (tokens) {
-    config.headers.Authorization = `Bearer ${tokens.accessToken}`;
-  }
+api.interceptors.request.use((config) => {
   if (typeof FormData !== "undefined" && config.data instanceof FormData) {
     config.headers.delete("Content-Type");
   }
   return config;
 });
 
-// A 401 here means the access token was rejected server-side (expired, or revoked
-// between requests). Try exactly one refresh-and-retry; a second failure is final.
+// A 401 means the access token was rejected server-side (expired, or revoked between
+// requests). The refresh token is an HttpOnly cookie, so retry the request — if the
+// refresh-token cookie is still valid, the interceptor in sessionRefresh.ts will have
+// rotated both tokens before this retry fires. Auth endpoints are excluded so a 401
+// on login/refresh/logout itself is surfaced to the caller, not retried.
 api.interceptors.response.use(
   (response) => response,
   async (error: unknown) => {
@@ -47,18 +35,16 @@ api.interceptors.response.use(
       throw error;
     }
 
-    const config = error.config as RetriableConfig | undefined;
-    if (!config || config.retriedAfterRefresh || isAuthEndpoint(config.url)) {
+    const config = error.config;
+    if (!config || isAuthEndpoint(config.url)) {
       throw error;
     }
 
-    const tokens = await refreshSession();
-    if (!tokens) {
+    const refreshed = await refreshSession();
+    if (!refreshed) {
       throw error;
     }
 
-    config.retriedAfterRefresh = true;
-    config.headers.Authorization = `Bearer ${tokens.accessToken}`;
     return api.request(config);
   },
 );

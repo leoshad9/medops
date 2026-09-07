@@ -1,5 +1,7 @@
 import { Bell } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
+import { PATIENT_PATHS } from "../../lib/patientRoutes";
 import type { NotificationItem } from "../../types/patient";
 
 interface NotificationsPanelProps {
@@ -16,11 +18,16 @@ export function NotificationsPanel({
   loading = false,
   onMarkRead,
 }: Readonly<NotificationsPanelProps>) {
+  const navigate = useNavigate();
   return (
     <div className="rounded-2xl border border-brand-line bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="font-bold text-brand-ink">Reminders</h2>
-        <button type="button" className="text-xs font-semibold text-brand-primary-dark hover:underline">
+        <button
+          type="button"
+          onClick={() => navigate(PATIENT_PATHS.notifications)}
+          className="text-xs font-semibold text-brand-primary-dark hover:underline"
+        >
           View All
         </button>
       </div>

@@ -1,7 +1,8 @@
 export type Role = "DOCTOR" | "PATIENT";
 
-// Derived client-side from the access token's "sub"/"roles" claims — the
-// login response itself carries only tokens, no user info (see AuthTokens).
+// The login response carries the authenticated user's identity. The access token
+// is an HttpOnly cookie set by the backend, so the client cannot read its claims —
+// this type is the only source of truth for who is signed in.
 export interface AuthUser {
   email: string;
   role: Role;
@@ -30,11 +31,4 @@ export interface RegisterDoctorRequest {
   specialty: string;
   licenseNumber: string;
   phoneNumber: string;
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
 }

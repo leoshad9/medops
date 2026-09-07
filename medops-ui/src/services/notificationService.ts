@@ -1,8 +1,5 @@
 import type { ApiResponse } from "../types/api";
-import { isAccessTokenExpired } from "../lib/jwt";
 import { messageFromApiError } from "../lib/apiError";
-import { readStoredTokens } from "../lib/tokenStorage";
-import { refreshSession } from "./sessionRefresh";
 import { api } from "./api";
 
 export type ApiNotificationType = "APPOINTMENT_BOOKED" | "REPORT_UPLOADED";
@@ -82,11 +79,10 @@ const RECONNECT_BASE_DELAY_MS = 1000;
 const RECONNECT_MAX_DELAY_MS = 30000;
 
 /**
- * Subscribes to the realtime notification stream. Uses fetch() rather than
- * EventSource because the backend expects the bearer JWT in the Authorization
- * header, which EventSource cannot send. Reconnects with capped exponential
- * backoff until unsubscribed; an auth rejection ends the stream for good.
- * Returns an unsubscribe function.
+ * Subscribes to the realtime notification stream over fetch (the access token is
+ * an HttpOnly cookie, so EventSource cannot send it). Reconnects with capped
+ * exponential backoff until unsubscribed; an auth rejection ends the stream
+ * for good. Returns an unsubscribe function.
  */
 export function subscribeToNotificationStream(handlers: NotificationStreamHandlers): () => void {
   const controller = new AbortController();
@@ -103,19 +99,14 @@ export function subscribeToNotificationStream(handlers: NotificationStreamHandle
   async function connect(): Promise<void> {
     while (!stopped && !controller.signal.aborted) {
       try {
-        const headers = await authorizationHeader();
+        const response = await fetch(STREAM_PATH, {
+          method: "GET",
+          credentials: "include",
+          signal: controller.signal,
+        });
         if (stopped || controller.signal.aborted) {
           return;
         }
-        if (!headers) {
-          // Signed out — nothing to subscribe with.
-          handlers.onError?.("Realtime notifications unavailable. Please sign in again.");
-          return;
-        }
-        const response = await fetch(STREAM_PATH, {
-          headers: { Accept: "text/event-stream", ...headers },
-          signal: controller.signal,
-        });
         if (!response.ok || !response.body) {
           if (response.status === 401 || response.status === 403) {
             handlers.onError?.("Realtime notifications unavailable. Please sign in again.");
@@ -145,14 +136,6 @@ export function subscribeToNotificationStream(handlers: NotificationStreamHandle
       await sleep(delay, controller.signal);
     }
   }
-}
-
-async function authorizationHeader(): Promise<Record<string, string> | null> {
-  let tokens = readStoredTokens();
-  if (tokens && isAccessTokenExpired(tokens.accessToken)) {
-    tokens = await refreshSession();
-  }
-  return tokens ? { Authorization: `Bearer ${tokens.accessToken}` } : null;
 }
 
 async function readEventStream(
