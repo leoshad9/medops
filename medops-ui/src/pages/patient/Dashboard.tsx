@@ -12,7 +12,8 @@ import { listMyAppointments } from "../../services/appointmentService";
 import { listPrescriptions, listReports } from "../../services/clinicalService";
 
 export function PatientDashboard() {
-  const { data } = usePatientPortal();
+  const { data, notifications, notificationsLoading, notificationsError, markNotificationRead } =
+    usePatientPortal();
   const [live, setLive] = useState(buildPatientDashboardLiveData([], [], []));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,11 @@ export function PatientDashboard() {
     };
   }, []);
 
+  // Real event notifications; fall back to the derived activity feed only while
+  // the notifications API is unreachable.
+  const activity =
+    notifications.length > 0 || notificationsError === null ? notifications : live.activity;
+
   return (
     <div className="space-y-6">
       {error && (
@@ -64,7 +70,11 @@ export function PatientDashboard() {
           <RecentAppointmentsTable appointments={live.recentAppointments} />
         </div>
         <div className="space-y-6">
-          <NotificationsPanel notifications={live.activity} />
+          <NotificationsPanel
+            notifications={activity}
+            loading={notificationsLoading && activity.length === 0}
+            onMarkRead={markNotificationRead}
+          />
           <HealthSummaryPanel metrics={data.healthMetrics} />
         </div>
       </div>

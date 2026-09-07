@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
+import { useNotifications } from "../../hooks/useNotifications";
 import { DoctorHeader } from "./DoctorHeader";
 import { DoctorSidebar } from "./DoctorSidebar";
 import { DOCTOR_VIEW_METADATA, doctorViewFromPath } from "../../lib/doctorRoutes";
@@ -13,6 +14,7 @@ export function DoctorLayout() {
   const [profile, setProfile] = useState<DoctorProfile | null>(null);
   const view = doctorViewFromPath(location.pathname);
   const meta = DOCTOR_VIEW_METADATA[view];
+  const { unreadCount } = useNotifications();
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +38,7 @@ export function DoctorLayout() {
       <main className="min-h-0 flex-1 overflow-y-auto space-y-6 p-8">
         <DoctorHeader
           profile={profile ?? mockDoctorDashboard.profile}
-          unreadAlertsCount={mockDoctorDashboard.unreadAlertsCount}
+          unreadAlertsCount={unreadCount}
           title={meta.title}
           subtitle={meta.subtitle}
         />

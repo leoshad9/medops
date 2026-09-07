@@ -93,3 +93,27 @@ export function clinicDayBoundsIso(ymd: string): { from: string; to: string } {
   next.setDate(next.getDate() + 1);
   return { from: from.toISOString(), to: next.toISOString() };
 }
+
+const relativeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "long" });
+
+/**
+ * Human-friendly "time ago" label for notification timestamps, switching to an
+ * absolute clinic datetime once the event is more than a week old.
+ */
+export function relativeTimeAgo(isoInstant: string): string {
+  const seconds = Math.round((new Date(isoInstant).getTime() - Date.now()) / 1000);
+  const absolute = Math.abs(seconds);
+  if (absolute < 60) {
+    return relativeFormatter.format(seconds, "second");
+  }
+  if (absolute < 3600) {
+    return relativeFormatter.format(Math.round(seconds / 60), "minute");
+  }
+  if (absolute < 86400) {
+    return relativeFormatter.format(Math.round(seconds / 3600), "hour");
+  }
+  if (absolute < 604800) {
+    return relativeFormatter.format(Math.round(seconds / 86400), "day");
+  }
+  return formatClinicDateTime(isoInstant);
+}

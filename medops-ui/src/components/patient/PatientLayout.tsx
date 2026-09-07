@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
+import { useNotifications } from "../../hooks/useNotifications";
 import { PATIENT_PATHS, PATIENT_VIEW_METADATA, patientViewFromPath } from "../../lib/patientRoutes";
 import { mockPatientDashboard } from "../../pages/patient/mockDashboardData";
 import { getMyProfile } from "../../services/patientService";
-import type { PatientDashboardData, PatientProfile } from "../../types/patient";
+import type {
+  NotificationItem,
+  PatientDashboardData,
+  PatientProfile,
+} from "../../types/patient";
 import { PatientHeader } from "./PatientHeader";
 import { PatientSidebar } from "./PatientSidebar";
 
@@ -12,6 +17,11 @@ export interface PatientPortalContext {
   data: PatientDashboardData;
   profile: PatientProfile;
   patientId: string | null;
+  notifications: NotificationItem[];
+  unreadNotificationCount: number;
+  notificationsLoading: boolean;
+  notificationsError: string | null;
+  markNotificationRead: (notificationId: string) => Promise<void>;
 }
 
 export function PatientLayout() {
@@ -21,6 +31,13 @@ export function PatientLayout() {
   const [profile, setProfile] = useState<(PatientProfile & { id: string }) | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
+  const {
+    notifications,
+    unreadCount,
+    loading: notificationsLoading,
+    error: notificationsError,
+    markRead: markNotificationRead,
+  } = useNotifications();
 
   useEffect(() => {
     let cancelled = false;
@@ -53,7 +70,7 @@ export function PatientLayout() {
       <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto space-y-6 p-4 sm:p-8 max-w-7xl w-full">
         <PatientHeader
           profile={resolvedProfile}
-          unreadNotificationCount={0}
+          unreadNotificationCount={unreadCount}
           title={meta.title}
           subtitle={meta.subtitle}
           onOpenMobileMenu={() => setMobileSidebarOpen(true)}
@@ -67,6 +84,11 @@ export function PatientLayout() {
                 data,
                 profile: resolvedProfile,
                 patientId: profile?.id ?? null,
+                notifications,
+                unreadNotificationCount: unreadCount,
+                notificationsLoading,
+                notificationsError,
+                markNotificationRead,
               } satisfies PatientPortalContext
             }
           />
