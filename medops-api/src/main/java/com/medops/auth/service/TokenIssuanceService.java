@@ -51,6 +51,8 @@ public class TokenIssuanceService {
                 .map(role -> role.getName())
                 .orElse("PATIENT");
 
-        return new SessionResult(accessToken, rawRefreshToken, new UserInfo(user.getId(), user.getEmail(), primaryRole));
+        UserInfo userInfo = new UserInfo(user.getId(), user.getEmail(), primaryRole);
+        return new SessionResult(accessToken, rawRefreshToken, userInfo);
     }
 }
+

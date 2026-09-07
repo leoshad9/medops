@@ -29,6 +29,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private static final int HSTS_MAX_AGE_SECONDS = 31536000;
+
     private static final String[] ALWAYS_PUBLIC = {
             "/api/auth/**",
             "/actuator/health",
@@ -81,7 +83,7 @@ public class SecurityConfig {
                             "camera=(), microphone=(), geolocation=()"));
                     headers.httpStrictTransportSecurity(hsts -> hsts
                             .includeSubDomains(true)
-                            .maxAgeInSeconds(31536000));
+                            .maxAgeInSeconds(HSTS_MAX_AGE_SECONDS));
                 })
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(ALWAYS_PUBLIC).permitAll();
@@ -104,3 +106,5 @@ public class SecurityConfig {
         return http.build();
     }
 }
+
+
