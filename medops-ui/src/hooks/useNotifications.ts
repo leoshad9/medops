@@ -57,7 +57,7 @@ function mergeById(current: NotificationItem[], incoming: NotificationItem[]): N
 
 /**
  * Loads the notification feed and unread badge, and keeps both live through the
- * SSE stream. One instance per mounted layout (patient or doctor) â€” the stream
+ * SSE stream. One instance per mounted layout (patient or doctor) — the stream
  * connection lives as long as the component that calls this hook.
  */
 export function useNotifications(): UseNotificationsResult {
@@ -138,6 +138,11 @@ export function useNotifications(): UseNotificationsResult {
     );
     try {
       await markNotificationRead(notificationId);
+      // Re-apply the read state after the server confirms, to counter any
+      // stale data the SSE onOpen re-fetch may have merged in between.
+      setNotifications((current) =>
+        current.map((item) => (item.id === notificationId ? { ...item, unread: false } : item)),
+      );
       setUnreadCount(await getUnreadNotificationCount());
       setError(null);
     } catch (err: unknown) {
