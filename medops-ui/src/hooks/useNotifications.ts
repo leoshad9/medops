@@ -57,7 +57,7 @@ function mergeById(current: NotificationItem[], incoming: NotificationItem[]): N
 
 /**
  * Loads the notification feed and unread badge, and keeps both live through the
- * SSE stream. One instance per mounted layout (patient or doctor) — the stream
+ * SSE stream. One instance per mounted layout (patient or doctor) - the stream
  * connection lives as long as the component that calls this hook.
  */
 export function useNotifications(): UseNotificationsResult {
