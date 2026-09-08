@@ -3,8 +3,18 @@
 // so swapping in real API calls later is a data-source change, not a rewrite.
 
 export interface PatientProfile {
+  id: string;
   name: string;
+  email: string;
   mrn: string;
+  dateOfBirth: string;
+  gender: string;
+  phoneNumber: string;
+  bloodGroup?: string;
+  address?: string;
+  emergencyContact?: string;
+  insuranceProvider?: string;
+  insurancePolicyNumber?: string;
 }
 
 export interface DashboardStat {
@@ -147,4 +157,5 @@ export interface PatientDashboardData {
   notifications: NotificationItem[];
   healthMetrics: HealthMetric[];
 }
+
 

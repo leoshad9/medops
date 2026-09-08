@@ -26,6 +26,38 @@ export function formatClinicTime(isoInstant: string): string {
   return timeFormatter.format(new Date(isoInstant));
 }
 
+const dateOnlyParts = new Intl.DateTimeFormat("en-GB", {
+  timeZone: CLINIC_ZONE,
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+const ISO_YMD = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Formats a date-of-birth for display. Backend sends LocalDate as ISO "1990-01-01";
+ * pass values already in display form (e.g. legacy mock data "14 Mar 1985") through
+ * untouched.
+ */
+export function formatClinicDate(value: string): string {
+  if (!ISO_YMD.test(value)) {
+    return value;
+  }
+  return dateOnlyParts.format(new Date(`${value}T00:00:00+05:30`));
+}
+
+/**
+ * Title-cases a Gender enum value from the API ("FEMALE" -> "Female").
+ * Values already in display form are passed through untouched.
+ */
+export function displayGender(value: string): string {
+  if (value.length === 0 || value === value.toLowerCase()) {
+    return value;
+  }
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
 const upcomingParts = new Intl.DateTimeFormat("en-GB", {
   timeZone: CLINIC_ZONE,
   day: "2-digit",

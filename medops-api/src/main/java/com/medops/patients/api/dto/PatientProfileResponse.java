@@ -13,7 +13,12 @@ public record PatientProfileResponse(
         String mrn,
         LocalDate dateOfBirth,
         Gender gender,
-        String phoneNumber
+        String phoneNumber,
+        String bloodGroup,
+        String address,
+        String emergencyContact,
+        String insuranceProvider,
+        String insurancePolicyNumber
 ) {
 
     public static PatientProfileResponse of(PatientProfile profile, String email) {
@@ -24,6 +29,11 @@ public record PatientProfileResponse(
                 profile.getMrn(),
                 profile.getDateOfBirth(),
                 profile.getGender(),
-                profile.getPhoneNumber());
+                profile.getPhoneNumber(),
+                profile.getBloodGroup(),
+                profile.getAddress(),
+                profile.getEmergencyContact(),
+                profile.getInsuranceProvider(),
+                profile.getInsurancePolicyNumber());
     }
 }

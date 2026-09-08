@@ -6,6 +6,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.medops.auth.dto.AuthResponse;
 import com.medops.patients.api.dto.PatientProfileResponse;
 import com.medops.patients.api.dto.RegisterPatientRequest;
+import com.medops.patients.api.dto.UpdatePatientProfileRequest;
 import com.medops.patients.application.PatientProfileService;
 import com.medops.patients.application.PatientRegistrationService;
 import com.medops.shared.response.ApiResponse;
@@ -40,5 +42,14 @@ public class PatientController {
     public ResponseEntity<ApiResponse<PatientProfileResponse>> getMyProfile(Authentication authentication) {
         PatientProfileResponse response = patientProfileService.getMyProfile(authentication.getName());
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<ApiResponse<PatientProfileResponse>> updateMyProfile(
+            Authentication authentication,
+            @Valid @RequestBody UpdatePatientProfileRequest request) {
+        PatientProfileResponse response = patientProfileService.updateMyProfile(authentication.getName(), request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Profile updated"));
     }
 }

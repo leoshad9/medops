@@ -4,8 +4,18 @@ import type { PatientDashboardData } from "../../types/patient";
 // Matches the wireframe specification in medops-patient-dashboard-enhanced.html
 export const mockPatientDashboard: PatientDashboardData = {
   profile: {
+    id: "patient-001",
     name: "John Smith",
+    email: "john.smith@example.com",
     mrn: "MRN-2026-001245",
+    dateOfBirth: "14 Mar 1985",
+    gender: "Male",
+    phoneNumber: "+91 98765 43210",
+    bloodGroup: "O+",
+    address: "24 Lodhi Gardens Road, New Delhi 110003",
+    emergencyContact: "Anita Smith (Spouse) · +91 98765 11122",
+    insuranceProvider: "Star Health",
+    insurancePolicyNumber: "SH-88213",
   },
   detailedProfile: {
     fullName: "John Smith",

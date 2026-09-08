@@ -1,6 +1,7 @@
 package com.medops.patients.api;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.lang.NonNull;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,6 +22,8 @@ import com.medops.auth.dto.AuthResponse;
 import com.medops.auth.security.AuthRateLimitFilter;
 import com.medops.auth.security.JwtAuthenticationFilter;
 import com.medops.patients.api.dto.RegisterPatientRequest;
+import com.medops.patients.api.dto.PatientProfileResponse;
+import com.medops.patients.api.dto.UpdatePatientProfileRequest;
 import com.medops.patients.application.PatientProfileService;
 import com.medops.patients.application.PatientRegistrationService;
 import com.medops.patients.domain.Gender;
@@ -27,6 +32,7 @@ import com.medops.shared.exception.ConflictException;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -108,5 +114,50 @@ class PatientControllerTest {
                         .content(json(validRequest())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.status").value("ALREADY_EXISTS"));
+    }
+
+    private static UpdatePatientProfileRequest validUpdate() {
+        return new UpdatePatientProfileRequest(
+                "Jane Doe", "+12345678901", "O+", "24 Main Road",
+                "Anita (Spouse) +12345678902", "Star Health", "SH-88213");
+    }
+
+    @Test
+    void updateMyProfile_returns200WithEnvelope_onSuccess() throws Exception {
+        when(patientProfileService.updateMyProfile(any(), any())).thenReturn(new PatientProfileResponse(
+                java.util.UUID.randomUUID(), "patient@medops.dev", "Jane Doe", "MRN-2026-000001",
+                LocalDate.of(1990, 1, 1), Gender.FEMALE, "+12345678901",
+                "O+", "24 Main Road", "Anita (Spouse) +12345678902", "Star Health", "SH-88213"));
+
+        mockMvc.perform(put("/api/v1/patients/me")
+                        .principal(patientAuth())
+                        .contentType(JSON)
+                        .content(json(validUpdate())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Profile updated"))
+                .andExpect(jsonPath("$.data.fullName").value("Jane Doe"))
+                .andExpect(jsonPath("$.data.bloodGroup").value("O+"));
+    }
+
+    @Test
+    void updateMyProfile_returns400_onInvalidRequest() throws Exception {
+        UpdatePatientProfileRequest invalid = new UpdatePatientProfileRequest(
+                "", "123", "O+", null, null, null, null);
+
+        mockMvc.perform(put("/api/v1/patients/me")
+                        .principal(patientAuth())
+                        .contentType(JSON)
+                        .content(json(invalid)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.status").value("INVALID_ARGUMENT"));
+    }
+
+    private static UsernamePasswordAuthenticationToken patientAuth() {
+        return UsernamePasswordAuthenticationToken.authenticated(
+                "patient@medops.dev",
+                "n/a",
+                List.of(new SimpleGrantedAuthority("ROLE_PATIENT")));
     }
 }

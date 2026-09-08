@@ -70,6 +70,21 @@ public class PatientProfile {
     @Column(name = "phone_number", nullable = false, length = 20)
     private String phoneNumber;
 
+    @Column(name = "blood_group", length = 10)
+    private String bloodGroup;
+
+    @Column(length = 255)
+    private String address;
+
+    @Column(name = "emergency_contact", length = 255)
+    private String emergencyContact;
+
+    @Column(name = "insurance_provider", length = 100)
+    private String insuranceProvider;
+
+    @Column(name = "insurance_policy_number", length = 100)
+    private String insurancePolicyNumber;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private ZonedDateTime createdAt;
