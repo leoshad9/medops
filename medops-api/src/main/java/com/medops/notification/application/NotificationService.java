@@ -69,4 +69,13 @@ public class NotificationService {
         }
         return NotificationResponse.from(entity.toDomain());
     }
+
+    /**
+     * Marks every unread notification belonging to the user as read. Idempotent: a
+     * second call (or a call when nothing is unread) returns zero.
+     */
+    @Transactional
+    public int markAllRead(UUID userId) {
+        return notificationRepository.markAllReadForUser(userId, Instant.now());
+    }
 }

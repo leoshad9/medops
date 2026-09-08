@@ -6,9 +6,10 @@ import { PATIENT_PATHS } from "../../../lib/patientRoutes";
 import type { PatientPortalContext } from "../../../components/patient/PatientLayout";
 
 export function NotificationsView() {
-  const { notifications, notificationsLoading, markNotificationRead } =
+  const { notifications, notificationsLoading, markNotificationRead, markAllNotificationsRead } =
     useOutletContext<PatientPortalContext>();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [markingAll, setMarkingAll] = useState(false);
 
   const unread = notifications.filter((n) => n.unread);
 
@@ -18,6 +19,15 @@ export function NotificationsView() {
       await markNotificationRead(id);
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleMarkAllRead = async (): Promise<void> => {
+    setMarkingAll(true);
+    try {
+      await markAllNotificationsRead();
+    } finally {
+      setMarkingAll(false);
     }
   };
 
@@ -43,9 +53,20 @@ export function NotificationsView() {
               </p>
             </div>
             {unread.length > 0 && (
-              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-rust px-2 text-xs font-semibold text-white">
-                {unread.length}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleMarkAllRead()}
+                  disabled={markingAll}
+                  className="inline-flex items-center gap-1 rounded-lg border border-brand-line px-2.5 py-1 text-xs font-medium text-brand-primary-dark transition hover:bg-brand-primary-tint disabled:opacity-50"
+                >
+                  <Check className="h-3 w-3" />
+                  Mark all as read
+                </button>
+                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-rust px-2 text-xs font-semibold text-white">
+                  {unread.length}
+                </span>
+              </div>
             )}
           </div>
         </div>

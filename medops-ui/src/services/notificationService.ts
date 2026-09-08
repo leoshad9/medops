@@ -54,6 +54,16 @@ export async function markNotificationRead(notificationId: string): Promise<Noti
   }
 }
 
+/** Marks every unread notification as read; returns the number that were updated. */
+export async function markAllNotificationsRead(): Promise<number> {
+  try {
+    const response = await api.post<ApiResponse<{ marked: number }>>("/v1/notifications/read-all");
+    return response.data.data.marked;
+  } catch (error) {
+    throw new Error(messageFromApiError(error, "Unable to mark notifications as read. Please try again."));
+  }
+}
+
 // --- Realtime stream (server-sent events over fetch) ---
 
 export interface NotificationStreamPayload {

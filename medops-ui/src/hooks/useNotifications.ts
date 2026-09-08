@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { relativeTimeAgo } from "../lib/clinicTime";
 import {
   getUnreadNotificationCount,
   listNotifications,
+  markAllNotificationsRead,
   markNotificationRead,
   subscribeToNotificationStream,
   type NotificationDto,
@@ -19,6 +20,7 @@ export interface UseNotificationsResult {
   loading: boolean;
   error: string | null;
   markRead: (notificationId: string) => Promise<void>;
+  markAllRead: () => Promise<void>;
 }
 
 function toItem(
@@ -66,39 +68,73 @@ export function useNotifications(): UseNotificationsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const cancelledRef = useRef(false);
+  // Ids for which the user has optimistically flipped the row to read. A page
+  // snapshot built BEFORE the PATCH committed may still report these as unread;
+  // merging such a page back would make the row "go away and then come back". We
+  // therefore never downgrade a pending id until a server page confirms read=true.
+  const readPendingRef = useRef(new Set<string>());
 
+  const releaseConfirmed = (items: NotificationDto[]): void => {
+    const pending = readPendingRef.current;
+    for (const item of items) {
+      if (item.read) {
+        pending.delete(item.id);
+      }
+    }
+  };
+
+  const applyPage = (items: NotificationDto[]): void => {
+    releaseConfirmed(items);
+    const pending = readPendingRef.current;
+    const incoming = items.map((dto) => {
+      const item = toItemFromDto(dto);
+      return pending.has(item.id) ? { ...item, unread: false } : item;
+    });
+    setNotifications((current) => mergeById(current, incoming));
+  };
+
+  /**
+   * Refetches the page and unread badge from the server and applies the result
+   * through the pending guard. Returns whether the refresh succeeded so callers
+   * can decide whether to surface an error. Never clears error state itself.
+   */
+  const refreshState = async (): Promise<boolean> => {
+    try {
+      const [page, unread] = await Promise.all([
+        listNotifications(0, PAGE_SIZE),
+        getUnreadNotificationCount(),
+      ]);
+      if (cancelledRef.current) {
+        return false;
+      }
+      applyPage(page.items);
+      setUnreadCount(unread);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  useEffect(() => {
     // One shared loader for mount and stream reconnects; merging (not replacing)
     // keeps items that arrived through the stream while the request was running.
     const fetchAll = async (): Promise<void> => {
-      try {
-        const [page, unread] = await Promise.all([
-          listNotifications(0, PAGE_SIZE),
-          getUnreadNotificationCount(),
-        ]);
-        if (cancelled) {
-          return;
-        }
-        setNotifications((current) => mergeById(current, page.items.map(toItemFromDto)));
-        setUnreadCount(unread);
-        setError(null);
-      } catch (err: unknown) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load notifications.");
-        }
+      const ok = await refreshState();
+      if (!cancelledRef.current) {
+        setError(ok ? null : "Unable to load notifications.");
       }
     };
 
     void fetchAll().finally(() => {
-      if (!cancelled) {
+      if (!cancelledRef.current) {
         setLoading(false);
       }
     });
 
     const unsubscribe = subscribeToNotificationStream({
       onNotification: (payload) => {
-        if (cancelled) {
+        if (cancelledRef.current) {
           return;
         }
         const incoming = toItemFromPayload(payload);
@@ -108,53 +144,68 @@ export function useNotifications(): UseNotificationsResult {
         }
       },
       onOpen: () => {
-        if (cancelled) {
+        if (cancelledRef.current) {
           return;
         }
-        // A successful (re)connect: clear stale stream errors and recover anything
-        // published while the connection was down (the backend replays from
-        // PostgreSQL). The duplicate request at mount is intentional and cheap.
+        // Clear stale stream errors on a successful (re)connect, then recover
+        // anything published while the connection was down (the backend replays
+        // from PostgreSQL). The duplicate initial request is intentional: the
+        // mount fetch above races the first open.
         setError(null);
-        void fetchAll();
+        void refreshState().then(ok => {
+          if (!ok && !cancelledRef.current) {
+            setError("Unable to load notifications.");
+          }
+        });
       },
       onError: (message) => {
-        if (!cancelled) {
+        if (!cancelledRef.current) {
           setError(message);
         }
       },
     });
 
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
       unsubscribe();
     };
   }, []);
 
   const markRead = useCallback(async (notificationId: string): Promise<void> => {
     // Optimistic: the row and badge update immediately, then re-sync with the
-    // server (list is refetched only if the call fails, to avoid drift).
+    // server. The pending guard keeps the flip visible even if a stale page
+    // snapshot (raced against the PATCH) lands after the optimistic update.
+    readPendingRef.current.add(notificationId);
     setNotifications((current) =>
       current.map((item) => (item.id === notificationId ? { ...item, unread: false } : item)),
     );
     try {
       await markNotificationRead(notificationId);
-      // Re-apply the read state after the server confirms, to counter any
-      // stale data the SSE onOpen re-fetch may have merged in between.
       setNotifications((current) =>
         current.map((item) => (item.id === notificationId ? { ...item, unread: false } : item)),
       );
-      setUnreadCount(await getUnreadNotificationCount());
-      setError(null);
+      void refreshState();
     } catch (err: unknown) {
+      readPendingRef.current.delete(notificationId);
       setError(err instanceof Error ? err.message : "Unable to mark that notification as read.");
-      try {
-        const page = await listNotifications(0, PAGE_SIZE);
-        setNotifications((current) => mergeById(current, page.items.map(toItemFromDto)));
-      } catch {
-        // Keep the optimistic local state; the badge stays as-is.
-      }
+      void refreshState();
     }
   }, []);
 
-  return { notifications, unreadCount, loading, error, markRead };
+  const markAllRead = useCallback(async (): Promise<void> => {
+    const ids = notifications.filter((item) => item.unread).map((item) => item.id);
+    ids.forEach((id) => readPendingRef.current.add(id));
+    setNotifications((current) => current.map((item) => ({ ...item, unread: false })));
+    setUnreadCount(0);
+    try {
+      await markAllNotificationsRead();
+      void refreshState();
+    } catch (err: unknown) {
+      ids.forEach((id) => readPendingRef.current.delete(id));
+      setError(err instanceof Error ? err.message : "Unable to mark notifications as read.");
+      void refreshState();
+    }
+  }, [notifications]);
+
+  return { notifications, unreadCount, loading, error, markRead, markAllRead };
 }

@@ -22,13 +22,14 @@ export interface PatientPortalContext {
   notificationsLoading: boolean;
   notificationsError: string | null;
   markNotificationRead: (notificationId: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
 }
 
 export function PatientLayout() {
   const data = mockPatientDashboard;
   const location = useLocation();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<(PatientProfile & { id: string }) | null>(null);
+  const [profile, setProfile] = useState<PatientProfile | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const {
@@ -37,6 +38,7 @@ export function PatientLayout() {
     loading: notificationsLoading,
     error: notificationsError,
     markRead: markNotificationRead,
+    markAllRead: markAllNotificationsRead,
   } = useNotifications();
 
   useEffect(() => {
@@ -89,6 +91,7 @@ export function PatientLayout() {
                 notificationsLoading,
                 notificationsError,
                 markNotificationRead,
+                markAllNotificationsRead,
               } satisfies PatientPortalContext
             }
           />

@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -106,6 +107,16 @@ class NotificationControllerTest {
         mockMvc.perform(patch("/api/v1/notifications/" + notificationId + "/read").principal(patientAuth()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.read").value(true));
+    }
+
+    @Test
+    void markAllReadReturnsMarkedCount() throws Exception {
+        when(notificationService.markAllRead(eq(userId))).thenReturn(4);
+
+        mockMvc.perform(post("/api/v1/notifications/read-all").principal(patientAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.marked").value(4));
     }
 
     @Test

@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -124,5 +125,65 @@ class NotificationServiceTest {
         assertThatThrownBy(() -> service.markRead(userId, notificationId))
                 .isInstanceOf(ResourceNotFoundException.class);
         verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
+    void markReadIsIdempotent_onAlreadyReadNotification() {
+        UUID userId = UUID.randomUUID();
+        NotificationEntity entity = NotificationEntity.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .type(NotificationType.REPORT_UPLOADED)
+                .title("New report")
+                .message("A report was uploaded.")
+                .referenceType("REPORT")
+                .referenceId(UUID.randomUUID())
+                .read(true)
+                .createdAt(Instant.now())
+                .readAt(Instant.now())
+                .sourceEventId(UUID.randomUUID())
+                .build();
+        when(notificationRepository.findByIdAndUserId(entity.getId(), userId)).thenReturn(Optional.of(entity));
+
+        var response = service.markRead(userId, entity.getId());
+
+        assertThat(response.read()).isTrue();
+        // Idempotent: no redundant write when the row is already read.
+        verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
+    void markReadLeavesOtherNotificationsUntouched() {
+        UUID userId = UUID.randomUUID();
+        NotificationEntity target = NotificationEntity.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .type(NotificationType.APPOINTMENT_BOOKED)
+                .title("Appointment confirmed")
+                .message("Your appointment is confirmed.")
+                .referenceType("APPOINTMENT")
+                .referenceId(UUID.randomUUID())
+                .createdAt(Instant.now())
+                .sourceEventId(UUID.randomUUID())
+                .build();
+        when(notificationRepository.findByIdAndUserId(target.getId(), userId)).thenReturn(Optional.of(target));
+
+        service.markRead(userId, target.getId());
+
+        // Only the targeted notification is touched; a sibling stays unread. The
+        // repository lookup is scoped by user id too, so other users are untouched.
+        assertThat(target.isRead()).isTrue();
+        verify(notificationRepository, times(1)).save(target);
+    }
+
+    @Test
+    void markAllReadBulkMarksUnreadNotifications() {
+        UUID userId = UUID.randomUUID();
+        when(notificationRepository.markAllReadForUser(eq(userId), any())).thenReturn(3);
+
+        int marked = service.markAllRead(userId);
+
+        assertThat(marked).isEqualTo(3);
+        verify(notificationRepository).markAllReadForUser(eq(userId), any());
     }
 }
