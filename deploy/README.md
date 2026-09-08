@@ -1,135 +1,193 @@
-# MedOps deploy to EC2 (behind ALB)
+# MedOps - EC2 deployment guide
 
-ALB: `http://medops-alb-1371426590.ap-southeast-2.elb.amazonaws.com`
+Public URL: **https://medops.duckdns.org**. Traffic reaches the EC2 instance directly; nginx inside the `medops-ui` container terminates TLS.
 
-## 1. GitHub Actions (Access Keys + SSM)
+## How it works
 
-No SSH from GitHub. The runner uses IAM access keys to send an SSM command that runs `deploy/ec2-deploy.sh` on the instance as `ec2-user`.
+```
+push to dev --> GitHub Actions
+                 |-- job test:   mvn -B verify (medops-api, Java 21)
+                 `-- job deploy: aws ssm send-command
+                       `-> on EC2, as ssm-user: bash deploy/ec2-deploy.sh
+                             |-- git fetch + hard reset to origin/<branch>
+                             |-- docker prune (containers/images/build cache, volumes KEPT)
+                             `-- sudo docker compose up -d --build --remove-orphans
+```
 
-**Settings → Secrets and variables → Actions**
+Traffic path (nothing else is exposed):
+
+```
+Internet
+  |
+  v
+EC2 security group (ports 80 + 443)
+  |
+  v
+nginx (medops-ui container)
+  |-- :80   /.well-known/acme-challenge/ -> /opt/medops-acme  (certbot webroot)
+  |-- :80   everything else              -> 301 https://medops.duckdns.org
+  `-- :443  TLS (cert for medops.duckdns.org from /opt/medops-certs)
+        |-- /           -> React UI (static files)
+        |-- /api/       -> medops-api:8080
+        `-- /actuator/  -> medops-api:8080 (health endpoints only)
+```
+
+Postgres binds to 127.0.0.1:5432 on the host only. Redis, Kafka and medops-ai are internal to the compose network.
+
+| File | Role |
+| --- | --- |
+| `.github/workflows/deploy.yml` | Pipeline: test -> SSM deploy |
+| `deploy/ec2-deploy.sh` | Runs on the instance: git sync -> prune -> compose up --build |
+| `docker-compose.yml` | Base: redis, kafka, medops-ai |
+| `docker-compose.prod.yml` | Prod overlay: postgres, medops-api, medops-ui (nginx TLS) |
+
+## 1. GitHub Actions (access keys + SSM)
+
+The runner uses IAM access keys to send an SSM command that runs `deploy/ec2-deploy.sh` on the instance as `ssm-user`.
+
+**Settings -> Secrets and variables -> Actions:**
 
 | Type | Name | Value |
 | --- | --- | --- |
-| Secret | `AWS_ACCESS_KEY_ID` | Your IAM access key ID |
-| Secret | `AWS_SECRET_ACCESS_KEY` | Your IAM secret access key |
-| Secret or variable | `AWS_REGION` | `ap-southeast-2` |
-| Secret or variable | `EC2_INSTANCE_ID` | `i-076902fa975b6d261` |
+| Secret | `AWS_ACCESS_KEY_ID` | IAM access key ID |
+| Secret | `AWS_SECRET_ACCESS_KEY` | IAM secret access key |
+| Secret | `EC2_INSTANCE_ID` | `i-076902fa975b6d261` |
+| Variable | `AWS_REGION` | `ap-southeast-2` |
 
-The instance must have the SSM agent running and an instance profile attached with SSM permissions (`AmazonSSMManagedInstanceCore`).
+Instance prerequisites: SSM agent running and an instance profile with `AmazonSSMManagedInstanceCore` attached.
 
-EC2 GitHub deploy key handles `git fetch` inside `/home/ec2-user/medops`. Port 22 can stay restricted to your own IP.
+The repo checkout lives at `/home/ssm-user/medops`. The SSM command `cd`s there, exports `DEPLOY_BRANCH=<branch>` and runs the script. `git fetch` uses the SSH deploy key if configured, with an HTTPS fallback for public repos. Shell access on the instance is via SSM Session Manager.
 
-## 2. One-time EC2 prep
-
-SSH in, then:
+## 2. EC2 one-time setup
 
 ```bash
-sudo dnf update -y
-sudo dnf install -y docker git curl
-sudo systemctl enable --now docker
-sudo usermod -aG docker ec2-user
+sudo su
+# Docker + compose plugin (Amazon Linux 2023)
+dnf install -y docker git
+systemctl enable --now docker
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-sudo mkdir -p /usr/libexec/docker/cli-plugins
-sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
-  -o /usr/libexec/docker/cli-plugins/docker-compose
-sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
-# Compose v5+ needs Buildx >= 0.17 (AL2023 ships 0.12.x).
-BUILDX_VER="$(curl -fsSL https://api.github.com/repos/docker/buildx/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+')"
-sudo curl -SL "https://github.com/docker/buildx/releases/download/${BUILDX_VER}/buildx-${BUILDX_VER}.linux-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')" \
-  -o /usr/libexec/docker/cli-plugins/docker-buildx
-sudo chmod +x /usr/libexec/docker/cli-plugins/docker-buildx
+# ssm-user needs sudo for docker (workflow runs the script as ssm-user)
+echo 'ssm-user ALL=(ALL) NOPASSWD: /usr/bin/docker' > /etc/sudoers.d/ssm-user-docker
 
-sudo mkdir -p /opt/medops
-sudo chown -R ec2-user:ec2-user /opt/medops
+# TLS dirs nginx mounts from docker-compose.prod.yml
+mkdir -p /opt/medops-acme /opt/medops-certs
 ```
 
-Log out and back in (docker group).
-
-**Clone first**, then create `.env` (do not create `.env` before clone — non-empty `/opt/medops` breaks `git clone`):
+### Issue the certificate (webroot mode, medops.duckdns.org must point at this instance)
 
 ```bash
-cd /opt/medops
-git clone https://github.com/leoshad9/medops.git .
-git checkout dev
+dnf install -y certbot
+certbot certonly --webroot -w /opt/medops-acme \
+  -d medops.duckdns.org -d www.medops.duckdns.org \
+  --email you@example.com --agree-tos --no-eff-email
+```
 
-JWT_SECRET_VALUE="$(openssl rand -hex 32)"
-cat > .env <<EOF
-HOST_HTTP_PORT=80
-POSTGRES_DB=medops
-POSTGRES_USER=medops
-POSTGRES_PASSWORD=change-me-strong-password
-JWT_SECRET=${JWT_SECRET_VALUE}
-LLM_PROVIDER=generate_content
-LLM_API_KEY=your_llm_api_key
-LLM_MODEL=your-model-id
-LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta
-MEDOPS_AI_ENABLED=true
+Certbot writes to `/etc/letsencrypt/live/medops.duckdns.org/`. Copy the files nginx expects into the mounted dir and add a renewal hook:
+
+```bash
+cp /etc/letsencrypt/live/medops.duckdns.org/fullchain.pem /opt/medops-certs/
+cp /etc/letsencrypt/live/medops.duckdns.org/privkey.pem  /opt/medops-certs/
+cat > /etc/letsencrypt/renewal-hooks/deploy/medops-certs.sh <<'EOF'
+#!/bin/bash
+cp -f /etc/letsencrypt/live/medops.duckdns.org/fullchain.pem /opt/medops-certs/
+cp -f /etc/letsencrypt/live/medops.duckdns.org/privkey.pem  /opt/medops-certs/
+cd /home/ssm-user/medops && sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T medops-ui nginx -s reload
 EOF
+chmod +x /etc/letsencrypt/renewal-hooks/deploy/medops-certs.sh
+```
+
+Renewal runs automatically via the certbot systemd timer. For local dev there is no real cert — self-signed `fullchain.pem`/`privkey.pem` stand in for `/opt/medops-certs` (see section 5).
+
+## 3. Server config (.env)
+
+```bash
+cd /home/ssm-user/medops
+nano .env   # nano: dnf install -y nano; or use vi
 chmod 600 .env
-nano .env   # set real passwords / LLM values
 ```
 
-Optional first manual start (as **ec2-user**, never `sudo su`):
+```ini
+# required
+POSTGRES_PASSWORD=<strong password>
+JWT_SECRET=<random 32+ chars>
+
+# database / api
+POSTGRES_USER=medops
+POSTGRES_DB=medops
+
+# medops-ai (optional - enables LLM features)
+LLM_PROVIDER=generate_content
+LLM_API_KEY=<key>
+LLM_MODEL=<model>
+```
+
+`POSTGRES_PASSWORD` and `JWT_SECRET` are enforced: compose fails without them.
+
+Security group: inbound 80 + 443 from 0.0.0.0/0. Nothing else (Postgres binds to 127.0.0.1 only; shell access is SSM).
+
+## 4. Deploy and verify
 
 ```bash
-bash deploy/ec2-deploy.sh
+# on GitHub: push to dev, or Actions -> deploy.yml -> Run workflow.
+# watch: Actions tab -> deploy job
+
+# then verify on the instance (SSM session):
+sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+curl -s http://localhost:8080/actuator/health        # {"status":"UP"...}
+curl -sIk https://medops.duckdns.org | head -1       # HTTP/2 200
+curl -sI  http://medops.duckdns.org | head -1        # 301 -> https
 ```
 
-If `git fetch` fails (no GitHub deploy key), deploy the tree already on disk:
+Manual redeploy without GitHub Actions:
 
 ```bash
-SKIP_GIT_SYNC=true bash deploy/ec2-deploy.sh
+cd /home/ssm-user/medops
+DEPLOY_BRANCH=dev bash deploy/ec2-deploy.sh
 ```
 
-## 3. AWS / ALB
-
-| Item | Setting |
-| --- | --- |
-| Target group port | **80** |
-| Health check | `/actuator/health/liveness` (or `/`) |
-| EC2 SG :80 | only from **`medops-alb-sg`** |
-| EC2 SG :22 | your IP |
-
-## 4. Trigger deploy
-
-Push to `dev` / `main` / `master`, or **Actions** → **Deploy MedOps to AWS EC2** → **Run workflow**.
-
-Workflow file: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml).
-
-Uses:
+### Rollback
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env up -d --build
+cd /home/ssm-user/medops
+git checkout <last-good-tag-or-sha>
+sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-(not plain `docker compose up` — that would load the local override and skip Postgres/API/UI).
+## 5. Local dev with the same prod files
 
-## 5. Verify
-
-```bash
-curl -sS http://127.0.0.1/actuator/health/liveness
-```
-
-Then open the ALB URL; target group should become **Healthy**.
-
-## 6. pgAdmin (SSH tunnel)
-
-Postgres is bound to **127.0.0.1:5432 on the instance only**. Do not open 5432 in the security group.
-
-On your Windows machine (leave this window open):
+Self-signed cert with CN=medops.duckdns.org, copied into the Docker Desktop VM so the unmodified prod overlay resolves `/opt/medops-certs`:
 
 ```powershell
-ssh -i medops.pem -N -L 5433:127.0.0.1:5432 ec2-user@3.26.240.12
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 `
+  -keyout certs/privkey.pem -out certs/fullchain.pem -subj "/CN=medops.duckdns.org"
+mkdir opt/medops-acme, opt/medops-certs
+Copy-Item certs\*.pem opt\medops-certs\
 ```
 
-In pgAdmin → Register → Server:
+Then run the helper scripts (they stop, prune, rebuild and start everything):
 
-| Field | Value |
+```powershell
+.\deploy.ps1            # or: .\deploy.ps1 help
+```
+
+```bash
+./deploy.sh             # or: ./deploy.sh help
+```
+
+UI: http://localhost and https://localhost (self-signed warning is expected) - AI: http://localhost:8000/health - API: http://localhost:8080/actuator/health.
+
+## 6. Troubleshooting
+
+| Symptom | Fix |
 | --- | --- |
-| Host | `127.0.0.1` |
-| Port | `5433` |
-| Database | `POSTGRES_DB` from `/opt/medops/.env` |
-| Username | `POSTGRES_USER` from `.env` |
-| Password | `POSTGRES_PASSWORD` from `.env` |
-| SSL | Disable (the SSH tunnel is already encrypted) |
-
+| deploy job fails, `Success` never reported | Instance offline/SSM agent down: check instance profile + `amazon-ssm-agent` status; `aws ssm describe-command-commands --command-id <id>` for output |
+| `Set POSTGRES_PASSWORD in .env` on compose up | Create `.env` at `/home/ssm-user/medops` (section 3), then rerun |
+| nginx keeps restarting, `no such file: /etc/nginx/certs/fullchain.pem` | Certs missing in `/opt/medops-certs` on the host (local dev: copy step skipped or VM reset) |
+| 502 from UI | medops-api still booting or crashed: `sudo docker logs medops-medops-api-1` |
+| certbot fails, connection refused | Port 80 closed in the security group, or DNS not pointing at this instance |
+| Cert expiry | `certbot renew --dry-run`; confirm the renewal hook copied new files into `/opt/medops-certs` |
+| Stale containers from old names | `sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans` |

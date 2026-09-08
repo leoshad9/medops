@@ -59,3 +59,8 @@ medops-api/data/
 /medops-api/.settings
 /.claude
 medops-api/effective-pom.xml
+prod.env
+/certs
+*.pem
+*.tar
+.clinerules
