@@ -21,6 +21,9 @@ jobs:
             set -e
             cd /home/ec2-user/medops
 
+            sudo chown -R ec2-user:ec2-user /home/ec2-user/medops
+            sudo chmod -R 755 /home/ec2-user/medops
+
             git fetch origin
             git reset --hard origin/dev
 
