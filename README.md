@@ -43,6 +43,8 @@ Copy `.env.example` to `.env` and set:
 | `LLM_MODEL` | Model name |
 | `MEDOPS_AI_ENABLED` | Enable AI report summarisation (`true`/`false`) |
 | `MEDOPS_SECURITY_OPEN_REGISTRATION` | Allow public patient/doctor self-registration (`true`/`false`) |
+| `MEDOPS_API_JAVA_OPTS` | JVM opts for medops-api (default caps the heap at 512 MB so a 2 GB instance doesn't OOM) |
+| `KAFKA_HEAP_OPTS` | Kafka broker/controller JVM heap (default `-Xms256m -Xmx512m`; image default is `-Xmx1G -Xms1G`) |
 
 ## Production Deploy
 

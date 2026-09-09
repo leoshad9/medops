@@ -34,7 +34,10 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
   # Nginx sits in front; use X-Forwarded-* so rate limits key on the real client IP.
-  forward-headers-strategy: framework
+  # native (Tomcat RemoteIpValve) rewrites getRemoteAddr() from X-Forwarded-For;
+  # framework only rewrites scheme/host/port and would leave the auth rate
+  # limiter keyed on nginx's container IP (one shared bucket for all clients).
+  forward-headers-strategy: native
 
 jwt:
   secret: ${JWT_SECRET}

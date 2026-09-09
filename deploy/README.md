@@ -75,6 +75,16 @@ echo 'ssm-user ALL=(ALL) NOPASSWD: /usr/bin/docker' > /etc/sudoers.d/ssm-user-do
 
 # TLS dirs nginx mounts from docker-compose.prod.yml
 mkdir -p /opt/medops-acme /opt/medops-certs
+
+# 2 GB swapfile so the kernel OOM killer doesn't take the box down the moment
+# the compose stack (Spring + Kafka JVMs + Postgres) briefly exceeds RAM.
+# Amazon Linux 2023 ships with no swap by default.
+sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 status=progress
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+sudo sysctl -w vm.swappiness=10
 ```
 
 ### Issue the certificate (webroot mode, medops.duckdns.org must point at this instance)
@@ -123,6 +133,11 @@ POSTGRES_DB=medops
 LLM_PROVIDER=generate_content
 LLM_API_KEY=<key>
 LLM_MODEL=<model>
+
+# memory caps (defaults below keep the stack inside 2 GB RAM; raise
+# MEDOPS_API_JAVA_OPTS only if the box was upgraded to 4 GB+)
+MEDOPS_API_JAVA_OPTS=-Xms128m -Xmx512m
+KAFKA_HEAP_OPTS=-Xms256m -Xmx512m
 ```
 
 `POSTGRES_PASSWORD` and `JWT_SECRET` are enforced: compose fails without them.
@@ -191,3 +206,4 @@ UI: http://localhost and https://localhost (self-signed warning is expected) - A
 | certbot fails, connection refused | Port 80 closed in the security group, or DNS not pointing at this instance |
 | Cert expiry | `certbot renew --dry-run`; confirm the renewal hook copied new files into `/opt/medops-certs` |
 | Stale containers from old names | `sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans` |
+| Box freezes / site and SSH both unreachable, instance looks "down" | Almost certainly the OOM killer on a 2 GB `t4g.small`: run `scripts/checks/ec2-resource-check.sh`, add swap if missing (section 2), verify `KAFKA_HEAP_OPTS`/`MEDOPS_API_JAVA_OPTS` are active |

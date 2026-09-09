@@ -34,6 +34,10 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Cap the broker/controller JVM heap. The image's kafka-server-start.sh
+      # defaults to -Xmx1G -Xms1G unless KAFKA_HEAP_OPTS is set, which alone is
+      # half a 2 GB t4g.small. Tune from .env if needed.
+      KAFKA_HEAP_OPTS: ${KAFKA_HEAP_OPTS:--Xms256m -Xmx512m}
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
       interval: 10s

@@ -48,6 +48,7 @@ BCD_DESIGN_REVIEW.md
 # Scripts (track deploy helpers)
 *.sh
 !deploy/*.sh
+!scripts/checks/*.sh
 *.cmd
 *.ps1
 medops.pem
