@@ -64,3 +64,4 @@ prod.env
 *.pem
 *.tar
 .clinerules
+medops.backup

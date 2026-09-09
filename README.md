@@ -11,7 +11,7 @@ Live: **https://medops.duckdns.org**
 | `medops-api` | Spring Boot 3, Java 21 | REST API — auth, patients, doctors, appointments, prescriptions, reports |
 | `medops-ui` | React, TypeScript, Vite | Frontend served via Nginx |
 | `medops-ai` | Python, FastAPI | LLM-powered clinical report summarisation |
-| `postgres` | PostgreSQL 16 | Primary database |
+| `postgres` | PostgreSQL 17 | Primary database |
 | `redis` | Redis 7 | Idempotency keys, caching |
 | `kafka` | Apache Kafka 3.8 | Async messaging (appointments, reports) |
 
