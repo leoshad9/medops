@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Rebuild the full MedOps stack on EC2 (used by GitHub Actions or manually).
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -10,13 +9,8 @@ BASE_COMPOSE_FILE="${BASE_COMPOSE_FILE:-docker-compose.yml}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-.env}"
 
-# Explicit -f skips docker-compose.override.yml (local port publishing).
-# sudo: ssm-user is not in the docker group, so docker commands use sudo.
 COMPOSE=(sudo docker compose -f "$BASE_COMPOSE_FILE" -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
-# ---------------------------------------------------------------------------
-# Corruption helpers
-# ---------------------------------------------------------------------------
 is_corrupt_pull() {
   local out="$1"
   echo "$out" | grep -qiE 'crc32 mismatch|corrupted|invalid compressed|failed to extract|blob not found|sha256 mismatch|checksum mismatch'
@@ -24,7 +18,6 @@ is_corrupt_pull() {
 
 repair_corrupt_blob() {
   local digest="$1" found=0 store
-  # containerd natively-managed blobs
   store="/var/lib/containerd/io.containerd.content.v1.content/blobs/sha256"
   if [ -d "$store" ]; then
     local file="$store/${digest:0:2}/$digest"
@@ -34,7 +27,6 @@ repair_corrupt_blob() {
       found=1
     fi
   fi
-  # classic docker store fallback (depends on Docker storage driver)
   for candidate in \
     "/var/lib/docker/image/overlay2/layerdb/sha256/$digest" \
     "/var/lib/docker/image/overlay2/layerci/$digest" \
@@ -53,7 +45,6 @@ repair_layer_metadata() {
   echo "==> resolving digest for $img:$tag"
   digest=$(sudo docker pull --quiet "$img:$tag" 2>/dev/null | tail -1 | tr -d '[:space:]' || true)
   if [ -z "$digest" ] || [ "${#digest}" -lt 32 ]; then
-    # fall back to inspect
     digest=$(sudo docker inspect --format '{{index .RepoDigests 0}}' "$img:$tag" 2>/dev/null | cut -d@ -f2 || true)
   fi
   if [ -n "$digest" ] && [ "${#digest}" -ge 32 ]; then
@@ -88,6 +79,18 @@ ensure_image() {
   return 1
 }
 
+pull_with_retry() {
+  local ref="$1" img tag
+  img="${ref%%:*}"
+  if [[ "$ref" == *:* ]]; then
+    tag="${ref##*:}"
+    tag="${tag%%@*}"
+  else
+    tag="latest"
+  fi
+  ensure_image "$img" "$tag"
+}
+
 pull_base_images() {
   local f img
   for f in $(find . -maxdepth 2 -name Dockerfile | sort); do
@@ -100,7 +103,6 @@ pull_base_images() {
   return 0
 }
 
-# Wraps the entire deploy in a retry so transient failures restart cleanly.
 run_deploy() {
   echo "==> Syncing git branch $BRANCH"
   if git fetch --prune origin; then
@@ -152,7 +154,6 @@ run_deploy() {
   return $(( 1 - build_ok ))
 }
 
-# Repeatedly run the full deploy until success or exhaustion.
 MAX_ATTEMPTS="${DEPLOY_MAX_ATTEMPTS:-2}"
 attempt=1
 while true; do

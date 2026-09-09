@@ -59,7 +59,7 @@ jobs:
           fi
 
           SCRIPT=$(cat <<EOF
-          cd /home/ubuntu/medops
+          cd /home/ec2-user/medops
           export DEPLOY_BRANCH="${DEPLOY_BRANCH}"
           bash deploy/deploy.sh
           EOF
