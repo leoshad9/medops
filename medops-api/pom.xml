@@ -28,6 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<jjwt.version>0.13.0</jjwt.version>
 		<owasp.dependency-check.version>13.0.0</owasp.dependency-check.version>
 		<checkstyle.version>10.21.4</checkstyle.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
@@ -86,18 +87,18 @@
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
-			<version>0.12.6</version>
+			<version>${jjwt.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-impl</artifactId>
-			<version>0.13.0</version>
+			<version>${jjwt.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-jackson</artifactId>
-			<version>0.13.0</version>
+			<version>${jjwt.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 
@@ -266,7 +267,6 @@
 				<artifactId>dependency-check-maven</artifactId>
 				<version>${owasp.dependency-check.version}</version>
 				<configuration>
-					<skip>true</skip>
 					<!-- Fail on High severity vulnerabilities (CVSS >= 7). -->
 					<failBuildOnCVSS>7</failBuildOnCVSS>
 					<!-- Skip test-scoped dependencies. -->
