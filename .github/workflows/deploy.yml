@@ -53,6 +53,14 @@ jobs:
           DEPLOY_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          case "${AWS_REGION:-}" in
+            ap-*) ;;
+            *)
+              echo "::error::AWS_REGION='${AWS_REGION:-<unset>}' is not a valid AWS region (expected like ap-southeast-2)."
+              echo "Fix: repo Settings -> Secrets and variables -> Actions -> Variables -> AWS_REGION=ap-southeast-2 (no AZ suffix like 'b')."
+              exit 1
+              ;;
+          esac
           if [[ -z "${AWS_REGION:-}" || -z "${EC2_INSTANCE_ID:-}" ]]; then
             echo "Set AWS_REGION and EC2_INSTANCE_ID as Actions secrets or variables."
             exit 1
