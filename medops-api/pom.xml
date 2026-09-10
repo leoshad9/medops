@@ -30,7 +30,7 @@
 		<java.version>21</java.version>
 		<jjwt.version>0.13.0</jjwt.version>
 		<owasp.dependency-check.version>13.0.0</owasp.dependency-check.version>
-		<checkstyle.version>10.21.4</checkstyle.version>
+		<checkstyle.version>14.1.0</checkstyle.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
 	</properties>
 	<dependencies>
