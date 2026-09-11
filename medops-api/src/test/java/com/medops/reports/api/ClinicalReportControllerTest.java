@@ -3,6 +3,7 @@ package com.medops.reports.api;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -21,8 +22,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -40,7 +40,7 @@ import com.medops.reports.domain.ReportStatus;
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = {JwtAuthenticationFilter.class, AuthRateLimitFilter.class}))
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 class ClinicalReportControllerTest {
 
     @Autowired
@@ -65,6 +65,7 @@ class ClinicalReportControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "doctor.test@medops.dev", roles = "DOCTOR")
     void uploadReturns201WithEnvelope() throws Exception {
         UUID patientId = UUID.randomUUID();
         ClinicalReportResponse body = new ClinicalReportResponse(
@@ -80,7 +81,7 @@ class ClinicalReportControllerTest {
                         .file(file)
                         .param("title", "CBC")
                         .header("Idempotency-Key", "upload-1")
-                        .principal(doctorAuth())
+                        .with(csrf())
                         .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
@@ -88,6 +89,7 @@ class ClinicalReportControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "patient@medops.dev", roles = "PATIENT")
     void summarizeReturns200WithSummary() throws Exception {
         UUID reportId = UUID.randomUUID();
         ClinicalReportResponse body = new ClinicalReportResponse(
@@ -98,23 +100,10 @@ class ClinicalReportControllerTest {
                 .thenReturn(body);
 
         mockMvc.perform(post("/api/v1/reports/" + reportId + "/summarize")
-                        .principal(patientAuth()))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.summary").value("Plain overview"));
     }
 
-    private static UsernamePasswordAuthenticationToken doctorAuth() {
-        return UsernamePasswordAuthenticationToken.authenticated(
-                "doctor.test@medops.dev",
-                "n/a",
-                java.util.List.of(new SimpleGrantedAuthority("ROLE_DOCTOR")));
-    }
-
-    private static UsernamePasswordAuthenticationToken patientAuth() {
-        return UsernamePasswordAuthenticationToken.authenticated(
-                "patient@medops.dev",
-                "n/a",
-                java.util.List.of(new SimpleGrantedAuthority("ROLE_PATIENT")));
-    }
 }
