@@ -2,7 +2,7 @@
 # On 3.14, pip needs recent pydantic wheels (or build with PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1).
 fastapi>=0.141.1,<1
 uvicorn[standard]>=0.52.4,<1
-pydantic>=2.12.0,<3
+pydantic>=2.13.5,<3
 pydantic-settings>=2.15.0,<3
 httpx>=0.28.1,<1
 pypdf>=6.16.2,<7
