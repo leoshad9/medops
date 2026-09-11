@@ -1,0 +1,67 @@
+name: Dependency security scan
+
+# Weekly full scan: OWASP dependency-check for the Maven API plus npm and pip
+# audits. Not run per-push because the first NVD vulnerability-feed download is
+# slow; deploy.yml gates every push on tests + npm audit instead. Reports are
+# uploaded as artifacts; the build fails on CVSS >= 7 (set in medops-api/pom.xml).
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: medops-ui/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: OWASP dependency-check (medops-api)
+        working-directory: medops-api
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: bash ./mvnw -B org.owasp:dependency-check-maven:check
+
+      - name: npm audit (medops-ui, fails on high/critical)
+        working-directory: medops-ui
+        run: npm audit --audit-level=high
+
+      - name: pip-audit (medops-ai)
+        working-directory: medops-ai
+        run: |
+          python -m pip install --quiet pip-audit
+          pip-audit -r requirements.txt
+
+      - name: Upload dependency-check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: medops-api/target/dependency-check-report/
+          if-no-files-found: warn
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shellcheck all tracked shell scripts
+        run: git ls-files '*.sh' | xargs shellcheck
