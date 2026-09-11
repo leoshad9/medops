@@ -11,7 +11,7 @@ class PdfUploadPolicyTest {
 
     @Test
     void acceptsPdfMagicAndContentType() {
-        byte[] pdf = "%PDF-1.4 mock".getBytes();
+        byte[] pdf = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n".getBytes();
         assertDoesNotThrow(() -> PdfUploadPolicy.validate("application/pdf", pdf));
     }
 
@@ -30,5 +30,17 @@ class PdfUploadPolicyTest {
     void rejectsNonPdfBytes() {
         assertThrows(InvalidRequestException.class,
                 () -> PdfUploadPolicy.validate("application/pdf", "not-a-pdf".getBytes()));
+    }
+
+    @Test
+    void rejectsPdfWithoutTrailer() {
+        byte[] pdf = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n".getBytes();
+        assertThrows(InvalidRequestException.class, () -> PdfUploadPolicy.validate("application/pdf", pdf));
+    }
+
+    @Test
+    void rejectsPdfWithoutEof() {
+        byte[] pdf = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n".getBytes();
+        assertThrows(InvalidRequestException.class, () -> PdfUploadPolicy.validate("application/pdf", pdf));
     }
 }
