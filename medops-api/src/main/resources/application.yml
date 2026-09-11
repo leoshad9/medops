@@ -79,6 +79,8 @@ jwt:
   secret: ${JWT_SECRET}
   access-token-expiry-ms: ${JWT_ACCESS_EXPIRY_MS:900000}
   refresh-token-expiry-ms: ${JWT_REFRESH_EXPIRY_MS:28800000}
+  issuer: ${JWT_ISSUER:medops-api}
+  audience: ${JWT_AUDIENCE:medops-web}
 
 resilience4j:
   timelimiter:
@@ -132,6 +134,8 @@ logging:
   level:
     root: ${LOG_LEVEL_ROOT:INFO}
     "[com.medops]": ${LOG_LEVEL_APP:INFO}
+    "org.springframework.security": DEBUG
+    "org.springframework.security.web.csrf": TRACE
 
 ---
 # SpringBootTest / @ActiveProfiles("test")
@@ -141,12 +145,12 @@ spring:
       on-profile: test
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   flyway:
-    enabled: false
+    enabled: true
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
@@ -157,6 +161,8 @@ jwt:
   secret: dGVzdC1zZWNyZXQta2V5LWZvci1tZWRvcHMtdGVzdGluZy1vbmx5LTMyYnl0ZQ==
   access-token-expiry-ms: 900000
   refresh-token-expiry-ms: 28800000
+  issuer: medops-api-test
+  audience: medops-web-test
 
 medops:
   security:

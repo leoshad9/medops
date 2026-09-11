@@ -35,8 +35,6 @@ public final class RedisRateLimiterStore implements RateLimiterStore {
                 redisTemplate.expire(redisKey, window);
             }
             return count <= maxAttempts;
-        } catch (ServiceUnavailableException ex) {
-            throw ex;
         } catch (RuntimeException ex) {
             log.error("Redis rate limiter unavailable");
             throw new ServiceUnavailableException("Rate limiter temporarily unavailable", ex);

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,13 +25,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class PrescriptionController {
 
     private final CreatePrescriptionService createPrescriptionService;
     private final PrescriptionQueryService prescriptionQueryService;
 
-    @PostMapping("/api/v1/patients/{patientId}/prescriptions")
+    @PostMapping("/patients/{patientId}/prescriptions")
     @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<ApiResponse<PrescriptionResponse>> create(
             Authentication authentication,
@@ -42,7 +44,7 @@ public class PrescriptionController {
                 .body(ApiResponse.success(response, "Prescription created"));
     }
 
-    @GetMapping("/api/v1/prescriptions")
+    @GetMapping("/prescriptions")
     @PreAuthorize("hasAnyRole('PATIENT','DOCTOR')")
     public ResponseEntity<ApiResponse<List<PrescriptionResponse>>> list(
             Authentication authentication,

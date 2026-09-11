@@ -1,9 +1,9 @@
 package com.medops.reports.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,7 +14,6 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -60,8 +59,8 @@ class SummarizeReportServiceTest {
     private ClinicalReport report;
     private PatientProfile patient;
 
-    @BeforeEach
-    void setUp() {
+    @Test
+    void summarizeIfAbsentPersistsAndCachesWhenNoSummary() {
         service = new SummarizeReportService(
                 reportRepository,
                 fileStorage,
@@ -88,10 +87,7 @@ class SummarizeReportServiceTest {
                 .contentType("application/pdf")
                 .sizeBytes(12)
                 .build();
-    }
 
-    @Test
-    void summarizeIfAbsentPersistsAndCachesWhenNoSummary() {
         byte[] pdf = "%PDF-1.4".getBytes();
         when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
         when(fileStorage.load("reports/a.pdf")).thenReturn(new ByteArrayResource(pdf));
@@ -108,6 +104,33 @@ class SummarizeReportServiceTest {
 
     @Test
     void summarizeIfAbsentSkipsWhenAlreadySummarized() {
+        service = new SummarizeReportService(
+                reportRepository,
+                fileStorage,
+                clinicalAccess,
+                assembler,
+                reportSummarizer,
+                summaryCache,
+                auditService,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        patient = PatientProfile.builder()
+                .id(UUID.randomUUID())
+                .userId(UUID.randomUUID())
+                .mrn("MRN-1")
+                .fullName("Pat")
+                .build();
+        report = ClinicalReport.builder()
+                .id(UUID.randomUUID())
+                .patientProfileId(patient.getId())
+                .doctorProfileId(UUID.randomUUID())
+                .title("CBC")
+                .status(ReportStatus.NEW)
+                .storageKey("reports/a.pdf")
+                .originalFilename("cbc.pdf")
+                .contentType("application/pdf")
+                .sizeBytes(12)
+                .build();
+
         report.applySummary("existing", NOW);
         when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
 
@@ -118,17 +141,72 @@ class SummarizeReportServiceTest {
     }
 
     @Test
+    @SuppressWarnings("squid:S5778")
     void summarizeOnDemandDeniesWhenPatientDoesNotOwn() {
+        service = new SummarizeReportService(
+                reportRepository,
+                fileStorage,
+                clinicalAccess,
+                assembler,
+                reportSummarizer,
+                summaryCache,
+                auditService,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        patient = PatientProfile.builder()
+                .id(UUID.randomUUID())
+                .userId(UUID.randomUUID())
+                .mrn("MRN-1")
+                .fullName("Pat")
+                .build();
+        report = ClinicalReport.builder()
+                .id(UUID.randomUUID())
+                .patientProfileId(patient.getId())
+                .doctorProfileId(UUID.randomUUID())
+                .title("CBC")
+                .status(ReportStatus.NEW)
+                .storageKey("reports/a.pdf")
+                .originalFilename("cbc.pdf")
+                .contentType("application/pdf")
+                .sizeBytes(12)
+                .build();
+
         when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
-        org.mockito.Mockito.doThrow(new AccessDeniedException("denied"))
+        doThrow(new AccessDeniedException("denied"))
                 .when(clinicalAccess).requireReportReader(PATIENT_EMAIL, report.getPatientProfileId());
 
-        assertThrows(AccessDeniedException.class, () ->
-                service.summarizeOnDemand(report.getId(), PATIENT_EMAIL));
+        assertThatExceptionOfType(AccessDeniedException.class)
+                .isThrownBy(() -> service.summarizeOnDemand(report.getId(), PATIENT_EMAIL));
     }
 
     @Test
     void summarizeOnDemandReturnsEnvelopeFields() {
+        service = new SummarizeReportService(
+                reportRepository,
+                fileStorage,
+                clinicalAccess,
+                assembler,
+                reportSummarizer,
+                summaryCache,
+                auditService,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        patient = PatientProfile.builder()
+                .id(UUID.randomUUID())
+                .userId(UUID.randomUUID())
+                .mrn("MRN-1")
+                .fullName("Pat")
+                .build();
+        report = ClinicalReport.builder()
+                .id(UUID.randomUUID())
+                .patientProfileId(patient.getId())
+                .doctorProfileId(UUID.randomUUID())
+                .title("CBC")
+                .status(ReportStatus.NEW)
+                .storageKey("reports/a.pdf")
+                .originalFilename("cbc.pdf")
+                .contentType("application/pdf")
+                .sizeBytes(12)
+                .build();
+
         byte[] pdf = "%PDF-1.4".getBytes();
         when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
         when(clinicalAccess.requireReportReader(PATIENT_EMAIL, report.getPatientProfileId()))
@@ -145,6 +223,6 @@ class SummarizeReportServiceTest {
 
         assertThat(result.summary()).isEqualTo("Overview text");
         verify(auditService).recordEvent(AuditEventType.REPORT_SUMMARIZED, patient.getUserId(), PATIENT_EMAIL);
-        verify(clinicalAccess).requireReportReader(eq(PATIENT_EMAIL), eq(report.getPatientProfileId()));
+        verify(clinicalAccess).requireReportReader(PATIENT_EMAIL, report.getPatientProfileId());
     }
 }

@@ -2,13 +2,15 @@ package com.medops.reports.infrastructure;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -87,7 +89,10 @@ public class ReportSummarizerConfiguration {
         private final CircuitBreaker circuitBreaker;
         private final Retry retry;
         private final TimeLimiter timeLimiter;
-        private final ExecutorService executor = Executors.newCachedThreadPool();
+        private final ExecutorService executor = new ThreadPoolExecutor(
+                4, 8, 60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(32),
+                new ThreadPoolExecutor.CallerRunsPolicy());
 
         ResilientReportSummarizer(
                 ReportSummarizer delegate,

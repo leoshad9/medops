@@ -1,7 +1,7 @@
 package com.medops.notification.api;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,17 +12,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
-import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -44,11 +41,11 @@ import com.medops.notification.infrastructure.sse.NotificationStreamPublisher;
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = {JwtAuthenticationFilter.class, AuthRateLimitFilter.class}))
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
+@SuppressWarnings({"null", "Nullable", "ConstantConditions"})
 class NotificationControllerTest {
 
     private static final @NonNull String PATIENT_EMAIL = "patient@medops.dev";
-    private static final @NonNull MediaType JSON = java.util.Objects.requireNonNull(MediaType.APPLICATION_JSON);
 
     @Autowired
     private MockMvc mockMvc;
@@ -64,22 +61,20 @@ class NotificationControllerTest {
 
     private final UUID userId = UUID.randomUUID();
 
-    @BeforeEach
-    void stubAuthenticatedUser() {
+    @Test
+    @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
+    void listReturnsPagedNotifications() throws Exception {
         when(actorResolver.requireActiveUser(PATIENT_EMAIL))
                 .thenReturn(User.builder().id(userId).email(PATIENT_EMAIL).build());
-    }
 
-    @Test
-    void listReturnsPagedNotifications() throws Exception {
         NotificationResponse notification = new NotificationResponse(
                 UUID.randomUUID(), NotificationType.APPOINTMENT_BOOKED, "Appointment confirmed",
                 "Your appointment is confirmed.", "APPOINTMENT", UUID.randomUUID(), false,
                 Instant.parse("2026-08-31T04:30:00Z"));
         NotificationPageResponse page = new NotificationPageResponse(List.of(notification), 0, 20, 1);
-        when(notificationQueryService.list(eq(userId), eq(0), eq(20))).thenReturn(page);
+        when(notificationQueryService.list(userId, 0, 20)).thenReturn(page);
 
-        mockMvc.perform(get("/api/v1/notifications").principal(patientAuth()))
+        mockMvc.perform(get("/api/v1/notifications"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.items[0].title").value("Appointment confirmed"))
@@ -87,50 +82,59 @@ class NotificationControllerTest {
     }
 
     @Test
+    @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
     void unreadCountReturnsBadgeValue() throws Exception {
-        when(notificationQueryService.unreadCount(eq(userId))).thenReturn(new UnreadCountResponse(3));
+        when(actorResolver.requireActiveUser(PATIENT_EMAIL))
+                .thenReturn(User.builder().id(userId).email(PATIENT_EMAIL).build());
 
-        mockMvc.perform(get("/api/v1/notifications/unread-count").principal(patientAuth()))
+        when(notificationQueryService.unreadCount(userId)).thenReturn(new UnreadCountResponse(3));
+
+        mockMvc.perform(get("/api/v1/notifications/unread-count"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.unread").value(3));
     }
 
     @Test
+    @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
     void markReadReturnsUpdatedNotification() throws Exception {
+        when(actorResolver.requireActiveUser(PATIENT_EMAIL))
+                .thenReturn(User.builder().id(userId).email(PATIENT_EMAIL).build());
+
         UUID notificationId = UUID.randomUUID();
         NotificationResponse response = new NotificationResponse(
                 notificationId, NotificationType.REPORT_UPLOADED, "New report available",
                 "A report was uploaded.", "REPORT", UUID.randomUUID(), true,
                 Instant.parse("2026-08-31T04:30:00Z"));
-        when(notificationService.markRead(eq(userId), eq(notificationId))).thenReturn(response);
+        when(notificationService.markRead(userId, notificationId)).thenReturn(response);
 
-        mockMvc.perform(patch("/api/v1/notifications/" + notificationId + "/read").principal(patientAuth()))
+        mockMvc.perform(patch("/api/v1/notifications/" + notificationId + "/read").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.read").value(true));
     }
 
     @Test
+    @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
     void markAllReadReturnsMarkedCount() throws Exception {
-        when(notificationService.markAllRead(eq(userId))).thenReturn(4);
+        when(actorResolver.requireActiveUser(PATIENT_EMAIL))
+                .thenReturn(User.builder().id(userId).email(PATIENT_EMAIL).build());
 
-        mockMvc.perform(post("/api/v1/notifications/read-all").principal(patientAuth()))
+        when(notificationService.markAllRead(userId)).thenReturn(4);
+
+        mockMvc.perform(post("/api/v1/notifications/read-all").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.marked").value(4));
     }
 
     @Test
+    @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
     void streamRegistersSseEmitter() throws Exception {
+        when(actorResolver.requireActiveUser(PATIENT_EMAIL))
+                .thenReturn(User.builder().id(userId).email(PATIENT_EMAIL).build());
+
         when(streamPublisher.register(userId)).thenReturn(new SseEmitter(0L));
 
-        mockMvc.perform(get("/api/v1/notifications/stream").principal(patientAuth()))
+        mockMvc.perform(get("/api/v1/notifications/stream"))
                 .andExpect(status().isOk());
-    }
-
-    private static UsernamePasswordAuthenticationToken patientAuth() {
-        return UsernamePasswordAuthenticationToken.authenticated(
-                PATIENT_EMAIL,
-                "n/a",
-                List.of(new SimpleGrantedAuthority("ROLE_PATIENT")));
     }
 }
