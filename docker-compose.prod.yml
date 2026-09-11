@@ -1,6 +1,6 @@
 # Server stack (EC2, DuckDNS). Do NOT use for local IDE (use docker-compose.yml + override).
 #
-# Git checkout lives at /home/ssm-user/medops; ACME/certs are host paths:
+# Git checkout lives at /home/ec2-user/medops; ACME/certs are host paths:
 #   /opt/medops-acme  /opt/medops-certs
 # docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env up -d --build
 
@@ -63,6 +63,10 @@ services:
       MEDOPS_FILES_ROOT: /data/clinical-files
       MEDOPS_SECURITY_OPEN_REGISTRATION: ${MEDOPS_SECURITY_OPEN_REGISTRATION:-false}
       SERVER_PORT: 8080
+      # Cap the Spring JVM heap. The Dockerfile's -XX:MaxRAMPercentage=75.0
+      # sizes off host RAM (1.5 GB on a 2 GB t4g.small), which collides with
+      # Kafka's JVM. Tune from .env if needed.
+      JAVA_OPTS: ${MEDOPS_API_JAVA_OPTS:--Xms128m -Xmx512m}
     volumes:
       - clinical_files:/data/clinical-files
     healthcheck:

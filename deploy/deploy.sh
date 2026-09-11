@@ -63,7 +63,7 @@ ensure_image() {
     fi
     echo "==> attempt $attempt failed for $img:$tag"
     if is_corrupt_pull "$out"; then
-      echo "==> corruption detected — attempting repair"
+      echo "==> corruption detected - attempting repair"
       repair_layer_metadata "$img" "$tag"
       sudo docker system prune -f >/dev/null 2>&1 || true
       sleep 3
@@ -142,8 +142,8 @@ run_deploy() {
     fi
     echo "==> [WARN] docker compose up failed (attempt $attempt) -- logs:"
     "${COMPOSE[@]}" logs --tail=50 || true
-    if echo "$( "${COMPOSE[@]}" logs --tail=100 2>&1 )" | grep -qiE 'crc32 mismatch|corrupted|invalid compressed|failed to extract|blob not found'; then
-      echo "==> corruption detected — pruning and retrying"
+    if "${COMPOSE[@]}" logs --tail=100 2>&1 | grep -qiE 'crc32 mismatch|corrupted|invalid compressed|failed to extract|blob not found'; then
+      echo "==> corruption detected - pruning and retrying"
       sudo docker system prune -af >/dev/null 2>&1 || true
       sleep 5
       continue
