@@ -30,14 +30,20 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSessionDead, setIsSessionDead] = useState(false);
 
-  // On mount, restore the session from the HttpOnly access-token cookie by asking
-  // the backend who is signed in. The cookie is not readable by JavaScript, so
-  // there is no local token to parse — /auth/me is the only way to know.
+  // On mount, ensure the CSRF cookie is present, then restore the session from the
+  // HttpOnly access-token cookie by asking the backend who is signed in. The cookie
+  // is not readable by JavaScript, so there is no local token to parse — /auth/me is
+  // the only way to know.
   useEffect(() => {
     let cancelled = false;
-    void api.get<ApiResponse<AuthUser>>("/auth/me")
+    void api.get<ApiResponse<AuthUser>>("/auth/csrf")
+      .then(() => {
+        if (!cancelled) {
+          return api.get<ApiResponse<AuthUser>>("/auth/me");
+        }
+      })
       .then((response) => {
-        if (!cancelled) setUser(response.data.data);
+        if (!cancelled) setUser(response?.data.data ?? null);
       })
       .catch(() => {
         if (!cancelled) setUser(null);

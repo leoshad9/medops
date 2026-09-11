@@ -131,7 +131,9 @@ medops:
 logging:
   level:
     root: ${LOG_LEVEL_ROOT:INFO}
-    "[com.medops]": ${LOG_LEVEL_APP:INFO}
+     "[com.medops]": ${LOG_LEVEL_APP:INFO}
+     "org.springframework.security": DEBUG
+     "org.springframework.security.web.csrf": TRACE
 
 ---
 # SpringBootTest / @ActiveProfiles("test")
