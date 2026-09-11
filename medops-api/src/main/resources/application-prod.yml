@@ -83,10 +83,10 @@ medops:
     enabled: ${MEDOPS_MESSAGING_ENABLED:true}
   ai:
     service-enabled: ${MEDOPS_AI_ENABLED:true}
-    service-base-url: ${MEDOPS_AI_BASE_URL:http://medops-ai:8000}
+    service-base-url: "${MEDOPS_AI_BASE_URL:http://medops-ai:8000}"
 
 logging:
   level:
-    root: ${LOG_LEVEL_ROOT:INFO}
-    "[com.medops]": ${LOG_LEVEL_APP:INFO}
+    root: "${LOG_LEVEL_ROOT:INFO}"
+    "[com.medops]": "${LOG_LEVEL_APP:INFO}"
     "[org.hibernate.SQL]": WARN

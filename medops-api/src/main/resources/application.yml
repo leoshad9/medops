@@ -9,7 +9,7 @@ spring:
     name: medops-api
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/medops}
+    url: "${DB_URL:jdbc:postgresql://localhost:5432/medops}"
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:root}
     driver-class-name: org.postgresql.Driver
@@ -37,7 +37,7 @@ spring:
       port: ${REDIS_PORT:6379}
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    bootstrap-servers: "${KAFKA_BOOTSTRAP:localhost:9092}"
     consumer:
       group-id: medops-api-reports
       auto-offset-reset: earliest
@@ -124,16 +124,16 @@ medops:
   ai:
     # When true, Spring calls medops-ai (FastAPI). Provider keys live only in that service.
     service-enabled: ${MEDOPS_AI_ENABLED:true}
-    service-base-url: ${MEDOPS_AI_BASE_URL:http://localhost:8000}
+    service-base-url: "${MEDOPS_AI_BASE_URL:http://localhost:8000}"
     summary-cache-ttl: PT24H
     doctor-list-cache-ttl: PT1M
 
 logging:
   level:
-    root: ${LOG_LEVEL_ROOT:INFO}
-     "[com.medops]": ${LOG_LEVEL_APP:INFO}
-     "org.springframework.security": DEBUG
-     "org.springframework.security.web.csrf": TRACE
+    root: "${LOG_LEVEL_ROOT:INFO}"
+    "[com.medops]": "${LOG_LEVEL_APP:INFO}"
+    "org.springframework.security": DEBUG
+    "org.springframework.security.web.csrf": TRACE
 
 ---
 # SpringBootTest / @ActiveProfiles("test")
