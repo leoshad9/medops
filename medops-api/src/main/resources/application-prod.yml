@@ -15,15 +15,14 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         "[format_sql]": false
+        "[hbm2ddl.create_namespaces]": true
 
   flyway:
-    enabled: true
-    baseline-on-migrate: true
-    baseline-version: 1
+    enabled: false
 
   data:
     redis:
