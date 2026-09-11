@@ -1,5 +1,6 @@
 package com.medops.notification.infrastructure.sse;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
@@ -13,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medops.notification.application.NotificationPublisher;
 import com.medops.notification.domain.Notification;
@@ -66,8 +68,9 @@ public class NotificationStreamPublisher implements NotificationPublisher {
     }
 
     /**
-     * Pushes a notification to every live connection of the user. Never throws; a broken
-     * subscriber is completed and removed so the next publish skips it.
+     * Pushes a notification to every live connection of the user. Does not throw for
+     * subscriber/transport failures; a broken subscriber is completed and removed so
+     * the next publish skips it.
      */
     @Override
     public void publish(UUID userId, Notification notification) {
@@ -88,23 +91,50 @@ public class NotificationStreamPublisher implements NotificationPublisher {
                         .id(notification.id().toString())
                         .name("notification")
                         .data(payload));
-            } catch (Exception ex) {
-                log.warn("Dropping unresponsive SSE subscriber userId={}", userId);
+            } catch (IOException | IllegalStateException ex) {
+                // The only failures Spring's emitter can raise here: a broken/aborted
+                // response (IOException) or a send after completion (IllegalStateException,
+                // which also wraps any other write failure). Anything else is a programming
+                // error that should surface rather than be masked as a dropped subscriber.
+                log.warn("Dropping unresponsive SSE subscriber userId={}", userId, ex);
                 remove(userId, emitter);
-                emitter.complete();
+                completeQuietly(emitter);
             }
         }
     }
 
-    private void sendKeepAlives() {
-        for (Set<SseEmitter> emitters : subscribers.values()) {
-            for (SseEmitter emitter : emitters) {
+    /**
+     * Sends a keepalive comment to every registered emitter. Package-private so tests can
+     * trigger a round directly instead of waiting on the 30s schedule.
+     */
+    void sendKeepAlives() {
+        for (Map.Entry<UUID, Set<SseEmitter>> entry : subscribers.entrySet()) {
+            for (SseEmitter emitter : entry.getValue()) {
                 try {
                     emitter.send(SseEmitter.event().comment("keepalive"));
-                } catch (Exception ex) {
-                    emitter.complete();
+                } catch (IOException | IllegalStateException ex) {
+                    log.debug("Dropping unresponsive SSE subscriber during keepalive userId={}", entry.getKey(), ex);
+                    remove(entry.getKey(), emitter);
+                    completeQuietly(emitter);
                 }
             }
+        }
+    }
+
+    /**
+     * Best-effort completion of an already-broken emitter. {@code complete()} can itself
+     * throw once the underlying response has failed. The emitter has already been removed
+     * from the subscriber map (or its {@code onCompletion} callback removes it), so a
+     * failure here is logged at debug and ignored rather than allowed to propagate: out
+     * of {@link #publish} it would abort delivery to the user's remaining subscribers,
+     * and out of {@link #sendKeepAlives} it would kill the scheduled keepalive task for
+     * good, since {@code scheduleAtFixedRate} suppresses future runs after any exception.
+     */
+    private void completeQuietly(SseEmitter emitter) {
+        try {
+            emitter.complete();
+        } catch (Exception ex) {
+            log.debug("Ignoring failure while completing dropped SSE subscriber", ex);
         }
     }
 
@@ -118,7 +148,7 @@ public class NotificationStreamPublisher implements NotificationPublisher {
     private String writePayload(Notification notification) {
         try {
             return objectMapper.writeValueAsString(notification);
-        } catch (Exception ex) {
+        } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize notification payload", ex);
         }
     }

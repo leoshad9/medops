@@ -19,14 +19,16 @@ import com.medops.shared.exception.ConflictException;
 import com.medops.shared.exception.InvalidRequestException;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * Runs a write use case at most once per actor + operation + {@code Idempotency-Key}.
- * Missing keys pass through (clients may omit the header).
- */
-@Service
-@RequiredArgsConstructor
-public class IdempotencyExecutor {
+     * Runs a write use case at most once per actor + operation + {@code Idempotency-Key}.
+     * Missing keys pass through (clients may omit the header).
+     */
+    @Slf4j
+    @Service
+    @RequiredArgsConstructor
+    public class IdempotencyExecutor {
 
     private static final int MAX_KEY_LENGTH = 128;
 
@@ -50,14 +52,20 @@ public class IdempotencyExecutor {
 
         IdempotencyRecord existing = idempotencyStore.find(storeKey).orElse(null);
         if (existing != null) {
-            return replayOrReject(existing, hash, responseType);
+            T replayed = replayOrReject(existing, hash, responseType);
+            if (replayed != null) {
+                return replayed;
+            }
         }
 
         if (!idempotencyStore.tryBegin(storeKey, hash, properties.ttl())) {
             IdempotencyRecord raced = idempotencyStore.find(storeKey)
                     .orElseThrow(() -> new ConflictException(
                             "A request with this Idempotency-Key is already in progress"));
-            return replayOrReject(raced, hash, responseType);
+            T replayed = replayOrReject(raced, hash, responseType);
+            if (replayed != null) {
+                return replayed;
+            }
         }
 
         try {
@@ -98,7 +106,13 @@ public class IdempotencyExecutor {
         if (existing.status() == IdempotencyRecord.Status.STARTED) {
             throw new ConflictException("A request with this Idempotency-Key is already in progress");
         }
-        return readJson(existing.responseJson(), responseType);
+        try {
+            return readJson(existing.responseJson(), responseType);
+        } catch (IllegalStateException ex) {
+            // Corrupted or schema-incompatible record - treat as cache miss.
+            log.warn("Idempotent response unreadable, re-executing request", ex);
+            return null;
+        }
     }
 
     private static String validateKey(String idempotencyKey) {
