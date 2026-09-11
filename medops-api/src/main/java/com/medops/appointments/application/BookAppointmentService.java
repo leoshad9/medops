@@ -5,7 +5,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -44,19 +46,18 @@ public class BookAppointmentService {
     private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
 
-    @Transactional(readOnly = true)
     public List<Instant> listAvailableSlots(UUID doctorId, LocalDate date) {
         requireDoctor(doctorId);
         Instant now = clock.instant();
         Instant dayStart = date.atStartOfDay(zone()).toInstant();
         Instant dayEnd = date.plusDays(1).atStartOfDay(zone()).toInstant();
 
-        List<Instant> booked = appointmentRepository
+        Set<Instant> booked = appointmentRepository
                 .findByDoctorProfileIdAndStatusAndStartsAtGreaterThanEqualAndStartsAtLessThan(
                         doctorId, AppointmentStatus.BOOKED, dayStart, dayEnd)
                 .stream()
                 .map(Appointment::getStartsAt)
-                .toList();
+                .collect(Collectors.toSet());
 
         return AppointmentSlotPolicy.generateSlots(
                         date, zone(), schedule.slotLength(), schedule.open(), schedule.close())
@@ -82,7 +83,7 @@ public class BookAppointmentService {
 
         Appointment saved;
         try {
-            saved = appointmentRepository.saveAndFlush(Appointment.book(
+            saved = appointmentRepository.save(Appointment.book(
                     patient.getId(),
                     doctor.getId(),
                     startsAt,

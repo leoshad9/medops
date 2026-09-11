@@ -30,6 +30,8 @@ public final class JwtService {
     private final SecretKey key;
     private final long accessTokenExpiryMs;
     private final long refreshTokenExpiryMs;
+    private final String issuer;
+    private final String audience;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public JwtService(JwtProperties jwtProperties) {
@@ -42,6 +44,8 @@ public final class JwtService {
         }
         this.accessTokenExpiryMs = jwtProperties.accessTokenExpiryMs();
         this.refreshTokenExpiryMs = jwtProperties.refreshTokenExpiryMs();
+        this.issuer = jwtProperties.issuer();
+        this.audience = jwtProperties.audience();
     }
 
     /**
@@ -72,6 +76,8 @@ public final class JwtService {
         }
         return Jwts.builder()
                 .subject(userDetails.getUsername())
+                .issuer(issuer)
+                .audience().add(audience).and()
                 .claim("roles", authorities)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusMillis(accessTokenExpiryMs)))
@@ -128,7 +134,10 @@ public final class JwtService {
     }
 
     private Claims parseClaims(String token) {
-        return Jwts.parser().verifyWith(key).build()
+        return Jwts.parser().verifyWith(key)
+                .requireIssuer(issuer)
+                .requireAudience(audience)
+                .build()
                 .parseSignedClaims(token).getPayload();
     }
 }

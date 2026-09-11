@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class ClinicalReportController {
 
@@ -42,7 +44,7 @@ public class ClinicalReportController {
     private final SummarizeReportService summarizeReportService;
     private final IdempotencyExecutor idempotencyExecutor;
 
-    @PostMapping(path = "/api/v1/patients/{patientId}/reports", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = "/patients/{patientId}/reports", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<ApiResponse<ClinicalReportResponse>> upload(
             Authentication authentication,
@@ -68,7 +70,7 @@ public class ClinicalReportController {
                 .body(ApiResponse.success(response, "Report uploaded"));
     }
 
-    @GetMapping("/api/v1/reports")
+    @GetMapping("/reports")
     @PreAuthorize("hasAnyRole('PATIENT','DOCTOR')")
     public ResponseEntity<ApiResponse<List<ClinicalReportResponse>>> list(
             Authentication authentication,
@@ -77,7 +79,7 @@ public class ClinicalReportController {
         return ResponseEntity.ok(ApiResponse.success(items));
     }
 
-    @PostMapping("/api/v1/reports/{reportId}/review")
+    @PostMapping("/reports/{reportId}/review")
     @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<ApiResponse<ClinicalReportResponse>> review(
             Authentication authentication,
@@ -87,7 +89,7 @@ public class ClinicalReportController {
                 "Report marked as reviewed"));
     }
 
-    @PostMapping("/api/v1/reports/{reportId}/summarize")
+    @PostMapping("/reports/{reportId}/summarize")
     @PreAuthorize("hasAnyRole('PATIENT','DOCTOR')")
     public ResponseEntity<ApiResponse<ClinicalReportResponse>> summarize(
             Authentication authentication,
@@ -97,7 +99,7 @@ public class ClinicalReportController {
         return ResponseEntity.ok(ApiResponse.success(response, "Report summarized"));
     }
 
-    @GetMapping("/api/v1/reports/{reportId}/file")
+    @GetMapping("/reports/{reportId}/file")
     @PreAuthorize("hasAnyRole('PATIENT','DOCTOR')")
     public ResponseEntity<Resource> download(Authentication authentication, @PathVariable UUID reportId) {
         Resource file = reportQueryService.download(reportId, authentication.getName());

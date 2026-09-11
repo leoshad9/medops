@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -40,8 +39,8 @@ class CreatePrescriptionServiceTest {
     private DoctorProfile doctor;
     private UUID patientId;
 
-    @BeforeEach
-    void setUp() {
+    @Test
+    void createSavesActivePrescriptionWithoutFile() {
         service = new CreatePrescriptionService(
                 prescriptionRepository, clinicalAccess, assembler, auditService);
         patientId = UUID.randomUUID();
@@ -50,10 +49,7 @@ class CreatePrescriptionServiceTest {
                 .userId(UUID.randomUUID())
                 .fullName("Dr. Test")
                 .build();
-    }
 
-    @Test
-    void createSavesActivePrescriptionWithoutFile() {
         when(clinicalAccess.requireTreatingDoctor("doctor.test@medops.dev", patientId)).thenReturn(doctor);
         when(prescriptionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(assembler.toResponse(any())).thenReturn(new PrescriptionResponse(

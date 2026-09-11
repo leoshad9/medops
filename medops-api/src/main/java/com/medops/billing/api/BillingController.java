@@ -24,7 +24,7 @@ import com.medops.shared.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/v1/patients/{patientId}/billing")
+@RequestMapping("/api/v1/patients/{patientId}/billing/invoices")
 @RequiredArgsConstructor
 public class BillingController {
 
@@ -32,7 +32,7 @@ public class BillingController {
     private final PaymentService paymentService;
     private final ClinicalAccessService clinicalAccess;
 
-    @GetMapping("/invoices")
+    @GetMapping
     @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN', 'STAFF')")
     public ResponseEntity<ApiResponse<Page<InvoiceResponse>>> listInvoices(
             Authentication auth,
@@ -42,7 +42,7 @@ public class BillingController {
         return ResponseEntity.ok(ApiResponse.success(invoiceService.listForPatient(patientId, pageable)));
     }
 
-    @GetMapping("/invoices/{invoiceId}")
+    @GetMapping("/{invoiceId}")
     @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN', 'STAFF')")
     public ResponseEntity<ApiResponse<InvoiceResponse>> getInvoice(
             Authentication auth,
@@ -53,7 +53,7 @@ public class BillingController {
         return ResponseEntity.ok(ApiResponse.success(invoice));
     }
 
-    @GetMapping("/invoices/{invoiceId}/payments")
+    @GetMapping("/{invoiceId}/payments")
     @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN', 'STAFF')")
     public ResponseEntity<ApiResponse<List<PaymentResponse>>> listPayments(
             Authentication auth,

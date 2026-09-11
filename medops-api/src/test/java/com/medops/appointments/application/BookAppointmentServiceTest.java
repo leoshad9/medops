@@ -103,7 +103,7 @@ class BookAppointmentServiceTest {
         when(appointmentRepository.existsOverlappingForPatient(
                 eq(patient.getId()), eq(AppointmentStatus.BOOKED), eq(start), any(), isNull()))
                 .thenReturn(false);
-        when(appointmentRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(appointmentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         AppointmentResponse mapped = new AppointmentResponse(
                 UUID.randomUUID(), patient.getId(), doctor.getId(),
                 patient.getFullName(), patient.getMrn(), doctor.getFullName(), doctor.getSpecialty(),
@@ -115,7 +115,7 @@ class BookAppointmentServiceTest {
 
         assertThat(response.doctorName()).isEqualTo("Dr. Khan");
         ArgumentCaptor<Appointment> captor = ArgumentCaptor.forClass(Appointment.class);
-        verify(appointmentRepository).saveAndFlush(captor.capture());
+        verify(appointmentRepository).save(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(AppointmentStatus.BOOKED);
         verify(auditService).recordEvent(AuditEventType.APPOINTMENT_BOOKED, patient.getUserId(), PATIENT_EMAIL);
         verify(domainEventPublisher).publishAfterCommit(any(AppointmentBookedEvent.class));
@@ -132,8 +132,8 @@ class BookAppointmentServiceTest {
         when(appointmentRepository.existsOverlappingForPatient(
                 eq(patient.getId()), eq(AppointmentStatus.BOOKED), eq(start), any(), isNull()))
                 .thenReturn(false);
-        when(appointmentRepository.saveAndFlush(any()))
-                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("uq_appointments_doctor_booked_slot"));
+when(appointmentRepository.save(any()))
+        .thenThrow(new org.springframework.dao.DataIntegrityViolationException("uq_appointments_doctor_booked_slot"));
 
         assertThrows(ConflictException.class, () -> service.book(
                 PATIENT_EMAIL, new BookAppointmentRequest(doctor.getId(), start, "chest pain")));
