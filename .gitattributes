@@ -1,0 +1,2 @@
+# Shell scripts must be LF so shellcheck/CI and Linux runtimes don't choke on CR
+*.sh text eol=lf
