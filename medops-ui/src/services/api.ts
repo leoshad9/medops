@@ -1,5 +1,6 @@
 import axios from "axios";
 
+import { getCookie } from "../lib/csrf";
 import { refreshSession } from "./sessionRefresh";
 
 export const api = axios.create({
@@ -20,6 +21,12 @@ api.interceptors.request.use((config) => {
   if (typeof FormData !== "undefined" && config.data instanceof FormData) {
     config.headers.delete("Content-Type");
   }
+
+  const csrfToken = getCookie("XSRF-TOKEN");
+  if (csrfToken) {
+    config.headers.set("X-XSRF-TOKEN", csrfToken);
+  }
+
   return config;
 });
 
