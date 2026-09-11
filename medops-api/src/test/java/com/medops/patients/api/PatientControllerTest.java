@@ -1,7 +1,6 @@
 package com.medops.patients.api;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
@@ -11,9 +10,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.lang.NonNull;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,6 +29,7 @@ import com.medops.shared.exception.ConflictException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,17 +37,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * HTTP-level tests for {@link PatientController#register}: request validation, the
- * {@code ApiResponse} envelope, and error mapping through
- * {@link com.medops.shared.exception.GlobalExceptionHandler}. Security filters are disabled
- * here (see {@code addFilters = false}) since registration is intentionally public - the same
- * pattern used by {@code AuthControllerTest}.
+ * {@code ApiResponse} envelope, and error mapping through {@link com.medops.shared.exception.GlobalExceptionHandler}.
+ * Security filters are enabled (see {@code @AutoConfigureMockMvc} without {@code addFilters = false});
+ * public endpoints are tested with {@code @WithMockUser} and CSRF tokens as needed.
  */
 @WebMvcTest(
         controllers = PatientController.class,
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = {JwtAuthenticationFilter.class, AuthRateLimitFilter.class}))
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 class PatientControllerTest {
 
     private static final AuthResponse SAMPLE_RESPONSE =
@@ -79,10 +77,12 @@ class PatientControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "PATIENT")
     void register_returns201WithEnvelope_onSuccess() throws Exception {
         when(patientRegistrationService.registerPatient(any())).thenReturn(SAMPLE_RESPONSE);
 
         mockMvc.perform(post("/api/v1/patients")
+                        .with(csrf())
                         .contentType(JSON)
                         .content(json(validRequest())))
                 .andExpect(status().isCreated())
@@ -91,12 +91,14 @@ class PatientControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "PATIENT")
     void register_returns400_onInvalidEmail() throws Exception {
         RegisterPatientRequest invalid = new RegisterPatientRequest(
                 "not-an-email", "Password123!", "Jane Doe",
                 LocalDate.of(1990, 1, 1), Gender.FEMALE, "+12345678901");
 
         mockMvc.perform(post("/api/v1/patients")
+                        .with(csrf())
                         .contentType(JSON)
                         .content(json(invalid)))
                 .andExpect(status().isBadRequest())
@@ -105,11 +107,29 @@ class PatientControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "PATIENT")
+    void register_returns400_onWeakPassword() throws Exception {
+        RegisterPatientRequest invalid = new RegisterPatientRequest(
+                "patient@medops.dev", "weakpassword", "Jane Doe",
+                LocalDate.of(1990, 1, 1), Gender.FEMALE, "+12345678901");
+
+        mockMvc.perform(post("/api/v1/patients")
+                        .with(csrf())
+                        .contentType(JSON)
+                        .content(json(invalid)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.status").value("INVALID_ARGUMENT"));
+    }
+
+    @Test
+    @WithMockUser(roles = "PATIENT")
     void register_returns409_onDuplicateEmail() throws Exception {
         when(patientRegistrationService.registerPatient(any()))
                 .thenThrow(new ConflictException("An account with this email already exists"));
 
         mockMvc.perform(post("/api/v1/patients")
+                        .with(csrf())
                         .contentType(JSON)
                         .content(json(validRequest())))
                 .andExpect(status().isConflict())
@@ -123,6 +143,7 @@ class PatientControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "patient@medops.dev", roles = "PATIENT")
     void updateMyProfile_returns200WithEnvelope_onSuccess() throws Exception {
         when(patientProfileService.updateMyProfile(any(), any())).thenReturn(new PatientProfileResponse(
                 java.util.UUID.randomUUID(), "patient@medops.dev", "Jane Doe", "MRN-2026-000001",
@@ -130,7 +151,7 @@ class PatientControllerTest {
                 "O+", "24 Main Road", "Anita (Spouse) +12345678902", "Star Health", "SH-88213"));
 
         mockMvc.perform(put("/api/v1/patients/me")
-                        .principal(patientAuth())
+                        .with(csrf())
                         .contentType(JSON)
                         .content(json(validUpdate())))
                 .andExpect(status().isOk())
@@ -141,23 +162,17 @@ class PatientControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "patient@medops.dev", roles = "PATIENT")
     void updateMyProfile_returns400_onInvalidRequest() throws Exception {
         UpdatePatientProfileRequest invalid = new UpdatePatientProfileRequest(
                 "", "123", "O+", null, null, null, null);
 
         mockMvc.perform(put("/api/v1/patients/me")
-                        .principal(patientAuth())
+                        .with(csrf())
                         .contentType(JSON)
                         .content(json(invalid)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.status").value("INVALID_ARGUMENT"));
-    }
-
-    private static UsernamePasswordAuthenticationToken patientAuth() {
-        return UsernamePasswordAuthenticationToken.authenticated(
-                "patient@medops.dev",
-                "n/a",
-                List.of(new SimpleGrantedAuthority("ROLE_PATIENT")));
     }
 }

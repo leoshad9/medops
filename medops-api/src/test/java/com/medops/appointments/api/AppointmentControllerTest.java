@@ -3,12 +3,12 @@ package com.medops.appointments.api;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -22,8 +22,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -44,7 +43,7 @@ import com.medops.shared.exception.ConflictException;
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = {JwtAuthenticationFilter.class, AuthRateLimitFilter.class}))
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 class AppointmentControllerTest {
 
     private static final @NonNull MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
@@ -73,6 +72,7 @@ class AppointmentControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "patient@medops.dev", roles = "PATIENT")
     void bookReturns201WithEnvelopeOnSuccess() throws Exception {
         UUID doctorId = UUID.randomUUID();
         Instant start = Instant.parse("2026-08-31T04:30:00Z");
@@ -83,7 +83,7 @@ class AppointmentControllerTest {
         when(bookAppointmentService.book(eq("patient@medops.dev"), any())).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/appointments")
-                        .principal(patientAuth())
+                        .with(csrf())
                         .header("Idempotency-Key", "book-1")
                         .contentType(JSON)
                         .content(objectMapper.writeValueAsString(new BookAppointmentRequest(doctorId, start, "review"))))
@@ -93,9 +93,10 @@ class AppointmentControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "patient@medops.dev", roles = "PATIENT")
     void bookReturns400WhenDoctorMissing() throws Exception {
         mockMvc.perform(post("/api/v1/appointments")
-                        .principal(patientAuth())
+                        .with(csrf())
                         .contentType(JSON)
                         .content("{\"startsAt\":\"2026-08-31T04:30:00Z\"}"))
                 .andExpect(status().isBadRequest())
@@ -103,6 +104,7 @@ class AppointmentControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "patient@medops.dev", roles = "PATIENT")
     void bookReturns409WhenSlotTaken() throws Exception {
         UUID doctorId = UUID.randomUUID();
         Instant start = Instant.parse("2026-08-31T04:30:00Z");
@@ -110,17 +112,11 @@ class AppointmentControllerTest {
                 .thenThrow(new ConflictException("That time is no longer available"));
 
         mockMvc.perform(post("/api/v1/appointments")
-                        .principal(patientAuth())
+                        .with(csrf())
                         .contentType(JSON)
                         .content(objectMapper.writeValueAsString(new BookAppointmentRequest(doctorId, start, null))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.status").value("ALREADY_EXISTS"));
     }
 
-    private static UsernamePasswordAuthenticationToken patientAuth() {
-        return UsernamePasswordAuthenticationToken.authenticated(
-                "patient@medops.dev",
-                "n/a",
-                List.of(new SimpleGrantedAuthority("ROLE_PATIENT")));
-    }
 }
