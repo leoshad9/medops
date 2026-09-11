@@ -5,12 +5,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.Mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,7 +36,9 @@ class UploadReportServiceTest {
     private static final String FILE_NAME = "cbc.pdf";
     private static final String CONTENT_TYPE = "application/pdf";
     private static final String REPORT_TITLE = "CBC";
-    private static final byte[] PDF_BYTES = "%PDF-1.4 body".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] PDF_BYTES = (
+            "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n")
+            .getBytes(StandardCharsets.UTF_8);
 
     @Mock
     private ClinicalReportRepository reportRepository;
@@ -57,8 +57,8 @@ class UploadReportServiceTest {
     private DoctorProfile doctor;
     private UUID patientId;
 
-    @BeforeEach
-    void setUp() {
+    @Test
+    void uploadPersistsReportWhenDoctorTreatsPatient() {
         service = new UploadReportService(
                 reportRepository, fileStorage, clinicalAccess, assembler, auditService, domainEventPublisher);
         patientId = UUID.randomUUID();
@@ -67,12 +67,9 @@ class UploadReportServiceTest {
                 .userId(UUID.randomUUID())
                 .fullName("Dr. Test")
                 .build();
-    }
 
-    @Test
-    void uploadPersistsReportWhenDoctorTreatsPatient() {
         when(clinicalAccess.requireTreatingDoctor(DOCTOR_EMAIL, patientId)).thenReturn(doctor);
-        when(fileStorage.store(eq("reports"), eq(PDF_BYTES), eq(FILE_NAME), eq(CONTENT_TYPE)))
+        when(fileStorage.store("reports", PDF_BYTES, FILE_NAME, CONTENT_TYPE))
                 .thenReturn(new StoredFile("reports/a.pdf", FILE_NAME, CONTENT_TYPE, PDF_BYTES.length));
         when(reportRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         ClinicalReportResponse mapped = new ClinicalReportResponse(
@@ -93,6 +90,15 @@ class UploadReportServiceTest {
 
     @Test
     void uploadDeniesWhenNoCareRelationship() {
+        service = new UploadReportService(
+                reportRepository, fileStorage, clinicalAccess, assembler, auditService, domainEventPublisher);
+        patientId = UUID.randomUUID();
+        doctor = DoctorProfile.builder()
+                .id(UUID.randomUUID())
+                .userId(UUID.randomUUID())
+                .fullName("Dr. Test")
+                .build();
+
         when(clinicalAccess.requireTreatingDoctor(DOCTOR_EMAIL, patientId))
                 .thenThrow(new AccessDeniedException("denied"));
         UploadedPdf uploadedPdf = new UploadedPdf(FILE_NAME, CONTENT_TYPE, PDF_BYTES);

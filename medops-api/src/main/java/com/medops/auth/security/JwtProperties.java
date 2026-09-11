@@ -11,5 +11,7 @@ import jakarta.validation.constraints.Positive;
 public record JwtProperties(
         @NotBlank String secret,
         @Positive long accessTokenExpiryMs,
-        @Positive long refreshTokenExpiryMs) {
+        @Positive long refreshTokenExpiryMs,
+        @NotBlank String issuer,
+        @NotBlank String audience) {
 }

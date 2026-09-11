@@ -100,6 +100,20 @@ class DoctorControllerTest {
     }
 
     @Test
+    void registerReturns400OnWeakPassword() throws Exception {
+        RegisterDoctorRequest invalid = new RegisterDoctorRequest(
+                "doctor@medops.dev", "weakpassword", "Dr. Sarah Khan",
+                "Cardiology", "LIC-000123", "+12345678901");
+
+        mockMvc.perform(post("/api/v1/doctors")
+                        .contentType(JSON)
+                        .content(json(invalid)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.status").value("INVALID_ARGUMENT"));
+    }
+
+    @Test
     void registerReturns409OnDuplicateLicenseNumber() throws Exception {
         when(doctorRegistrationService.registerDoctor(any()))
                 .thenThrow(new ConflictException("An account with this license number already exists"));

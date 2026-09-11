@@ -1,6 +1,6 @@
 package com.medops.appointments.application;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -14,7 +14,6 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -42,16 +41,14 @@ class AppointmentTransitionServiceAuthorizationTest {
 
     private Appointment otherPatientsAppointment;
 
-    @BeforeEach
-    void setUp() {
+    @Test
+    @SuppressWarnings("squid:S5778")
+    void cancelDeniesPatientWhenAppointmentBelongsToSomeoneElse() {
         Instant start = Instant.parse("2026-09-15T04:30:00Z");
         otherPatientsAppointment = Appointment.book(
                 UUID.randomUUID(), UUID.randomUUID(), start, Duration.ofMinutes(30), null);
         otherPatientsAppointment.prePersist();
-    }
 
-    @Test
-    void cancelDeniesPatientWhenAppointmentBelongsToSomeoneElse() {
         AppointmentScheduleProperties schedule = new AppointmentScheduleProperties(
                 "Asia/Kolkata", 30, LocalTime.of(9, 0), LocalTime.of(17, 0));
         AppointmentTransitionService service = new AppointmentTransitionService(
@@ -70,8 +67,9 @@ class AppointmentTransitionServiceAuthorizationTest {
                 otherPatientsAppointment.getDoctorProfileId()))
                 .thenThrow(new AccessDeniedException("denied"));
 
-        assertThrows(AccessDeniedException.class,
-                () -> service.cancel(otherPatientsAppointment.getId(), "patient.a@medops.dev"));
+        assertThatExceptionOfType(AccessDeniedException.class)
+                .isThrownBy(() -> service.cancel(otherPatientsAppointment.getId(), "patient.a@medops.dev"))
+                .withMessage("denied");
 
         verify(appointmentRepository, never()).save(any());
         verify(auditService, never()).recordEvent(any(), any(), any());

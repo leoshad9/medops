@@ -53,7 +53,9 @@ class UploadReportServiceAuthorizationTest {
                 reportRepository, fileStorage, clinicalAccess, assembler, auditService, domainEventPublisher);
         when(clinicalAccess.requireTreatingDoctor(DOCTOR_EMAIL, foreignPatientId))
                 .thenThrow(new AccessDeniedException("denied"));
-        byte[] pdf = "%PDF-1.4 body".getBytes();
+        byte[] pdf = (
+                "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n")
+                .getBytes();
 
         assertThrows(AccessDeniedException.class, () -> service.upload(
                 DOCTOR_EMAIL,
