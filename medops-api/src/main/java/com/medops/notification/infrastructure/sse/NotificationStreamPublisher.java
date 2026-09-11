@@ -14,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medops.notification.application.NotificationPublisher;
 import com.medops.notification.domain.Notification;
@@ -148,7 +147,7 @@ public class NotificationStreamPublisher implements NotificationPublisher {
     private String writePayload(Notification notification) {
         try {
             return objectMapper.writeValueAsString(notification);
-        } catch (JsonProcessingException ex) {
+        } catch (Exception ex) {
             throw new IllegalStateException("Failed to serialize notification payload", ex);
         }
     }
