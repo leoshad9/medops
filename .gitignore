@@ -31,13 +31,10 @@ replay_pid*
 !.github/workflows/**
 !.github/copilot-instructions.md
 
-# Docs
+# Docs (tracked: AGENTS.md, CODEREVIEW.md, CLAUDE.md, BCD_DESIGN_REVIEW.md)
 guides/
 docs/
 plans/
-AGENTS.md
-CLAUDE.md
-BCD_DESIGN_REVIEW.md
 
 # Local secrets
 .env
@@ -45,9 +42,10 @@ BCD_DESIGN_REVIEW.md
 !.env.example
 !**/.env.example
 
-# Scripts (track deploy helpers)
+# Scripts (track deploy helpers and check scripts)
 *.sh
 !deploy/*.sh
+!scripts/**/*.sh
 *.cmd
 *.ps1
 medops.pem
@@ -65,3 +63,7 @@ prod.env
 *.tar
 .clinerules
 medops.backup
+CODEREVIEW.md
+AGENT_RULES.md
+CODEREVIEW.md
+AGENTS.md
