@@ -5,7 +5,7 @@ interface MedOpsAIFloatingButtonProps {
   hasUnread?: boolean;
 }
 
-/** Renders the floating control that opens the MedOps AI assistant. */
+/** Renders the AI assistant launcher with an optional unread indicator. */
 export function MedOpsAIFloatingButton({ onClick, hasUnread = false }: Readonly<MedOpsAIFloatingButtonProps>) {
   return (
     <button

@@ -24,7 +24,7 @@ const MOCK_RESPONSES: Record<string, string> = {
     "I can help you with appointments, lab reports, prescriptions, billing, and using MedOps. Try clicking one of the quick actions below, or ask me anything!",
 };
 
-/** Selects a mock assistant response based on keywords in the patient query. */
+/** Selects a mock response by case-insensitive keywords, with a general fallback. */
 function mockAIResponse(query: string): string {
   const lower = query.toLowerCase();
 
@@ -39,7 +39,7 @@ function mockAIResponse(query: string): string {
   return MOCK_RESPONSES.default;
 }
 
-/** Returns a simulated asynchronous assistant response for the supplied query. */
+/** Builds a mock assistant message and resolves it after an 800–1,200 ms delay. */
 export async function getAIResponse(query: string): Promise<AIChatResponse> {
   return new Promise((resolve) => {
     setTimeout(() => {
