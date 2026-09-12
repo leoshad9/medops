@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { Clock, Mail, MessageSquare, Phone } from "lucide-react";
+import { Bot, Clock, Mail, Phone } from "lucide-react";
 
 import { usePatientPortal } from "../../../components/patient/usePatientPortal";
 
+/** Displays patient support options, FAQs, and the AI assistant launcher. */
 export function HelpSupportView() {
   const { data } = usePatientPortal();
   const faqs = data.faqs;
   const [openFaqId, setOpenFaqId] = useState<string | null>(faqs[0]?.id ?? null);
-  const [chatActive, setChatActive] = useState(false);
 
+  /** Expands the selected FAQ or collapses it when already open. */
   const toggleFaq = (id: string) => {
     setOpenFaqId(openFaqId === id ? null : id);
   };
@@ -91,59 +92,29 @@ export function HelpSupportView() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* AI Assistant Section */}
+        <div className="rounded-2xl border border-brand-line bg-white p-6 shadow-xs">
+          <div className="border-b border-brand-line pb-4 mb-4">
+            <h2 className="text-lg font-bold text-brand-ink">Get Instant Help with MedOps</h2>
+            <p className="text-xs text-brand-muted mt-0.5">
+              Try our AI assistant for quick answers about appointments, prescriptions, lab
+              reports, billing, and using MedOps.
+            </p>
+          </div>
 
           <button
             type="button"
-            onClick={() => setChatActive(true)}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-primary py-2.5 text-xs font-semibold text-white transition hover:bg-brand-primary-dark cursor-pointer shadow-2xs"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("medops:open-ai-chat"));
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-primary py-2.5 text-xs font-semibold text-white transition hover:bg-brand-primary-dark cursor-pointer shadow-2xs"
           >
-            <MessageSquare className="h-4 w-4" />
-            <span>Start Live Chat</span>
+            <Bot className="h-4 w-4" />
+            <span>Chat with MedOps AI</span>
           </button>
         </div>
-
-        {/* Live Chat Modal */}
-        {chatActive && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-ink/40 p-4 backdrop-blur-xs">
-            <div className="w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-xl animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between border-b border-brand-line pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-brand-success animate-pulse" />
-                  <h3 className="text-sm font-bold text-brand-ink">MedOps Live Patient Support</h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setChatActive(false)}
-                  className="text-xs text-brand-muted hover:text-brand-ink cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="my-4 h-48 rounded-xl bg-brand-paper p-3 text-xs space-y-2 overflow-y-auto border border-brand-line">
-                <div className="bg-white p-2.5 rounded-lg shadow-2xs max-w-[85%] border border-brand-line">
-                  <p className="font-semibold text-brand-primary-dark text-[11px]">MedOps Support Agent</p>
-                  <p className="text-brand-ink mt-0.5">Hello John! How can our patient care team help you today?</p>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Type your message..."
-                  className="flex-1 rounded-xl border border-brand-line px-3 py-2 text-xs text-brand-ink focus:border-brand-primary focus:outline-hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => alert("Message sent to care agent.")}
-                  className="rounded-xl bg-brand-primary px-3.5 py-2 text-xs font-semibold text-white hover:bg-brand-primary-dark cursor-pointer"
-                >
-                  Send
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </section>
     </div>
   );
