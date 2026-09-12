@@ -10,6 +10,8 @@ import type {
   PatientDashboardData,
   PatientProfile,
 } from "../../types/patient";
+import { MedOpsAIFloatingButton } from "../ai/MedOpsAIFloatingButton";
+import { MedOpsAIChatPanel } from "../ai/MedOpsAIChatPanel";
 import { PatientHeader } from "./PatientHeader";
 import { PatientSidebar } from "./PatientSidebar";
 
@@ -31,6 +33,7 @@ export function PatientLayout() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PatientProfile | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const {
     notifications,
@@ -61,9 +64,16 @@ export function PatientLayout() {
     mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [location.pathname]);
 
+  useEffect(() => {
+    const handler = () => setAiChatOpen(true);
+    window.addEventListener("medops:open-ai-chat", handler);
+    return () => window.removeEventListener("medops:open-ai-chat", handler);
+  }, []);
+
   const activeView = patientViewFromPath(location.pathname);
   const meta = PATIENT_VIEW_METADATA[activeView];
   const resolvedProfile = profile ?? data.profile;
+  const firstName = resolvedProfile.name.split(" ")[0] ?? "there";
 
   return (
     <div className="flex h-dvh overflow-hidden bg-brand-paper font-brand-sans text-brand-ink">
@@ -96,7 +106,14 @@ export function PatientLayout() {
             }
           />
         </div>
-      </main>
+       </main>
+
+      <MedOpsAIFloatingButton onClick={() => setAiChatOpen(true)} />
+      <MedOpsAIChatPanel
+        isOpen={aiChatOpen}
+        onClose={() => setAiChatOpen(false)}
+        firstName={firstName}
+      />
     </div>
   );
 }
