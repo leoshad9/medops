@@ -63,7 +63,9 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
     onClose();
   };
 
+  // Show greeting + quick action chips only on first open (empty conversation)
   const showQuickActions = messages.length === 0;
+  // Prepend a greeting message on first open; subsequent messages come from the conversation
   const initialMessage: AIMessage | null = showQuickActions
     ? {
         id: crypto.randomUUID(),

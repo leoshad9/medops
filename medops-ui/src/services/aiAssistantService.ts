@@ -1,5 +1,3 @@
-import type { ApiResponse } from "../types/api";
-
 export interface AIMessage {
   id: string;
   role: "assistant" | "user";
@@ -10,21 +8,6 @@ export interface AIMessage {
 export interface AIChatResponse {
   message: AIMessage;
 }
-
-export interface AIQuickAction {
-  id: string;
-  label: string;
-  icon: string;
-  query: string;
-}
-
-export const AI_QUICK_ACTIONS: AIQuickAction[] = [
-  { id: "appointments", label: "Appointments", icon: "calendar", query: "I need help with my upcoming appointments. Can you show me what I have scheduled?" },
-  { id: "labs", label: "Reports & Labs", icon: "flask", query: "I want to check my recent lab test results. Where can I find them?" },
-  { id: "prescriptions", label: "Prescriptions", icon: "pill", query: "Can you tell me about my current prescriptions and when I need a refill?" },
-  { id: "billing", label: "Billing", icon: "credit-card", query: "I have a question about my billing statement. How can I view or pay my invoice?" },
-  { id: "help", label: "Using MedOps", icon: "help-circle", query: "How do I use the MedOps patient portal? What features are available?" },
-];
 
 const MOCK_RESPONSES: Record<string, string> = {
   appointments:
@@ -76,12 +59,3 @@ export async function getAIResponse(query: string): Promise<AIChatResponse> {
 //   const response = await api.post<ApiResponse<AIChatResponse>>("/api/v1/assistant/chat", { query });
 //   return response.data.data;
 // }
-
-export function useAIService() {
-  return {
-    getAIResponse,
-    quickActions: AI_QUICK_ACTIONS,
-  };
-}
-
-export type { ApiResponse };
