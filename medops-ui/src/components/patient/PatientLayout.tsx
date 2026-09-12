@@ -27,6 +27,7 @@ export interface PatientPortalContext {
   markAllNotificationsRead: () => Promise<void>;
 }
 
+/** Provides the shared patient portal layout and AI assistant entry points. */
 export function PatientLayout() {
   const data = mockPatientDashboard;
   const location = useLocation();

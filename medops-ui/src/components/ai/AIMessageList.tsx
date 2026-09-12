@@ -23,6 +23,7 @@ const QUICK_ACTIONS: QuickActionItem[] = [
   { id: "help", label: "Using MedOps", icon: HelpCircle, query: "How do I use the MedOps patient portal? What features are available?" },
 ];
 
+/** Renders the assistant conversation and initial quick-action choices. */
 export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageListProps>) {
   const showQuickActions = messages.length <= 1 && !messages.some((m) => m.role === "user");
 

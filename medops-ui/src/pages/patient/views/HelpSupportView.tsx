@@ -3,11 +3,13 @@ import { Bot, Clock, Mail, Phone } from "lucide-react";
 
 import { usePatientPortal } from "../../../components/patient/usePatientPortal";
 
+/** Displays patient support options, FAQs, and the AI assistant launcher. */
 export function HelpSupportView() {
   const { data } = usePatientPortal();
   const faqs = data.faqs;
   const [openFaqId, setOpenFaqId] = useState<string | null>(faqs[0]?.id ?? null);
 
+  /** Expands the selected FAQ or collapses it when already open. */
   const toggleFaq = (id: string) => {
     setOpenFaqId(openFaqId === id ? null : id);
   };

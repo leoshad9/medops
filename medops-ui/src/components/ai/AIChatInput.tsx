@@ -8,7 +8,9 @@ interface AIChatInputProps {
   disabled?: boolean;
 }
 
+/** Renders the AI assistant text input and its send control. */
 export function AIChatInput({ value, onChange, onSubmit, disabled = false }: Readonly<AIChatInputProps>) {
+  /** Submits non-empty input when the user presses Enter. */
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter" && !disabled && value.trim()) {
       event.preventDefault();
