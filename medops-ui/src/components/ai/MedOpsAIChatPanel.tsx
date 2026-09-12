@@ -40,8 +40,8 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
     try {
       const response = await getAIResponse(query);
       setMessages((prev) => [...prev, response.message]);
-    } catch (error) {
-      void error;
+    } catch {
+      // Network/API failure — user-facing message shown below; backend logs the error
       const errorMessage: AIMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
