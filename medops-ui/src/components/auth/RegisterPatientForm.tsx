@@ -5,8 +5,10 @@ import type { SubmitEvent } from "react";
 import type { Gender, RegisterPatientRequest } from "../../types/auth";
 import {
   EMAIL_REGEX,
+  NAME_REGEX,
   PHONE_REGEX,
   PASSWORD_REGEX,
+  checkPasswordRequirements,
   type ValidationErrors,
   type ValidationRule,
   validateField,
@@ -20,9 +22,24 @@ interface RegisterPatientFormProps {
 }
 
 const validationRules: Record<string, ValidationRule> = {
-  email: { required: true, pattern: EMAIL_REGEX },
-  password: { required: true, pattern: PASSWORD_REGEX },
-  fullName: { required: true, maxLength: 255 },
+  email: {
+    required: true,
+    pattern: EMAIL_REGEX,
+    errorMessage: "Please enter a valid email address",
+  },
+  password: {
+    required: true,
+    minLength: 8,
+    maxLength: 100,
+    pattern: PASSWORD_REGEX,
+    errorMessage: "Password must contain uppercase, lowercase, digit & special character",
+  },
+  fullName: {
+    required: true,
+    maxLength: 255,
+    pattern: NAME_REGEX,
+    errorMessage: "Full name may only contain letters, spaces, hyphens, apostrophes, and periods",
+  },
   dateOfBirth: {
     required: true,
     custom: (value: string) => {
@@ -33,7 +50,11 @@ const validationRules: Record<string, ValidationRule> = {
       return undefined;
     },
   },
-  phoneNumber: { required: true, pattern: PHONE_REGEX },
+  phoneNumber: {
+    required: true,
+    pattern: PHONE_REGEX,
+    errorMessage: "Enter a valid phone number (7-15 digits, optionally prefixed with +)",
+  },
 };
 
 export function RegisterPatientForm({ onSubmit, isLoading, errorMessage }: Readonly<RegisterPatientFormProps>) {
@@ -45,8 +66,10 @@ export function RegisterPatientForm({ onSubmit, isLoading, errorMessage }: Reado
   const [gender, setGender] = useState<Gender>("FEMALE");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   function validateFieldOnBlur(field: string, value: string) {
+    setTouched((prev) => ({ ...prev, [field]: true }));
     setErrors((prev) => ({ ...prev, [field]: validateField(value, validationRules[field]) }));
   }
 
@@ -63,7 +86,9 @@ export function RegisterPatientForm({ onSubmit, isLoading, errorMessage }: Reado
   }
 
   function updateField(field: string, value: string) {
-    if (errors[field]) {
+    if (touched[field]) {
+      setErrors((prev) => ({ ...prev, [field]: validateField(value, validationRules[field]) }));
+    } else if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
     switch (field) {
@@ -135,6 +160,7 @@ export function RegisterPatientForm({ onSubmit, isLoading, errorMessage }: Reado
               onChange={(event) => updateField("dateOfBirth", event.target.value)}
               onBlur={(event) => validateFieldOnBlur("dateOfBirth", event.target.value)}
               className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+              placeholder="DD MM YYYY"
             />
           </div>
           {errors.dateOfBirth && <p className="mt-1 text-xs text-red-600">{errors.dateOfBirth}</p>}
@@ -211,7 +237,14 @@ export function RegisterPatientForm({ onSubmit, isLoading, errorMessage }: Reado
         </div>
         {errors.password && (
           <ul className="mt-1 space-y-0.5 text-xs text-red-600">
-            <li>• At least 8 characters with uppercase, lowercase, digit &amp; special character</li>
+            <li>• {errors.password}</li>
+          </ul>
+        )}
+        {!errors.password && password && (
+          <ul className="mt-1 space-y-0.5 text-xs text-slate-500">
+            {checkPasswordRequirements(password).map((req) => (
+              <li key={req.label}>• {req.label}</li>
+            ))}
           </ul>
         )}
       </div>
