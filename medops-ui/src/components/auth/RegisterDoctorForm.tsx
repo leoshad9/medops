@@ -5,8 +5,10 @@ import type { SubmitEvent } from "react";
 import type { RegisterDoctorRequest } from "../../types/auth";
 import {
   EMAIL_REGEX,
+  NAME_REGEX,
   PHONE_REGEX,
   PASSWORD_REGEX,
+  checkPasswordRequirements,
   type ValidationErrors,
   type ValidationRule,
   validateField,
@@ -20,12 +22,39 @@ interface RegisterDoctorFormProps {
 }
 
 const validationRules: Record<string, ValidationRule> = {
-  email: { required: true, pattern: EMAIL_REGEX },
-  password: { required: true, pattern: PASSWORD_REGEX },
-  fullName: { required: true, maxLength: 255 },
-  specialty: { required: true, maxLength: 255 },
-  licenseNumber: { required: true, maxLength: 100 },
-  phoneNumber: { required: true, pattern: PHONE_REGEX },
+  email: {
+    required: true,
+    pattern: EMAIL_REGEX,
+    errorMessage: "Please enter a valid email address",
+  },
+  password: {
+    required: true,
+    minLength: 8,
+    maxLength: 100,
+    pattern: PASSWORD_REGEX,
+    errorMessage: "Password must contain uppercase, lowercase, digit & special character",
+  },
+  fullName: {
+    required: true,
+    maxLength: 255,
+    pattern: NAME_REGEX,
+    errorMessage: "Full name may only contain letters, spaces, hyphens, apostrophes, and periods",
+  },
+  specialty: {
+    required: true,
+    maxLength: 255,
+    errorMessage: "Specialty must be at most 255 characters",
+  },
+  licenseNumber: {
+    required: true,
+    maxLength: 100,
+    errorMessage: "License number must be at most 100 characters",
+  },
+  phoneNumber: {
+    required: true,
+    pattern: PHONE_REGEX,
+    errorMessage: "Enter a valid phone number (7-15 digits, optionally prefixed with +)",
+  },
 };
 
 export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readonly<RegisterDoctorFormProps>) {
@@ -37,8 +66,10 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
   const [licenseNumber, setLicenseNumber] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   function validateFieldOnBlur(field: string, value: string) {
+    setTouched((prev) => ({ ...prev, [field]: true }));
     setErrors((prev) => ({ ...prev, [field]: validateField(value, validationRules[field]) }));
   }
 
@@ -55,7 +86,9 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
   }
 
   function updateField(field: string, value: string) {
-    if (errors[field]) {
+    if (touched[field]) {
+      setErrors((prev) => ({ ...prev, [field]: validateField(value, validationRules[field]) }));
+    } else if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
     switch (field) {
@@ -204,7 +237,14 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
         </div>
         {errors.password && (
           <ul className="mt-1 space-y-0.5 text-xs text-red-600">
-            <li>At least 8 characters with uppercase, lowercase, digit &amp; special character</li>
+            <li>• {errors.password}</li>
+          </ul>
+        )}
+        {!errors.password && password && (
+          <ul className="mt-1 space-y-0.5 text-xs text-slate-500">
+            {checkPasswordRequirements(password).map((req) => (
+              <li key={req.label}>• {req.label}</li>
+            ))}
           </ul>
         )}
       </div>
