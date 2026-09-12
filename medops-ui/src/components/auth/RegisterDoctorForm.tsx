@@ -3,12 +3,30 @@ import { useState } from "react";
 import type { SubmitEvent } from "react";
 
 import type { RegisterDoctorRequest } from "../../types/auth";
+import {
+  EMAIL_REGEX,
+  PHONE_REGEX,
+  PASSWORD_REGEX,
+  type ValidationErrors,
+  type ValidationRule,
+  validateField,
+  validateForm,
+} from "../../lib/validation";
 
 interface RegisterDoctorFormProps {
   onSubmit: (request: RegisterDoctorRequest) => void;
   isLoading: boolean;
   errorMessage: string | null;
 }
+
+const validationRules: Record<string, ValidationRule> = {
+  email: { required: true, pattern: EMAIL_REGEX },
+  password: { required: true, pattern: PASSWORD_REGEX },
+  fullName: { required: true, maxLength: 255 },
+  specialty: { required: true, maxLength: 255 },
+  licenseNumber: { required: true, maxLength: 100 },
+  phoneNumber: { required: true, pattern: PHONE_REGEX },
+};
 
 export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readonly<RegisterDoctorFormProps>) {
   const [email, setEmail] = useState("");
@@ -18,10 +36,36 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
   const [specialty, setSpecialty] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [errors, setErrors] = useState<ValidationErrors>({});
+
+  function validateFieldOnBlur(field: string, value: string) {
+    setErrors((prev) => ({ ...prev, [field]: validateField(value, validationRules[field]) }));
+  }
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    const values: Record<string, string> = { email, password, fullName, specialty, licenseNumber, phoneNumber };
+    const newErrors = validateForm(values, validationRules);
+    setErrors(newErrors);
+
+    const hasErrors = Object.values(newErrors).some((e) => e !== undefined);
+    if (hasErrors) return;
+
     onSubmit({ email, password, fullName, specialty, licenseNumber, phoneNumber });
+  }
+
+  function updateField(field: string, value: string) {
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+    switch (field) {
+      case "email": setEmail(value); break;
+      case "password": setPassword(value); break;
+      case "fullName": setFullName(value); break;
+      case "specialty": setSpecialty(value); break;
+      case "licenseNumber": setLicenseNumber(value); break;
+      case "phoneNumber": setPhoneNumber(value); break;
+    }
   }
 
   return (
@@ -38,11 +82,13 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
             autoComplete="name"
             required
             value={fullName}
-            onChange={(event) => setFullName(event.target.value)}
+            onChange={(event) => updateField("fullName", event.target.value)}
+            onBlur={(event) => validateFieldOnBlur("fullName", event.target.value)}
             className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
             placeholder="Dr. Jane Doe"
           />
         </div>
+        {errors.fullName && <p className="mt-1 text-xs text-red-600">{errors.fullName}</p>}
       </div>
 
       <div>
@@ -57,11 +103,13 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
             autoComplete="email"
             required
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => updateField("email", event.target.value)}
+            onBlur={(event) => validateFieldOnBlur("email", event.target.value)}
             className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
             placeholder="Enter your email"
           />
         </div>
+        {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -76,11 +124,13 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
               type="text"
               required
               value={specialty}
-              onChange={(event) => setSpecialty(event.target.value)}
+              onChange={(event) => updateField("specialty", event.target.value)}
+              onBlur={(event) => validateFieldOnBlur("specialty", event.target.value)}
               className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
               placeholder="Cardiology"
             />
           </div>
+          {errors.specialty && <p className="mt-1 text-xs text-red-600">{errors.specialty}</p>}
         </div>
 
         <div>
@@ -94,11 +144,13 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
               type="text"
               required
               value={licenseNumber}
-              onChange={(event) => setLicenseNumber(event.target.value)}
+              onChange={(event) => updateField("licenseNumber", event.target.value)}
+              onBlur={(event) => validateFieldOnBlur("licenseNumber", event.target.value)}
               className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
               placeholder="LIC-000123"
             />
           </div>
+          {errors.licenseNumber && <p className="mt-1 text-xs text-red-600">{errors.licenseNumber}</p>}
         </div>
       </div>
 
@@ -114,11 +166,13 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
             autoComplete="tel"
             required
             value={phoneNumber}
-            onChange={(event) => setPhoneNumber(event.target.value)}
+            onChange={(event) => updateField("phoneNumber", event.target.value)}
+            onBlur={(event) => validateFieldOnBlur("phoneNumber", event.target.value)}
             className="w-full rounded-lg border border-slate-300 py-2.5 pr-3 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
             placeholder="+1 234 567 8901"
           />
         </div>
+        {errors.phoneNumber && <p className="mt-1 text-xs text-red-600">{errors.phoneNumber}</p>}
       </div>
 
       <div>
@@ -134,9 +188,10 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
             required
             minLength={8}
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => updateField("password", event.target.value)}
+            onBlur={(event) => validateFieldOnBlur("password", event.target.value)}
             className="w-full rounded-lg border border-slate-300 py-2.5 pr-10 pl-10 text-sm text-slate-900 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-            placeholder="At least 8 characters"
+            placeholder="At least 8 characters with uppercase, lowercase, digit & special char"
           />
           <button
             type="button"
@@ -147,6 +202,11 @@ export function RegisterDoctorForm({ onSubmit, isLoading, errorMessage }: Readon
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
+        {errors.password && (
+          <ul className="mt-1 space-y-0.5 text-xs text-red-600">
+            <li>At least 8 characters with uppercase, lowercase, digit &amp; special character</li>
+          </ul>
+        )}
       </div>
 
       {errorMessage && (
