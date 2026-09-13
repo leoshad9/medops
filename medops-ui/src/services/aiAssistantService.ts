@@ -44,7 +44,11 @@ function mockAIResponse(query: string): string {
   return MOCK_RESPONSES.default;
 }
 
-/** Builds a mock assistant message and resolves it after an 800–1,200 ms delay. */
+/**
+ * Sends a query to the assistant and resolves with a response.
+ * In production, resolves immediately with a not-yet-available message (400–600 ms).
+ * In development, returns a mock response based on keyword matching (800–1,200 ms).
+ */
 export async function getAIResponse(query: string): Promise<AIChatResponse> {
   if (!import.meta.env.DEV) {
     return new Promise((resolve) => {
@@ -57,7 +61,7 @@ export async function getAIResponse(query: string): Promise<AIChatResponse> {
             timestamp: new Date().toISOString(),
           },
         });
-      }, 800 + Math.random() * 400);
+      }, 400 + Math.random() * 200);
     });
   }
 
@@ -76,7 +80,7 @@ export async function getAIResponse(query: string): Promise<AIChatResponse> {
   });
 }
 
-// Future integration: replace the mock path above with a real API call:
+// Future integration: swap mockAIResponse for a real API call:
 // export async function getAIResponse(query: string): Promise<AIChatResponse> {
 //   const response = await api.post<ApiResponse<AIChatResponse>>("/api/v1/assistant/chat", { query });
 //   return response.data.data;
