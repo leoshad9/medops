@@ -12,7 +12,7 @@ interface MedOpsAIChatPanelProps {
   firstName?: string;
 }
 
-/** Renders the patient-facing AI assistant panel and manages its conversation. */
+/** Renders the assistant when open and retains its conversation while mounted. */
 export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Readonly<MedOpsAIChatPanelProps>) {
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -25,7 +25,7 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
     handleSendQuery(query);
   };
 
-  /** Adds a patient query and the corresponding assistant response to the chat. */
+  /** Adds a nonblank query, followed by an assistant response or connection-error message. */
   const handleSendQuery = async (query: string) => {
     if (!query.trim() || isLoading) return;
 

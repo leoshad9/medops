@@ -29,7 +29,7 @@ const MOCK_RESPONSES: Record<string, string> = {
     "I can help you with appointments, lab reports, prescriptions, billing, and using MedOps. Try clicking one of the quick actions below, or ask me anything!",
 };
 
-/** Selects a mock assistant response based on keywords in the patient query. */
+/** Selects a mock response by case-insensitive keywords, with a general fallback. */
 function mockAIResponse(query: string): string {
   const lower = query.toLowerCase();
 
@@ -44,7 +44,11 @@ function mockAIResponse(query: string): string {
   return MOCK_RESPONSES.default;
 }
 
-/** Returns a simulated asynchronous assistant response for the supplied query. */
+/**
+ * Sends a query to the assistant and resolves with a response.
+ * In production, resolves immediately with a not-yet-available message (400–600 ms).
+ * In development, returns a mock response based on keyword matching (800–1,200 ms).
+ */
 export async function getAIResponse(query: string): Promise<AIChatResponse> {
   if (!import.meta.env.DEV) {
     return new Promise((resolve) => {
@@ -57,7 +61,7 @@ export async function getAIResponse(query: string): Promise<AIChatResponse> {
             timestamp: new Date().toISOString(),
           },
         });
-      }, 800 + Math.random() * 400);
+      }, 400 + Math.random() * 200);
     });
   }
 
@@ -76,7 +80,7 @@ export async function getAIResponse(query: string): Promise<AIChatResponse> {
   });
 }
 
-// Future integration: replace the mock path above with a real API call:
+// Future integration: swap mockAIResponse for a real API call:
 // export async function getAIResponse(query: string): Promise<AIChatResponse> {
 //   const response = await api.post<ApiResponse<AIChatResponse>>("/api/v1/assistant/chat", { query });
 //   return response.data.data;
