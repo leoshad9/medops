@@ -9,6 +9,11 @@ export interface AIChatResponse {
   message: AIMessage;
 }
 
+const PRODUCTION_NOT_AVAILABLE =
+  "The MedOps AI Assistant is not yet available on the live site. Please check back soon, or reach out to our Care Support team for assistance.";
+
+// Development-only mock responses — gated so fabricated health/account data
+// is never returned in production. See getAIResponse() below.
 const MOCK_RESPONSES: Record<string, string> = {
   appointments:
     "You can view all your upcoming and past appointments under the **Appointments** section in the sidebar. To book a new appointment, click \"Book an Appointment\".\n\nYour next appointment is with Dr. Sarah Chen on Thursday, Sep 18 at 10:30 AM. Would you like me to send you a reminder?",
@@ -41,6 +46,21 @@ function mockAIResponse(query: string): string {
 
 /** Builds a mock assistant message and resolves it after an 800–1,200 ms delay. */
 export async function getAIResponse(query: string): Promise<AIChatResponse> {
+  if (!import.meta.env.DEV) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          message: {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: PRODUCTION_NOT_AVAILABLE,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }, 400 + Math.random() * 200);
+    });
+  }
+
   return new Promise((resolve) => {
     setTimeout(() => {
       const response: AIChatResponse = {

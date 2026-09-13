@@ -30,12 +30,15 @@ export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageLis
   return (
     <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
       {messages.map((message) => (
-        <div key={message.id} className="max-w-[80%]">
+        <div
+          key={message.id}
+          className={`max-w-[80%] ${message.role === "user" ? "ml-auto" : ""}`}
+        >
           <div
             className={`rounded-2xl px-4 py-2.5 text-sm ${
               message.role === "assistant"
                 ? "rounded-tl-none bg-brand-primary-tint text-brand-ink"
-                : "ml-auto rounded-tr-none bg-brand-primary text-white"
+                : "rounded-tr-none bg-brand-primary text-white"
             }`}
           >
             {message.role === "assistant" && messages.indexOf(message) === 0 ? (
