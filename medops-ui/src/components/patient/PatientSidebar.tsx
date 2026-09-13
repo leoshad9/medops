@@ -65,7 +65,7 @@ export function PatientSidebar({ mobileOpen = false, onCloseMobile }: Readonly<P
       >
         <div className="flex items-center justify-between border-b border-brand-line px-2 pb-5">
           <div className="flex items-center gap-2.5">
-            <MedOpsLogo className="h-7 w-7 text-brand-primary" />
+            <MedOpsLogo className="h-10 w-10 text-brand-primary" />
             <div>
               <span className="text-lg font-bold tracking-tight text-brand-primary-dark">MEDOPS</span>
               <p className="text-[11px] font-medium text-brand-muted">Patient Portal</p>

@@ -27,7 +27,7 @@ export function DoctorSidebar() {
   return (
     <aside className="flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans">
       <div className="flex items-center gap-2 border-b border-brand-line px-2 pb-6">
-        <MedOpsLogo className="h-8 w-8 text-brand-primary" />
+        <MedOpsLogo className="h-10 w-10 text-brand-primary" />
         <div>
           <span className="text-lg font-bold text-brand-primary-dark">MEDOPS</span>
           <p className="text-xs text-brand-muted">Doctor Clinical Workspace</p>
