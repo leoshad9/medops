@@ -46,8 +46,10 @@ plans/
 *.sh
 !deploy/*.sh
 !scripts/**/*.sh
+!deploy.sh        # root-level local deploy script
 *.cmd
 *.ps1
+!deploy.ps1       # root-level Windows deploy script
 medops.pem
 .DS_Store
 
