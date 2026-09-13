@@ -151,8 +151,37 @@ run_deploy() {
     sudo docker system prune -f >/dev/null 2>&1 || true
     sleep 5
   done
-  return $(( 1 - build_ok ))
-}
+   return $(( 1 - build_ok ))
+ }
+
+wait_for_services() {
+   local max="${DEPLOY_HEALTH_MAX_ATTEMPTS:-30}"
+   local delay="${DEPLOY_HEALTH_DELAY:-5}"
+   local attempt=0
+   local endpoints=(
+     "http://localhost:8000/health"
+     "http://localhost:8080/actuator/health"
+   )
+   while [ "$attempt" -lt "$max" ]; do
+     attempt=$(( attempt + 1 ))
+     local all_ok=1
+     for url in "${endpoints[@]}"; do
+       if curl -sf -o /dev/null --max-time 5 "$url" 2>/dev/null; then
+         echo "  - $url healthy"
+       else
+         echo "  - $url not ready (attempt $attempt/$max)"
+         all_ok=0
+       fi
+     done
+     if [ "$all_ok" -eq 1 ]; then
+       echo "==> All health checks passed"
+       return 0
+     fi
+     sleep "$delay"
+   done
+   echo "==> [WARN] services did not become healthy within time limit"
+   return 1
+ }
 
 MAX_ATTEMPTS="${DEPLOY_MAX_ATTEMPTS:-2}"
 attempt=1
@@ -163,7 +192,9 @@ while true; do
   echo "=========================================="
   if run_deploy; then
     echo ""
-    echo "==> Deploy successful"
+    echo "==> Build complete, waiting for services to be healthy..."
+   wait_for_services || echo "==> [WARN] health checks did not pass - check logs"
+   echo "==> Deploy successful"
     "${COMPOSE[@]}" ps
     echo "==> Pruning unused Docker data (volumes kept)"
     sudo docker container prune -f || true
