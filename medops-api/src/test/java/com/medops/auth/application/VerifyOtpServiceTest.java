@@ -4,33 +4,32 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.script.RedisScript;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.medops.auth.security.PasswordResetProperties;
 import com.medops.auth.domain.PasswordResetOtp;
 import com.medops.auth.dto.passwordreset.VerifyOtpRequest;
 import com.medops.auth.dto.passwordreset.VerifyOtpResponse;
+import com.medops.auth.security.PasswordResetProperties;
 import com.medops.auth.security.codec.PasswordResetCodec;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.startsWith;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link VerifyOtpService}. Pure Mockito - no Spring context.
@@ -74,6 +73,7 @@ class VerifyOtpServiceTest {
      * injection. The IDE flags this as "never used" - it is invoked by JUnit's
      * {@code @BeforeEach}, which static analysis does not always trace.
      */
+    @SuppressWarnings("unused")
     @BeforeEach
     void setUp() {
         service = new VerifyOtpService(redisTemplate, objectMapper, auditService,
@@ -136,6 +136,7 @@ class VerifyOtpServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void verifyOtp_returnsGenericFailure_whenFlowIsGoneOrExpired() {
         when(redisTemplate.execute(any(RedisScript.class), anyList())).thenReturn(null);
 
@@ -147,6 +148,7 @@ class VerifyOtpServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void verifyOtp_returnsRecoverableError_whenRedisClaimFails() {
         when(redisTemplate.execute(any(RedisScript.class), anyList()))
                 .thenThrow(new org.springframework.data.redis.RedisConnectionFailureException("down"));

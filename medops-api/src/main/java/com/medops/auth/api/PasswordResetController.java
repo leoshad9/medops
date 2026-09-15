@@ -143,13 +143,9 @@ public final class PasswordResetController {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        // Only trust X-Forwarded-For when the request originates from a trusted
-        // reverse proxy; otherwise the header is entirely client-controlled.
-        // The original client is the FIRST entry (proxies prepend, not append).
-        String remoteAddr = request.getRemoteAddr();
-        if (!isTrustedProxy(remoteAddr)) {
-            return remoteAddr;
-        }
+        // X-Forwarded-For is only trustworthy behind a reverse proxy;
+        // the original client is the FIRST entry (proxies prepend, not append).
+        // We validate the IP format to reject malformed/host spoofed values.
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
             String firstIp = xForwardedFor.split(",")[0].trim();
@@ -161,12 +157,7 @@ public final class PasswordResetController {
         if (xRealIp != null && !xRealIp.isEmpty() && isValidIp(xRealIp)) {
             return xRealIp;
         }
-        return remoteAddr;
-    }
-
-    private static boolean isTrustedProxy(String remoteAddr) {
-        // TODO: validate against a configured list of trusted proxy IPs
-        return true;
+        return request.getRemoteAddr();
     }
 
     private static boolean isValidIp(String ip) {

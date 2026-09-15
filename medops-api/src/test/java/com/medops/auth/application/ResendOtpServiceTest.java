@@ -68,6 +68,11 @@ class ResendOtpServiceTest {
 
     private ResendOtpService service;
 
+    /**
+     * Lifecycle: instantiated manually - {@code PROPERTIES} and {@code codec}
+     * are not mocks. The IDE flags this as "never used" - it is invoked by
+     * JUnit's {@code @BeforeEach}, which static analysis does not always trace.
+     */
     @BeforeEach
     void setUp() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
