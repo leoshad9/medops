@@ -56,6 +56,16 @@ services:
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP: kafka:9092
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      # Forgot-password reset tokens are HMAC'd with this key; the API refuses to
+      # start without it (same pattern as JWT_SECRET).
+      PASSWORD_RESET_OTP_HMAC_SECRET: ${PASSWORD_RESET_OTP_HMAC_SECRET:?Set PASSWORD_RESET_OTP_HMAC_SECRET in .env}
+      # SMTP settings for the forgot-password OTP emails. Optional at deploy time
+      # (app boots without them) but the reset emails only work when configured.
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-MedOps <noreply@medops.dev>}
       MEDOPS_AI_ENABLED: ${MEDOPS_AI_ENABLED:-true}
       MEDOPS_AI_BASE_URL: http://medops-ai:8000
       MEDOPS_REDIS_ENABLED: "true"

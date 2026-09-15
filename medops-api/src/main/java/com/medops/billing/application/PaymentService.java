@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,20 +50,15 @@ public class PaymentService {
                     "Payment of " + request.amountCents() + " cents exceeds outstanding balance of " + remaining);
         }
 
-        Payment payment;
-        try {
-            payment = paymentRepository.saveAndFlush(Payment.builder()
-                    .invoice(invoice)
-                    .idempotencyKey(idempotencyKey)
-                    .amountCents(request.amountCents())
-                    .method(request.method())
-                    .status(PaymentStatus.COMPLETED)
-                    .reference(request.reference())
-                    .paidAt(Instant.now())
-                    .build());
-        } catch (DataIntegrityViolationException ex) {
-            throw new ConflictException("A payment with this Idempotency-Key already exists", ex);
-        }
+        Payment payment = paymentRepository.saveAndFlush(Payment.builder()
+                .invoice(invoice)
+                .idempotencyKey(idempotencyKey)
+                .amountCents(request.amountCents())
+                .method(request.method())
+                .status(PaymentStatus.COMPLETED)
+                .reference(request.reference())
+                .paidAt(Instant.now())
+                .build());
 
         updateInvoiceStatus(invoice, paidSoFar + request.amountCents());
         auditService.recordEvent(AuditEventType.PAYMENT_RECORDED, actorUserId, actorEmail);

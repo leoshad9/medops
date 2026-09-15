@@ -3,8 +3,8 @@ package com.medops.patients.application;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.medops.auth.entity.User;
-import com.medops.auth.repository.UserRepository;
+import com.medops.auth.domain.User;
+import com.medops.auth.infrastructure.repository.UserRepository;
 import com.medops.patients.api.dto.PatientProfileResponse;
 import com.medops.patients.api.dto.UpdatePatientProfileRequest;
 import com.medops.patients.infrastructure.PatientProfile;

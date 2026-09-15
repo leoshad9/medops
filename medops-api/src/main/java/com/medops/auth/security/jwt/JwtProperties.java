@@ -1,0 +1,17 @@
+package com.medops.auth.security.jwt;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+
+@Validated
+@ConfigurationProperties(prefix = "jwt")
+public record JwtProperties(
+        @NotBlank String secret,
+        @Positive long accessTokenExpiryMs,
+        @Positive long refreshTokenExpiryMs,
+        @NotBlank String issuer,
+        @NotBlank String audience) {
+}

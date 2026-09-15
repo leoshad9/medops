@@ -1,0 +1,143 @@
+package com.medops.auth.api;
+
+import java.time.Duration;
+
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.medops.auth.security.PasswordResetProperties;
+import com.medops.auth.dto.passwordreset.ForgotPasswordRequest;
+import com.medops.auth.dto.passwordreset.ForgotPasswordResponse;
+import com.medops.auth.dto.passwordreset.ResetPasswordRequest;
+import com.medops.auth.dto.passwordreset.ResetPasswordResponse;
+import com.medops.auth.dto.passwordreset.ResendOtpRequest;
+import com.medops.auth.dto.passwordreset.ResendOtpResponse;
+import com.medops.auth.dto.passwordreset.VerifyOtpRequest;
+import com.medops.auth.dto.passwordreset.VerifyOtpResponse;
+import com.medops.auth.security.CookieConstants;
+import com.medops.auth.application.ForgotPasswordService;
+import com.medops.auth.application.ResetPasswordService;
+import com.medops.auth.application.ResendOtpService;
+import com.medops.auth.application.VerifyOtpService;
+import com.medops.shared.response.ApiResponse;
+
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/auth/password")
+@RequiredArgsConstructor
+public final class PasswordResetController {
+
+    /**
+     * Scoped so the reset-token cookie is only ever sent back to these endpoints
+     * instead of on every request.
+     */
+    private static final String RESET_COOKIE_PATH = "/api/auth/password";
+
+    private final ForgotPasswordService forgotPasswordService;
+    private final ResendOtpService resendOtpService;
+    private final VerifyOtpService verifyOtpService;
+    private final ResetPasswordService resetPasswordService;
+    private final PasswordResetProperties passwordResetProperties;
+
+    @PostMapping("/forgot")
+    public ResponseEntity<ApiResponse<ForgotPasswordResponse>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest httpRequest) {
+        String clientIp = getClientIp(httpRequest);
+        ForgotPasswordResponse response = forgotPasswordService.forgotPassword(request, clientIp);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<ApiResponse<ResendOtpResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
+        ResendOtpResponse response = resendOtpService.resendOtp(request);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<ApiResponse<VerifyOtpResponse>> verifyOtp(
+            @Valid @RequestBody VerifyOtpRequest request, HttpServletResponse httpResponse) {
+        VerifyOtpResponse response = verifyOtpService.verifyOtp(request);
+        if (response.resetToken() != null) {
+            // The token leaves the server in an HttpOnly cookie and is excluded from the
+            // JSON body (see VerifyOtpResponse#resetToken), so the SPA never has to put
+            // it in the URL it navigates to next.
+            httpResponse.addHeader(HttpHeaders.SET_COOKIE,
+                    passwordResetCookie(response.resetToken()).toString());
+        }
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/reset")
+    public ResponseEntity<ApiResponse<ResetPasswordResponse>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request,
+            HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+        try {
+            // The raw token is read from the cookie rather than the body, so it never
+            // appears in a URL, browser history, or the request payload.
+            String resetToken = readPasswordResetCookie(httpRequest);
+            if (resetToken == null) {
+                return ResponseEntity.ok(ApiResponse.success(
+                        new ResetPasswordResponse("Invalid or expired reset token.")));
+            }
+            return ResponseEntity.ok(ApiResponse.success(
+                    resetPasswordService.resetPassword(request, resetToken)));
+        } finally {
+            // Consumed or rejected either way: drop it so a stale token cannot linger.
+            httpResponse.addHeader(HttpHeaders.SET_COOKIE, clearPasswordResetCookie().toString());
+        }
+    }
+
+    private ResponseCookie passwordResetCookie(String token) {
+        return ResponseCookie.from(CookieConstants.PASSWORD_RESET, token)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .path(RESET_COOKIE_PATH)
+                .maxAge(passwordResetProperties.resetToken().ttl())
+                .build();
+    }
+
+    private ResponseCookie clearPasswordResetCookie() {
+        return ResponseCookie.from(CookieConstants.PASSWORD_RESET, "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .path(RESET_COOKIE_PATH)
+                .maxAge(Duration.ZERO)
+                .build();
+    }
+
+    private String readPasswordResetCookie(HttpServletRequest request) {
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if (CookieConstants.PASSWORD_RESET.equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            String[] ips = xForwardedFor.split(",");
+            return ips[ips.length - 1].trim();
+        }
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty()) {
+            return xRealIp;
+        }
+        return request.getRemoteAddr();
+    }
+}

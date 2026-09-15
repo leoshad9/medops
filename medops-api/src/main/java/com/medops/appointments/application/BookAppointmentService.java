@@ -9,7 +9,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,18 +80,12 @@ public class BookAppointmentService {
             throw new ConflictException("You already have an appointment overlapping that time");
         }
 
-        Appointment saved;
-        try {
-            saved = appointmentRepository.save(Appointment.book(
-                    patient.getId(),
-                    doctor.getId(),
-                    startsAt,
-                    schedule.slotLength(),
-                    blankToNull(request.reason())));
-        } catch (DataIntegrityViolationException ex) {
-            // Concurrent booking of the same doctor slot loses the unique index race.
-            throw new ConflictException("That time is no longer available", ex);
-        }
+        Appointment saved = appointmentRepository.save(Appointment.book(
+                patient.getId(),
+                doctor.getId(),
+                startsAt,
+                schedule.slotLength(),
+                blankToNull(request.reason())));
 
         auditService.recordEvent(AuditEventType.APPOINTMENT_BOOKED, patient.getUserId(), patientEmail);
         domainEventPublisher.publishAfterCommit(AppointmentBookedEvent.of(saved.getId()));

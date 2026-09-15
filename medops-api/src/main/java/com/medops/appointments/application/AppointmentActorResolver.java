@@ -6,9 +6,9 @@ import java.util.UUID;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
-import com.medops.auth.entity.User;
-import com.medops.auth.entity.UserStatus;
-import com.medops.auth.repository.UserRepository;
+import com.medops.auth.domain.User;
+import com.medops.auth.domain.UserStatus;
+import com.medops.auth.infrastructure.repository.UserRepository;
 import com.medops.doctors.infrastructure.DoctorProfile;
 import com.medops.doctors.infrastructure.DoctorProfileRepository;
 import com.medops.patients.infrastructure.PatientProfile;

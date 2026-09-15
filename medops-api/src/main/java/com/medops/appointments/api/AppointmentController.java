@@ -20,6 +20,7 @@ import com.medops.appointments.api.dto.AppointmentPageResponse;
 import com.medops.appointments.api.dto.AppointmentResponse;
 import com.medops.appointments.api.dto.BookAppointmentRequest;
 import com.medops.appointments.api.dto.RescheduleAppointmentRequest;
+import com.medops.appointments.application.AppointmentQueryReadService;
 import com.medops.appointments.application.AppointmentQueryService;
 import com.medops.appointments.application.AppointmentTransitionService;
 import com.medops.appointments.application.BookAppointmentService;
@@ -37,6 +38,7 @@ public class AppointmentController {
 
     private final BookAppointmentService bookAppointmentService;
     private final AppointmentQueryService appointmentQueryService;
+    private final AppointmentQueryReadService appointmentQueryReadService;
     private final AppointmentTransitionService appointmentTransitionService;
     private final IdempotencyExecutor idempotencyExecutor;
 
@@ -81,7 +83,7 @@ public class AppointmentController {
             Authentication authentication,
             @PathVariable UUID appointmentId) {
         return ResponseEntity.ok(ApiResponse.success(
-                appointmentQueryService.get(appointmentId, authentication.getName())));
+                appointmentQueryReadService.get(appointmentId, authentication.getName())));
     }
 
     @PostMapping("/{appointmentId}/cancel")

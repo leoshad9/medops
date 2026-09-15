@@ -158,21 +158,31 @@ wait_for_services() {
    local max="${DEPLOY_HEALTH_MAX_ATTEMPTS:-30}"
    local delay="${DEPLOY_HEALTH_DELAY:-5}"
    local attempt=0
-   local endpoints=(
-     "http://localhost:8000/health"
-     "http://localhost:8080/actuator/health"
-   )
+   # Only medops-ui publishes a host port. medops-ai:8000 and medops-api:8080 stay
+   # inside the compose network, so curling them always returns HTTP 000. Read each
+   # container's own Docker health state instead, and HTTP-check the UI only.
+   local ui_url="https://localhost:${HOST_HTTPS_PORT:-443}/"
+   local unhealthy_services
    while [ "$attempt" -lt "$max" ]; do
      attempt=$(( attempt + 1 ))
      local all_ok=1
-     for url in "${endpoints[@]}"; do
-       if curl -sf -o /dev/null --max-time 5 "$url" 2>/dev/null; then
-         echo "  - $url healthy"
-       else
-         echo "  - $url not ready (attempt $attempt/$max)"
-         all_ok=0
-       fi
-     done
+     unhealthy_services=$("${COMPOSE[@]}" ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null \
+       | awk '/^NAME/ || /^---/ {next} { if ($2 !~ /running/ || $0 ~ /\(unhealthy\)/ || $0 ~ /\(starting\)/) print }' || true)
+     if [ -n "$unhealthy_services" ]; then
+       echo "  - unhealthy services remaining:"
+       while IFS= read -r line; do
+         if [ -n "$line" ]; then
+           echo "    $line"
+         fi
+       done <<< "$unhealthy_services"
+       all_ok=0
+     fi
+     if curl -sfk -o /dev/null --max-time 5 "$ui_url" 2>/dev/null; then
+       echo "  - UI  healthy ($ui_url)"
+     else
+       echo "  - UI  not ready (attempt $attempt/$max)"
+       all_ok=0
+     fi
      if [ "$all_ok" -eq 1 ]; then
        echo "==> All health checks passed"
        return 0
