@@ -18,6 +18,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -151,13 +152,34 @@ class VerifyOtpServiceTest {
     @SuppressWarnings("unchecked")
     void verifyOtp_returnsRecoverableError_whenRedisClaimFails() {
         when(redisTemplate.execute(any(RedisScript.class), anyList()))
-                .thenThrow(new org.springframework.data.redis.RedisConnectionFailureException("down"));
+                .thenThrow(new RedisConnectionFailureException("down"));
 
         VerifyOtpResponse response = service.verifyOtp(new VerifyOtpRequest(FLOW_ID, OTP));
 
         assertThat(response.resetToken()).isNull();
         assertThat(response.message()).contains("temporarily unavailable");
         verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void verifyOtp_invalidatesFlow_whenFailedAttemptCannotBeRestored() throws Exception {
+        String otpJson = objectMapper.writeValueAsString(
+                new PasswordResetOtp(codec.hmacSha256(OTP, "test-hmac-secret"), 0));
+        when(redisTemplate.execute(any(RedisScript.class), anyList()))
+                .thenReturn(List.of(otpJson, Long.toString(OTP_TTL_SECONDS)));
+        when(redisTemplate.execute(any(RedisScript.class), anyList(), anyString(), anyString(), anyString()))
+                .thenThrow(new RedisConnectionFailureException("down"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("password-reset:flow:user:" + FLOW_ID)).thenReturn(EMAIL);
+
+        VerifyOtpResponse response = service.verifyOtp(new VerifyOtpRequest(FLOW_ID, "000000"));
+
+        assertThat(response.message()).isEqualTo("Invalid OTP.");
+        verify(redisTemplate).delete(OTP_KEY);
+        verify(redisTemplate).delete("password-reset:flow:user:" + FLOW_ID);
+        verify(redisTemplate).delete("password-reset:flow:user:id:" + FLOW_ID);
+        verify(redisTemplate).delete("password-reset:resend:" + FLOW_ID);
     }
 
     @Test

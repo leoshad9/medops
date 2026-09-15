@@ -19,6 +19,7 @@ const STATUS_MAP: Record<InvoiceStatus, { label: string; className: string }> = 
 };
 
 const PAYABLE: InvoiceStatus[] = ["ISSUED", "PARTIALLY_PAID"];
+const EMPTY_INVOICES: InvoiceDto[] = [];
 
 function invoiceDescription(invoice: InvoiceDto): string {
   if (invoice.notes?.trim()) {
@@ -39,31 +40,34 @@ function shortInvoiceNumber(id: string): string {
 
 export function BillingView() {
   const { patientId } = usePatientPortal();
-  const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [patientQuery, setPatientQuery] = useState<{
+    patientId: string;
+    invoices: InvoiceDto[];
+    error: string | null;
+  } | null>(null);
+  const currentQuery = patientQuery?.patientId === patientId ? patientQuery : null;
+  const invoices = currentQuery?.invoices ?? EMPTY_INVOICES;
+  const error = currentQuery?.error ?? null;
+  const loading = patientId !== null && currentQuery === null;
 
   useEffect(() => {
     if (!patientId) {
       return;
     }
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     listInvoices(patientId)
       .then((page) => {
         if (!cancelled) {
-          setInvoices(page.content);
+          setPatientQuery({ patientId, invoices: page.content, error: null });
         }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load invoices.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
+          setPatientQuery({
+            patientId,
+            invoices: [],
+            error: err instanceof Error ? err.message : "Unable to load invoices.",
+          });
         }
       });
     return () => {

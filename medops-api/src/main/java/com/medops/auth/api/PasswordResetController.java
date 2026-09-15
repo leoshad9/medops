@@ -198,36 +198,62 @@ public final class PasswordResetController {
         if (!cidr.contains("/")) {
             return ip.trim().equals(cidr);
         }
-        String[] parts = cidr.split("/");
-        String network = parts[0];
-        int prefixLen = Integer.parseInt(parts[1]);
-        return ipv4InSubnet(network, prefixNetmask(prefixLen), ip)
-                || ipv6InSubnet(network, prefixLen, ip);
-    }
-
-    private static int prefixNetmask(int prefixLen) {
-        return prefixLen >= 32 ? -1 : ~((1 << (32 - prefixLen)) - 1);
-    }
-
-    private static boolean ipv4InSubnet(String network, int netmask, String ip) {
-        String[] nw = network.split("\\.");
-        String[] addr = ip.split("\\.");
-        if (nw.length != 4 || addr.length != 4) {
+        String[] parts = cidr.trim().split("/", -1);
+        if (parts.length != 2) {
             return false;
         }
-        for (int i = 0; i < 4; i++) {
-            int n, a;
-            try {
-                n = Integer.parseInt(nw[i]);
-                a = Integer.parseInt(addr[i]);
-            } catch (NumberFormatException e) {
-                return false;
-            }
-            if ((n & netmask) != (a & netmask)) {
-                return false;
-            }
+        int prefixLen;
+        try {
+            prefixLen = Integer.parseInt(parts[1]);
+        } catch (NumberFormatException e) {
+            return false;
         }
-        return true;
+        String network = parts[0].trim();
+        String address = ip.trim();
+        return ipv4InSubnet(network, prefixLen, address)
+                || ipv6InSubnet(network, prefixLen, address);
+    }
+
+    private static boolean ipv4InSubnet(String network, int prefixLen, String ip) {
+        if (prefixLen < 0 || prefixLen > 32) {
+            return false;
+        }
+        byte[] networkBytes = parseIpv4(network);
+        byte[] addressBytes = parseIpv4(ip);
+        if (networkBytes == null || addressBytes == null) {
+            return false;
+        }
+        int netmask = prefixLen == 0 ? 0 : -1 << (32 - prefixLen);
+        return (ipv4ToInt(networkBytes) & netmask) == (ipv4ToInt(addressBytes) & netmask);
+    }
+
+    private static byte[] parseIpv4(String address) {
+        String[] octets = address.split("\\.", -1);
+        if (octets.length != 4) {
+            return null;
+        }
+        byte[] result = new byte[4];
+        for (int i = 0; i < octets.length; i++) {
+            int value;
+            try {
+                value = Integer.parseInt(octets[i]);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+            if (value < 0 || value > 255) {
+                return null;
+            }
+            result[i] = (byte) value;
+        }
+        return result;
+    }
+
+    private static int ipv4ToInt(byte[] address) {
+        int result = 0;
+        for (byte octet : address) {
+            result = (result << 8) | Byte.toUnsignedInt(octet);
+        }
+        return result;
     }
 
     private static boolean ipv6InSubnet(String network, int prefixLen, String ip) {

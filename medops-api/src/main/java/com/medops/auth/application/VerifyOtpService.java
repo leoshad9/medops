@@ -245,15 +245,12 @@ public class VerifyOtpService {
      * @param remainingTtlSeconds the TTL to re-apply to the restored record
      */
     private void restoreOtpIfPresent(
-            String resetFlowId, PasswordResetOtp otpRecord, String claimedJson, long remainingTtlSeconds) {
-        try {
-            String updatedJson = objectMapper.writeValueAsString(otpRecord);
-            redisTemplate.execute(
-                    COMPARE_AND_RESTORE_SCRIPT,
-                    Collections.singletonList(PasswordResetKeys.OTP_PREFIX + resetFlowId),
-                    claimedJson, updatedJson, String.valueOf(remainingTtlSeconds));
-        } catch (JsonProcessingException | DataAccessException e) {
-            log.error("Failed to restore OTP for flow: {}", resetFlowId, e);
-        }
+            String resetFlowId, PasswordResetOtp otpRecord, String claimedJson, long remainingTtlSeconds)
+            throws JsonProcessingException, DataAccessException {
+        String updatedJson = objectMapper.writeValueAsString(otpRecord);
+        redisTemplate.execute(
+                COMPARE_AND_RESTORE_SCRIPT,
+                Collections.singletonList(PasswordResetKeys.OTP_PREFIX + resetFlowId),
+                claimedJson, updatedJson, String.valueOf(remainingTtlSeconds));
     }
 }

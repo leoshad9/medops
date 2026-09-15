@@ -34,6 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medops.auth.security.PasswordResetProperties;
+import com.medops.auth.dto.passwordreset.ForgotPasswordRequest;
+import com.medops.auth.dto.passwordreset.ForgotPasswordResponse;
 import com.medops.auth.dto.passwordreset.ResetPasswordRequest;
 import com.medops.auth.dto.passwordreset.ResetPasswordResponse;
 import com.medops.auth.dto.passwordreset.VerifyOtpRequest;
@@ -119,6 +121,26 @@ class PasswordResetControllerTest {
                 .andExpect(cookie().value(CookieConstants.PASSWORD_RESET, RAW_RESET_TOKEN))
                 .andExpect(cookie().httpOnly(CookieConstants.PASSWORD_RESET, true))
                 .andExpect(cookie().path(CookieConstants.PASSWORD_RESET, "/api/auth/password"));
+    }
+
+    @Test
+    void forgotPassword_ignoresForwardedIpFromPeerOutsideTrustedCidr() throws Exception {
+        String remoteAddr = "203.0.113.7";
+        ForgotPasswordRequest request = new ForgotPasswordRequest("patient@medops.dev");
+        when(forgotPasswordService.forgotPassword(any(), eq(remoteAddr)))
+                .thenReturn(new ForgotPasswordResponse("If that email exists, an OTP has been sent.", null));
+
+        mockMvc.perform(post("/api/auth/password/forgot")
+                        .with(httpRequest -> {
+                            httpRequest.setRemoteAddr(remoteAddr);
+                            return httpRequest;
+                        })
+                        .header("X-Forwarded-For", "198.51.100.25")
+                        .contentType(JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(forgotPasswordService).forgotPassword(any(), eq(remoteAddr));
     }
 
     @Test
