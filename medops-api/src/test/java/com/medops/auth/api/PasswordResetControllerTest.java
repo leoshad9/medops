@@ -150,4 +150,36 @@ class PasswordResetControllerTest {
 
         verify(resetPasswordService, never()).resetPassword(any(), anyString());
     }
+
+    @Test
+    void resetPassword_keepsCookie_whenServiceFailsTransiently() throws Exception {
+        when(resetPasswordService.resetPassword(any(), eq(RAW_RESET_TOKEN)))
+                .thenReturn(new ResetPasswordResponse(
+                        "Verification service is temporarily unavailable. Please try again."));
+
+        mockMvc.perform(post("/api/auth/password/reset")
+                        .contentType(JSON)
+                        .cookie(new Cookie(CookieConstants.PASSWORD_RESET, RAW_RESET_TOKEN))
+                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest(NEW_PASSWORD))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.message").value(containsString("temporarily unavailable")))
+                .andExpect(cookie().doesNotExist(CookieConstants.PASSWORD_RESET));
+
+        verify(resetPasswordService).resetPassword(any(), eq(RAW_RESET_TOKEN));
+    }
+
+    @Test
+    void resetPassword_clearsCookie_whenTokenRejected() throws Exception {
+        when(resetPasswordService.resetPassword(any(), eq(RAW_RESET_TOKEN)))
+                .thenReturn(new ResetPasswordResponse("Invalid or expired reset token."));
+
+        mockMvc.perform(post("/api/auth/password/reset")
+                        .contentType(JSON)
+                        .cookie(new Cookie(CookieConstants.PASSWORD_RESET, RAW_RESET_TOKEN))
+                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest(NEW_PASSWORD))))
+                .andExpect(status().isOk())
+                .andExpect(cookie().maxAge(CookieConstants.PASSWORD_RESET, 0));
+
+        verify(resetPasswordService).resetPassword(any(), eq(RAW_RESET_TOKEN));
+    }
 }

@@ -31,7 +31,7 @@ export function VerifyOtp() {
   }, []);
 
   useEffect(() => {
-    startCooldown();
+    return startCooldown();
   }, [startCooldown]);
 
   async function handleVerify(event: React.FormEvent<HTMLFormElement>) {

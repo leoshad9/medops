@@ -81,20 +81,34 @@ public final class PasswordResetController {
     public ResponseEntity<ApiResponse<ResetPasswordResponse>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request,
             HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-        try {
-            // The raw token is read from the cookie rather than the body, so it never
-            // appears in a URL, browser history, or the request payload.
-            String resetToken = readPasswordResetCookie(httpRequest);
-            if (resetToken == null) {
-                return ResponseEntity.ok(ApiResponse.success(
-                        new ResetPasswordResponse("Invalid or expired reset token.")));
-            }
+        // The raw token is read from the cookie rather than the body, so it never
+        // appears in a URL, browser history, or the request payload.
+        String resetToken = readPasswordResetCookie(httpRequest);
+        if (resetToken == null) {
             return ResponseEntity.ok(ApiResponse.success(
-                    resetPasswordService.resetPassword(request, resetToken)));
-        } finally {
-            // Consumed or rejected either way: drop it so a stale token cannot linger.
+                    new ResetPasswordResponse("Invalid or expired reset token.")));
+        }
+        ResetPasswordResponse response = resetPasswordService.resetPassword(request, resetToken);
+        if (isConsumed(response)) {
+            // The token is consumed single-use server-side (GETDEL), so once the service
+            // reports success or invalid/expired the cookie holds nothing redeemable and
+            // must be dropped. On transient failures the cookie is deliberately kept so
+            // the user can retry with the still-valid token.
             httpResponse.addHeader(HttpHeaders.SET_COOKIE, clearPasswordResetCookie().toString());
         }
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * Reports whether the reset-token cookie holds nothing redeemable anymore.
+     *
+     * @param response the service result
+     * @return {@code true} when the token was consumed or rejected
+     */
+    private static boolean isConsumed(ResetPasswordResponse response) {
+        String message = response.message();
+        return message != null
+                && (message.contains("reset successfully") || message.contains("Invalid or expired"));
     }
 
     private ResponseCookie passwordResetCookie(String token) {

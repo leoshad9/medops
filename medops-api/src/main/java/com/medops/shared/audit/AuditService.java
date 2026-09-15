@@ -1,42 +1,36 @@
 package com.medops.shared.audit;
 
-import java.util.Objects;
 import java.util.UUID;
 
-import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.medops.shared.web.RequestCorrelationFilter;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * Records immutable audit events for security-sensitive actions.
+ *
+ * <p>Non-transactional facade: the actual insert lives in {@link AuditEventWriter} so the
+ * {@code REQUIRES_NEW} boundary is always crossed through the Spring proxy (a
+ * self-invoked {@code @Transactional} method would silently join the caller's
+ * transaction and roll back with it).
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuditService {
 
-    private final AuditEventRepository auditEventRepository;
+    private final AuditEventWriter auditEventWriter;
 
     /**
-     * Persists the event in its own transaction so it survives even when the caller's
-     * transaction subsequently rolls back (e.g. a failed login attempt still needs to be
-     * recorded even though the authentication exception aborts the enclosing transaction).
+     * Persists the event in its own transaction via {@link AuditEventWriter}.
+     *
+     * @param eventType the audit event category
+     * @param subjectId the subject user id, may be {@code null}
+     * @param subjectEmail the subject email, may be {@code null}
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordEvent(AuditEventType eventType, UUID subjectId, String subjectEmail) {
-        AuditEvent event = Objects.requireNonNull(AuditEvent.builder()
-                .eventType(eventType)
-                .subjectId(subjectId)
-                .subjectEmail(subjectEmail)
-                .correlationId(MDC.get(RequestCorrelationFilter.CORRELATION_ID_MDC_KEY))
-                .build());
-        auditEventRepository.save(event);
+        auditEventWriter.recordEvent(eventType, subjectId, subjectEmail);
     }
 
     /**
@@ -45,6 +39,10 @@ public class AuditService {
      * user-facing request here would misrepresent reality to the client — e.g. a
      * forgot-password request returned as an error even though the OTP was delivered —
      * so persistence problems are logged loudly instead of propagated.
+     *
+     * @param eventType the audit event category
+     * @param subjectId the subject user id, may be {@code null}
+     * @param subjectEmail the subject email, may be {@code null}
      */
     public void recordEventBestEffort(AuditEventType eventType, UUID subjectId, String subjectEmail) {
         try {

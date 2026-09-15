@@ -2,6 +2,7 @@ package com.medops.auth.application;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,16 +16,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medops.auth.security.PasswordResetProperties;
 import com.medops.auth.domain.PasswordResetOtp;
 import com.medops.auth.dto.passwordreset.ResendOtpRequest;
+import com.medops.auth.dto.passwordreset.ResendOtpResponse;
+import com.medops.auth.infrastructure.email.EmailSendingException;
 import com.medops.auth.infrastructure.email.EmailService;
 import com.medops.auth.infrastructure.email.MailDeliveryExecutor;
 import com.medops.auth.security.codec.PasswordResetCodec;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -101,9 +106,83 @@ class ResendOtpServiceTest {
     void resendOtp_isSkippedForUnknownFlow() {
         when(valueOperations.get(OTP_KEY)).thenReturn(null);
 
-        service.resendOtp(new ResendOtpRequest(FLOW_ID));
+        ResendOtpResponse response = service.resendOtp(new ResendOtpRequest(FLOW_ID));
 
+        assertThat(response.status()).isEqualTo(ResendOtpResponse.Status.EXPIRED);
         verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyInt());
         verify(valueOperations, never()).setIfAbsent(anyString(), anyString(), any());
+    }
+
+    @Test
+    void resendOtp_returnsGenericSent_withoutEmail_forDummyFlow() throws Exception {
+        String existingOtpJson = objectMapper.writeValueAsString(
+                new PasswordResetOtp(codec.hmacSha256("111111", "test-hmac-secret"), 0));
+        when(valueOperations.get(OTP_KEY)).thenReturn(existingOtpJson);
+        when(valueOperations.setIfAbsent(RESEND_KEY, "1", Duration.ofSeconds(60))).thenReturn(true);
+        when(valueOperations.get(FLOW_USER_KEY)).thenReturn(null);
+
+        ResendOtpResponse response = service.resendOtp(new ResendOtpRequest(FLOW_ID));
+
+        // Indistinguishable from a real resend: same SENT shape, no email, no audit.
+        assertThat(response.status()).isEqualTo(ResendOtpResponse.Status.SENT);
+        verify(valueOperations).set(eq(OTP_KEY), anyString(), eq(Duration.ofMinutes(10)));
+        verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyInt());
+        verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
+    }
+
+    @Test
+    void resendOtp_emailFailure_deletesFlowKeys_whenOtpUnchanged() throws Exception {
+        String existingOtpJson = objectMapper.writeValueAsString(
+                new PasswordResetOtp(codec.hmacSha256("111111", "test-hmac-secret"), 0));
+        AtomicReference<String> storedOtp = new AtomicReference<>(existingOtpJson);
+        when(valueOperations.get(OTP_KEY)).thenAnswer(inv -> storedOtp.get());
+        org.mockito.stubbing.Answer<?> storeAnswer = inv -> {
+            storedOtp.set(inv.getArgument(1));
+            return null;
+        };
+        org.mockito.Mockito.doAnswer(storeAnswer).when(valueOperations)
+                .set(eq(OTP_KEY), anyString(), eq(Duration.ofMinutes(10)));
+        when(valueOperations.setIfAbsent(RESEND_KEY, "1", Duration.ofSeconds(60))).thenReturn(true);
+        when(valueOperations.get(FLOW_USER_KEY)).thenReturn(EMAIL);
+        doThrow(new EmailSendingException("down", new RuntimeException("smtp")))
+                .when(emailService).sendOtpEmail(eq(EMAIL), anyString(), eq(10));
+
+        service.resendOtp(new ResendOtpRequest(FLOW_ID));
+
+        verify(redisTemplate).delete(OTP_KEY);
+        verify(redisTemplate).delete(FLOW_USER_KEY);
+        verify(redisTemplate).delete("password-reset:flow:user:id:" + FLOW_ID);
+        // The cooldown is always released so the user can retry immediately.
+        verify(redisTemplate).delete(RESEND_KEY);
+    }
+
+    @Test
+    void resendOtp_emailFailure_preservesFlowKeys_whenOtpSuperseded() throws Exception {
+        String existingOtpJson = objectMapper.writeValueAsString(
+                new PasswordResetOtp(codec.hmacSha256("111111", "test-hmac-secret"), 0));
+        String supersedingOtpJson = objectMapper.writeValueAsString(
+                new PasswordResetOtp(codec.hmacSha256("222222", "test-hmac-secret"), 0));
+        AtomicReference<String> storedOtp = new AtomicReference<>(existingOtpJson);
+        when(valueOperations.get(OTP_KEY)).thenAnswer(inv -> storedOtp.get());
+        org.mockito.stubbing.Answer<?> storeAnswer = inv -> {
+            storedOtp.set(inv.getArgument(1));
+            return null;
+        };
+        org.mockito.Mockito.doAnswer(storeAnswer).when(valueOperations)
+                .set(eq(OTP_KEY), anyString(), eq(Duration.ofMinutes(10)));
+        when(valueOperations.setIfAbsent(RESEND_KEY, "1", Duration.ofSeconds(60))).thenReturn(true);
+        when(valueOperations.get(FLOW_USER_KEY)).thenReturn(EMAIL);
+        // Simulate a newer resend landing while this (older) delivery is in flight.
+        org.mockito.Mockito.doAnswer(inv -> {
+            storedOtp.set(supersedingOtpJson);
+            throw new EmailSendingException("down", new RuntimeException("smtp"));
+        }).when(emailService).sendOtpEmail(eq(EMAIL), anyString(), eq(10));
+
+        service.resendOtp(new ResendOtpRequest(FLOW_ID));
+
+        // A newer OTP superseded the failed one: the late failure must not delete it.
+        verify(redisTemplate, never()).delete(OTP_KEY);
+        verify(redisTemplate, never()).delete(FLOW_USER_KEY);
+        verify(redisTemplate).delete(RESEND_KEY);
     }
 }

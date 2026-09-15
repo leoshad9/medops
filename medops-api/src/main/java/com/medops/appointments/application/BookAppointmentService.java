@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,6 +67,14 @@ public class BookAppointmentService {
                 .toList();
     }
 
+    /**
+     * Books an appointment for the given patient, translating a lost unique-index race
+     * into a user-facing conflict.
+     *
+     * @param patientEmail the booking patient's email
+     * @param request the booking request
+     * @return the booked appointment
+     */
     @Transactional
     public AppointmentResponse book(String patientEmail, BookAppointmentRequest request) {
         PatientProfile patient = actorResolver.requirePatient(patientEmail);
@@ -80,16 +89,22 @@ public class BookAppointmentService {
             throw new ConflictException("You already have an appointment overlapping that time");
         }
 
-        Appointment saved = appointmentRepository.save(Appointment.book(
-                patient.getId(),
-                doctor.getId(),
-                startsAt,
-                schedule.slotLength(),
-                blankToNull(request.reason())));
+        try {
+            Appointment saved = appointmentRepository.save(Appointment.book(
+                    patient.getId(),
+                    doctor.getId(),
+                    startsAt,
+                    schedule.slotLength(),
+                    blankToNull(request.reason())));
 
-        auditService.recordEvent(AuditEventType.APPOINTMENT_BOOKED, patient.getUserId(), patientEmail);
-        domainEventPublisher.publishAfterCommit(AppointmentBookedEvent.of(saved.getId()));
-        return assembler.toResponse(saved);
+            auditService.recordEvent(AuditEventType.APPOINTMENT_BOOKED, patient.getUserId(), patientEmail);
+            domainEventPublisher.publishAfterCommit(AppointmentBookedEvent.of(saved.getId()));
+            return assembler.toResponse(saved);
+        } catch (DataIntegrityViolationException ex) {
+            // Pre-checks above cannot win a concurrent race for the same doctor slot: the
+            // unique index is the arbiter, so translate its violation into the same 409.
+            throw new ConflictException("That time is no longer available", ex);
+        }
     }
 
     void assertBookableSlot(UUID doctorId, Instant startsAt, Instant now, UUID excludeAppointmentId) {

@@ -99,12 +99,16 @@ class ForgotPasswordServiceTest {
     @Test
     void forgotPassword_isGenericResponse_whenAccountDoesNotExist() {
         when(rateLimiterStore.tryAcquire(anyString(), anyInt(), any())).thenReturn(true);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
 
         ForgotPasswordResponse response = service.forgotPassword(new ForgotPasswordRequest(EMAIL), CLIENT_IP);
 
         assertThat(response.resetFlowId()).isNotNull();
         assertThat(response.message()).contains("OTP");
+        // Anti-enumeration: a dummy OTP flow is burned so timing and resend/verify
+        // behaviour match the known-account path - but nothing is ever emailed or audited.
+        verify(valueOperations).set(startsWith("password-reset:otp:"), anyString(), eq(Duration.ofMinutes(10)));
         verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyInt());
         verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
     }

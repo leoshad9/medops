@@ -44,6 +44,8 @@ spring:
           auth: true
           starttls:
             enable: true
+            # Never silently fall back to cleartext SMTP: fail fast instead.
+            required: true
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
@@ -137,6 +139,9 @@ resilience4j:
         retry-exceptions:
           - org.springframework.mail.MailException
           - jakarta.mail.MessagingException
+          # The service wraps both of the above in EmailSendingException; without this
+          # entry the @Retry(smtpMail) annotations never trigger.
+          - com.medops.auth.infrastructure.email.EmailSendingException
 
 medops:
   security:

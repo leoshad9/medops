@@ -83,8 +83,15 @@ class VerifyOtpServiceTest {
     /** Stubs the atomic GET+TTL+DEL claim to return [otpJson, remainingTtlSeconds]. */
     @SuppressWarnings("unchecked")
     private void stubAtomicClaim(String otpJson) {
-        when(redisTemplate.execute(any(RedisScript.class), anyList())).thenReturn(
-                List.of(otpJson, Long.toString(OTP_TTL_SECONDS)));
+        when(redisTemplate.execute(any(RedisScript.class), anyList())).thenAnswer(invocation -> {
+            RedisScript<?> script = invocation.getArgument(0);
+            String source = script.getScriptAsString();
+            if (source != null && source.contains("ARGV[2]")) {
+                // Compare-and-set restore script: report the write as applied.
+                return 1L;
+            }
+            return List.of(otpJson, Long.toString(OTP_TTL_SECONDS));
+        });
     }
 
     @Test
@@ -121,9 +128,10 @@ class VerifyOtpServiceTest {
 
         assertThat(response.resetToken()).isNull();
         assertThat(response.message()).isEqualTo("Invalid OTP.");
-        // TTL is re-applied explicitly so a failed attempt neither drops the
-        // expiry nor extends it (plain SET would clear the TTL entirely).
-        verify(valueOperations).set(eq(OTP_KEY), anyString(), eq(Duration.ofSeconds(OTP_TTL_SECONDS)));
+        // The CAS restore script re-applies the remaining TTL so a failed attempt neither
+        // drops the expiry nor extends it (plain SET would clear the TTL entirely).
+        verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(OTP_KEY)),
+                eq(otpJson), anyString(), eq(Long.toString(OTP_TTL_SECONDS)));
         verify(auditService).recordEventBestEffort(AuditEventType.PASSWORD_RESET_OTP_FAILED, null, EMAIL);
     }
 
@@ -135,6 +143,18 @@ class VerifyOtpServiceTest {
 
         assertThat(response.resetToken()).isNull();
         assertThat(response.message()).isEqualTo("Invalid or expired OTP.");
+        verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
+    }
+
+    @Test
+    void verifyOtp_returnsRecoverableError_whenRedisClaimFails() {
+        when(redisTemplate.execute(any(RedisScript.class), anyList()))
+                .thenThrow(new org.springframework.data.redis.RedisConnectionFailureException("down"));
+
+        VerifyOtpResponse response = service.verifyOtp(new VerifyOtpRequest(FLOW_ID, OTP));
+
+        assertThat(response.resetToken()).isNull();
+        assertThat(response.message()).contains("temporarily unavailable");
         verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
     }
 

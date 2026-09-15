@@ -46,6 +46,15 @@ public class AppointmentQueryReadService {
         return assembler.toResponse(appointment);
     }
 
+    /**
+     * Lists a patient's appointments with an optional status filter.
+     *
+     * @param email the patient's email
+     * @param status optional status filter, may be {@code null}
+     * @param page zero-based page index
+     * @param size page size
+     * @return the requested page of appointments
+     */
     @Transactional(readOnly = true)
     public AppointmentPageResponse listForPatient(
             String email, AppointmentStatus status, int page, int size) {
@@ -58,14 +67,38 @@ public class AppointmentQueryReadService {
         return toPage(result);
     }
 
+    /**
+     * Lists a doctor's appointments with optional status and date-window filters.
+     *
+     * <p>A date window is all-or-nothing: supplying only one of {@code from}/{@code to}
+     * is rejected rather than silently ignored, and a supplied {@code status} always
+     * applies - including inside a window.
+     *
+     * @param email the doctor's email
+     * @param status optional status filter, may be {@code null}
+     * @param from optional window start (inclusive), must accompany {@code to}
+     * @param to optional window end (exclusive), must accompany {@code from}
+     * @param page zero-based page index
+     * @param size page size
+     * @return the requested page of appointments
+     */
     @Transactional(readOnly = true)
     public AppointmentPageResponse listForDoctor(
             String email, AppointmentStatus status, Instant from, Instant to, int page, int size) {
         DoctorProfile doctor = actorResolver.requireDoctor(email);
         Pageable pageable = pageable(page, size);
-        if (from != null && to != null) {
+        if (from != null || to != null) {
+            if (from == null || to == null) {
+                throw new InvalidRequestException("Both from and to must be provided for a date range");
+            }
             if (!to.isAfter(from)) {
                 throw new InvalidRequestException("The end of the range must be after the start");
+            }
+            if (status != null) {
+                Page<Appointment> window = appointmentRepository
+                        .findByDoctorProfileIdAndStatusAndStartsAtGreaterThanEqualAndStartsAtLessThanOrderByStartsAtAsc(
+                                doctor.getId(), status, from, to, pageable);
+                return toPage(window);
             }
             Page<Appointment> window = appointmentRepository
                     .findByDoctorProfileIdAndStartsAtGreaterThanEqualAndStartsAtLessThanOrderByStartsAtAsc(

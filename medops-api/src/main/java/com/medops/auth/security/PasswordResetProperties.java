@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -27,7 +28,9 @@ public record PasswordResetProperties(
     public record Otp(
             @NotNull @DurationMin(millis = 1) Duration ttl,
             @Positive int maxAttempts,
-            @Positive int length,
+            // PasswordResetCodec.generateOtp builds the OTP with int math, which overflows
+            // beyond 9 digits; fail fast at startup instead of generating garbage.
+            @Positive @Max(9) int length,
             @NotBlank String hmacSecret) {
     }
 

@@ -19,7 +19,11 @@ export function ForgotPassword() {
     const email = formData.get("email") as string;
 
     try {
-      const flowId = await forgotPassword(email);
+      const { flowId, message } = await forgotPassword(email);
+      if (flowId == null) {
+        setErrorMessage(message);
+        return;
+      }
       navigate(`/verify-otp?flowId=${flowId}`);
     } catch (error) {
       setErrorMessage(messageFromApiError(error, "Unable to send OTP. Please try again."));

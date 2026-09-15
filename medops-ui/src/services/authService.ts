@@ -34,10 +34,10 @@ export async function logout(): Promise<void> {
   await api.post("/auth/logout");
 }
 
-export async function forgotPassword(email: string): Promise<string> {
+export async function forgotPassword(email: string): Promise<{ resetFlowId: string | null; message: string }> {
   try {
-    const response = await api.post<ApiResponse<{ message: string; resetFlowId: string }>>("/auth/password/forgot", { email });
-    return response.data.data.resetFlowId;
+    const response = await api.post<ApiResponse<{ message: string; resetFlowId: string | null }>>("/auth/password/forgot", { email });
+    return { resetFlowId: response.data.data.resetFlowId ?? null, message: response.data.data.message };
   } catch (error) {
     throw new Error(messageFromApiError(error, "Unable to send OTP. Please try again."));
   }

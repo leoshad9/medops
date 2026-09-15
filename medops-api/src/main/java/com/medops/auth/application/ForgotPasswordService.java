@@ -24,6 +24,7 @@ import com.medops.auth.security.PasswordResetKeys;
 import com.medops.ratelimit.domain.RateLimiterStore;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
+import com.medops.shared.util.LogMasking;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +41,6 @@ public class ForgotPasswordService {
     private static final String RATE_LIMIT_IP_PREFIX    = "pwd-reset:ip:";
     private static final String GENERIC_MESSAGE =
             "If an account exists for this email, an OTP has been sent.";
-
     private final UserRepository userRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -52,18 +52,30 @@ public class ForgotPasswordService {
     private final PasswordResetCodec codec;
 
 
+    /**
+     * Starts a password-reset flow for the given email address.
+     *
+     * <p>Always returns the same generic message and a {@code resetFlowId}, whether or
+     * not an account exists, so the response cannot be used to enumerate accounts.
+     * Unknown emails still burn a dummy OTP flow (same Redis writes, no email sent) to
+     * equalise timing and downstream resend/verify behaviour.
+     *
+     * @param request the forgot-password request containing the email
+     * @param clientIp the caller IP used for rate limiting (never logged in the clear)
+     * @return generic message plus a reset flow id, or a null flow id when rate limited
+     */
     public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request, String clientIp) {
         String email = normalizeEmail(request.email());
 
         if (!rateLimiterStore.tryAcquire(RATE_LIMIT_EMAIL_PREFIX + email,
                 properties.rateLimit().forgotPerEmailPerHour(), Duration.ofHours(1))) {
-            log.warn("Rate limit exceeded for email: {}", email);
+            log.warn("Password-reset rate limit exceeded for email: {}", LogMasking.maskEmail(email));
             return new ForgotPasswordResponse(GENERIC_MESSAGE, null);
         }
 
         if (!rateLimiterStore.tryAcquire(RATE_LIMIT_IP_PREFIX + clientIp,
                 properties.rateLimit().forgotPerIpPerMinute(), Duration.ofMinutes(1))) {
-            log.warn("Rate limit exceeded for IP: {}", clientIp);
+            log.warn("Password-reset rate limit exceeded for IP: {}", LogMasking.maskIp(clientIp));
             return new ForgotPasswordResponse(GENERIC_MESSAGE, null);
         }
 
@@ -71,7 +83,14 @@ public class ForgotPasswordService {
         String resetFlowId = UUID.randomUUID().toString();
 
         if (userOpt.isEmpty()) {
-            log.info("Password reset requested for unknown email");
+            // Anti-enumeration: do the same expensive work as the known-account path
+            // (OTP generation, HMAC, Redis writes) and return the same shape, but never
+            // send an email or write an audit event. The dummy OTP hash is random so it
+            // can never be guessed; verify/resend treat it exactly like a real flow.
+            String dummyOtp = codec.generateOtp(properties.otp().length());
+            String dummyHash = codec.hmacSha256(dummyOtp, properties.otp().hmacSecret());
+            storeDummyFlow(resetFlowId, dummyHash);
+            log.info("Password reset OTP requested");
             return new ForgotPasswordResponse(GENERIC_MESSAGE, resetFlowId);
         }
 
@@ -94,6 +113,41 @@ public class ForgotPasswordService {
         return new ForgotPasswordResponse(GENERIC_MESSAGE, resetFlowId);
     }
 
+    /**
+     * Stores a dummy OTP flow for an unknown email so timing and downstream
+     * resend/verify responses are indistinguishable from a real flow.
+     *
+     * @param resetFlowId the flow id to store under
+     * @param otpHash the HMAC of a random, never-delivered OTP
+     */
+    private void storeDummyFlow(String resetFlowId, String otpHash) {
+        List<String> keysWritten = new ArrayList<>();
+        try {
+            String json = objectMapper.writeValueAsString(new PasswordResetOtp(otpHash, 0));
+            redisTemplate.opsForValue().set(PasswordResetKeys.OTP_PREFIX + resetFlowId, json,
+                    properties.otp().ttl());
+            keysWritten.add(PasswordResetKeys.OTP_PREFIX + resetFlowId);
+        } catch (JsonProcessingException | RuntimeException e) {
+            keysWritten.forEach(k -> {
+                try {
+                    redisTemplate.delete(k);
+                } catch (Exception ignored) {
+                    // best-effort cleanup of partially written keys
+                }
+            });
+            log.error("Failed to store dummy OTP flow {}; cleaned up {} partial key(s)",
+                    resetFlowId, keysWritten.size(), e);
+            throw new IllegalStateException("Failed to store OTP", e);
+        }
+    }
+
+    /**
+     * Persists the OTP plus flow lookups for a real account.
+     *
+     * @param resetFlowId the flow id to store under
+     * @param user the account owner
+     * @param otpRecord the OTP hash plus attempt counter
+     */
     private void storeFlow(String resetFlowId, User user, PasswordResetOtp otpRecord) {
         List<String> keysWritten = new ArrayList<>();
         try {
@@ -120,6 +174,11 @@ public class ForgotPasswordService {
         }
     }
 
+    /**
+     * Deletes every Redis key belonging to a reset flow.
+     *
+     * @param resetFlowId the flow id whose keys should be removed
+     */
     private void deleteFlowKeys(String resetFlowId) {
         redisTemplate.delete(PasswordResetKeys.OTP_PREFIX    + resetFlowId);
         redisTemplate.delete(PasswordResetKeys.USER_PREFIX   + resetFlowId);
@@ -127,6 +186,12 @@ public class ForgotPasswordService {
         redisTemplate.delete(PasswordResetKeys.RESEND_PREFIX + resetFlowId);
     }
 
+    /**
+     * Normalises an email address for lookup and rate-limit keys.
+     *
+     * @param email the raw request email
+     * @return trimmed, lower-cased email
+     */
     private static String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
     }

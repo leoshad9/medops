@@ -166,7 +166,10 @@ wait_for_services() {
    while [ "$attempt" -lt "$max" ]; do
      attempt=$(( attempt + 1 ))
      local all_ok=1
-     unhealthy_services=$("${COMPOSE[@]}" ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null \
+      # NB: plain `compose ps` hides stopped/exited containers, so a crashed service
+      # would silently pass this check. `-a` lists every container; anything not
+      # `running` (or reporting (unhealthy)/(starting)) fails the deploy.
+     unhealthy_services=$("${COMPOSE[@]}" ps -a --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null \
        | awk '/^NAME/ || /^---/ {next} { if ($2 !~ /running/ || $0 ~ /\(unhealthy\)/ || $0 ~ /\(starting\)/) print }' || true)
      if [ -n "$unhealthy_services" ]; then
        echo "  - unhealthy services remaining:"

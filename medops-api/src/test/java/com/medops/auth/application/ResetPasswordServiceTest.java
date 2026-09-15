@@ -79,7 +79,7 @@ class ResetPasswordServiceTest {
         UUID userId = UUID.randomUUID();
         User user = userWithId(userId);
         String tokenKey = "password-reset:token:" + codec.sha256(TOKEN);
-        when(valueOperations.get(tokenKey)).thenReturn(storedTokenJson(userId, false));
+        when(valueOperations.getAndDelete(tokenKey)).thenReturn(storedTokenJson(userId, false));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(passwordEncoder.encode(NEW_PASSWORD)).thenReturn("encoded-new-password");
 
@@ -89,9 +89,9 @@ class ResetPasswordServiceTest {
         assertThat(user.getPasswordHash()).isEqualTo("encoded-new-password");
         verify(userRepository).save(user);
         verify(refreshTokenRepository).revokeAllUserTokens(eq(userId), any(ZonedDateTime.class));
-        // The token is deleted on use (zero replay window) rather than marked
-        // used and re-stored for the remainder of its TTL.
-        verify(redisTemplate).delete(tokenKey);
+        // The token is consumed atomically on read (GETDEL), not marked used and re-stored.
+        verify(valueOperations).getAndDelete(tokenKey);
+        verify(redisTemplate, never()).delete(tokenKey);
         verify(auditService).recordEventBestEffort(AuditEventType.PASSWORD_RESET_SUCCESS, userId, EMAIL);
         verify(emailService).sendPasswordResetConfirmationEmail(EMAIL);
     }
@@ -100,7 +100,7 @@ class ResetPasswordServiceTest {
     void resetPassword_rejectsAlreadyUsedToken() throws Exception {
         UUID userId = UUID.randomUUID();
         String tokenKey = "password-reset:token:" + codec.sha256(TOKEN);
-        when(valueOperations.get(tokenKey)).thenReturn(storedTokenJson(userId, true));
+        when(valueOperations.getAndDelete(tokenKey)).thenReturn(storedTokenJson(userId, true));
 
         ResetPasswordResponse response = service.resetPassword(new ResetPasswordRequest(NEW_PASSWORD), TOKEN);
 
@@ -114,7 +114,7 @@ class ResetPasswordServiceTest {
     @Test
     void resetPassword_rejectsUnknownToken() {
         String tokenKey = "password-reset:token:" + codec.sha256(TOKEN);
-        when(valueOperations.get(tokenKey)).thenReturn(null);
+        when(valueOperations.getAndDelete(tokenKey)).thenReturn(null);
 
         ResetPasswordResponse response = service.resetPassword(new ResetPasswordRequest(NEW_PASSWORD), TOKEN);
 

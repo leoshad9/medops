@@ -28,6 +28,12 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class ResendOtpService {
 
+    /**
+     * Message shared by the expired-flow and unknown-flow branches so neither reveals
+     * whether a reset flow ever existed.
+     */
+    static final String EXPIRED_MESSAGE = "This reset flow is no longer valid. Please request a new OTP.";
+
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final EmailService emailService;
@@ -37,14 +43,23 @@ public class ResendOtpService {
     private final PasswordResetCodec codec;
 
 
+    /**
+     * Regenerates the OTP for an existing reset flow and queues it for delivery.
+     *
+     * <p>Responses are flow-state only ({@code SENT}/{@code COOLDOWN}/{@code EXPIRED}):
+     * because forgot-password burns dummy flows for unknown emails, the status never
+     * reveals whether an account exists.
+     *
+     * @param request the resend request containing the reset flow id
+     * @return the resend outcome
+     */
     public ResendOtpResponse resendOtp(ResendOtpRequest request) {
         String resetFlowId = request.resetFlowId();
 
         String otpJson = redisTemplate.opsForValue().get(PasswordResetKeys.OTP_PREFIX + resetFlowId);
         if (otpJson == null) {
             log.warn("Resend OTP attempted for non-existent or expired flow: {}", resetFlowId);
-            return new ResendOtpResponse(Status.EXPIRED,
-                    "This reset flow is no longer valid. Please request a new OTP.");
+            return new ResendOtpResponse(Status.EXPIRED, EXPIRED_MESSAGE);
         }
 
         String resendKey = PasswordResetKeys.RESEND_PREFIX + resetFlowId;
@@ -80,19 +95,21 @@ public class ResendOtpService {
 
         String email = redisTemplate.opsForValue().get(PasswordResetKeys.USER_PREFIX + resetFlowId);
         if (email == null) {
-            log.warn("Flow {} has no stored email; OTP regenerated but not deliverable", resetFlowId);
-            return new ResendOtpResponse(Status.SENT, "OTP regenerated but no email address on file.");
+            // Dummy/unknown-email flow: an OTP exists so the resend behaves exactly like a
+            // real one (same writes, same SENT response), but there is nobody to email and
+            // nothing to audit - the response therefore cannot reveal account existence.
+            log.info("OTP resend queued for delivery, flow: {}", resetFlowId);
+            return new ResendOtpResponse(Status.SENT,
+                    "If an account exists for this flow, an OTP has been resent.");
         }
 
         mailDeliveryExecutor.execute(() -> {
             try {
                 emailService.sendOtpEmail(email, otp, (int) properties.otp().ttl().toMinutes());
             } catch (EmailSendingException e) {
-                log.error("OTP resend failed for flow {} — dropping flow keys", resetFlowId, e);
-                redisTemplate.delete(PasswordResetKeys.OTP_PREFIX + resetFlowId);
-                redisTemplate.delete(PasswordResetKeys.USER_PREFIX + resetFlowId);
-                redisTemplate.delete(PasswordResetKeys.USER_ID_PREFIX + resetFlowId);
-                redisTemplate.delete(resendKey);
+                log.error("OTP resend failed for flow {} — dropping flow keys only if unchanged",
+                        resetFlowId, e);
+                deleteOtpKeysIfUnchanged(resetFlowId, resendKey, otpHash);
             }
         });
 
@@ -100,5 +117,44 @@ public class ResendOtpService {
         log.info("OTP resend queued for delivery, flow: {}", resetFlowId);
         return new ResendOtpResponse(Status.SENT,
                 "If an account exists for this flow, an OTP has been resent.");
+    }
+
+    /**
+     * Deletes a flow's OTP keys after an email failure, but only when the stored OTP
+     * still matches the hash this task attempted to deliver.
+     *
+     * <p>A newer resend may have regenerated the OTP while this (older) delivery was
+     * still in flight; deleting unconditionally would destroy the fresh code. The
+     * comparison is constant-time so the stored hash cannot leak byte-level timing.
+     *
+     * @param resetFlowId the flow id owning the keys
+     * @param resendKey the cooldown sentinel key for this resend attempt
+     * @param attemptedOtpHash the OTP hash this task tried to deliver
+     */
+    private void deleteOtpKeysIfUnchanged(String resetFlowId, String resendKey, String attemptedOtpHash) {
+        try {
+            String currentJson = redisTemplate.opsForValue().get(PasswordResetKeys.OTP_PREFIX + resetFlowId);
+            if (currentJson == null) {
+                return;
+            }
+            PasswordResetOtp current = objectMapper.readValue(currentJson, PasswordResetOtp.class);
+            if (!codec.constantTimeEquals(current.otpHash(), attemptedOtpHash)) {
+                // A newer OTP superseded this one; leave the fresh flow untouched and only
+                // release this attempt's cooldown so the user can retry immediately.
+                log.info("OTP resend cleanup skipped for flow: {}; a newer OTP exists", resetFlowId);
+            } else {
+                redisTemplate.delete(PasswordResetKeys.OTP_PREFIX + resetFlowId);
+                redisTemplate.delete(PasswordResetKeys.USER_PREFIX + resetFlowId);
+                redisTemplate.delete(PasswordResetKeys.USER_ID_PREFIX + resetFlowId);
+            }
+        } catch (JsonProcessingException | RuntimeException e) {
+            log.error("OTP resend cleanup failed for flow: {}", resetFlowId, e);
+        } finally {
+            try {
+                redisTemplate.delete(resendKey);
+            } catch (RuntimeException e) {
+                log.error("Failed to release resend cooldown for flow: {}", resetFlowId, e);
+            }
+        }
     }
 }

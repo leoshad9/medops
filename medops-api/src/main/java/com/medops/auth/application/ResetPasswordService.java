@@ -24,10 +24,17 @@ import com.medops.auth.security.PasswordResetKeys;
 import com.medops.auth.security.codec.PasswordResetCodec;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
+import com.medops.shared.util.LogMasking;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Finalises a password reset by consuming a single-use reset token.
+ *
+ * <p>Reset tokens are claimed atomically with Redis {@code GETDEL} so two
+ * concurrent requests presenting the same token can never both succeed.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -45,11 +52,22 @@ public class ResetPasswordService {
     private final AuditService auditService;
     private final PasswordResetCodec codec;
 
+    /**
+     * Consumes a single-use reset token and sets the new password.
+     *
+     * @param request the new password payload
+     * @param resetToken the raw reset token presented via HttpOnly cookie
+     * @return a user-facing result; failures always return a generic message
+     */
     @Transactional
     public ResetPasswordResponse resetPassword(ResetPasswordRequest request, String resetToken) {
         String tokenHash = codec.sha256(resetToken);
+        String tokenKey = PasswordResetKeys.TOKEN_PREFIX + tokenHash;
 
-        String tokenJson = redisTemplate.opsForValue().get(PasswordResetKeys.TOKEN_PREFIX + tokenHash);
+        // Atomically claim the token (GETDEL): the value is returned and deleted in one
+        // Redis operation, so two concurrent requests presenting the same token can never
+        // both redeem it.
+        String tokenJson = redisTemplate.opsForValue().getAndDelete(tokenKey);
         if (tokenJson == null) {
             log.warn("Password reset attempted with invalid/expired token");
             return new ResetPasswordResponse(INVALID_OR_EXPIRED);
@@ -79,13 +97,7 @@ public class ResetPasswordService {
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
 
-        try {
-            redisTemplate.delete(PasswordResetKeys.TOKEN_PREFIX + tokenHash);
-        } catch (RuntimeException e) {
-            log.error("Failed to delete reset token {} after successful password reset; "
-                    + "token will expire naturally", tokenHash, e);
-        }
-
+        // The token was already consumed by GETDEL above, so there is nothing left to delete here.
         refreshTokenRepository.revokeAllUserTokens(user.getId(), ZonedDateTime.now(ZoneOffset.UTC));
 
         auditService.recordEventBestEffort(AuditEventType.PASSWORD_RESET_SUCCESS, user.getId(), user.getEmail());
@@ -95,12 +107,18 @@ public class ResetPasswordService {
         return new ResetPasswordResponse("Password reset successfully. Please log in again.");
     }
 
+    /**
+     * Sends the post-reset confirmation email off the request thread.
+     *
+     * @param email the recipient address (never logged in the clear)
+     */
     private void sendConfirmationEmail(String email) {
         mailDeliveryExecutor.execute(() -> {
             try {
                 emailService.sendPasswordResetConfirmationEmail(email);
             } catch (EmailSendingException e) {
-                log.error("Password reset succeeded for {} but the confirmation email could not be sent", email, e);
+                log.error("Password reset succeeded for {} but the confirmation email could not be sent",
+                        LogMasking.maskEmail(email), e);
             }
         });
     }
