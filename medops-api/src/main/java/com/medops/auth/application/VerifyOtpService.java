@@ -159,7 +159,7 @@ public class VerifyOtpService {
             String tokenJson = objectMapper.writeValueAsString(tokenRecord);
             redisTemplate.opsForValue().set(
                     PasswordResetKeys.TOKEN_PREFIX + tokenHash, tokenJson, properties.resetToken().ttl());
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException | DataAccessException e) {
             // Fail-closed isn't right here: the OTP has already been atomically
             // consumed (script), so throwing would lock the user out with no way
             // to retry. Restore the OTP record (preserving remaining TTL) and
@@ -205,11 +205,18 @@ public class VerifyOtpService {
                 // attempt conservatively by leaving their record in place.
                 log.warn("OTP restore skipped for flow: {}; record changed concurrently", resetFlowId);
             }
-        } catch (JsonProcessingException e) {
-            // Failing closed beats an uncounted attempt: without the increment a
-            // brute-forcer would never hit the max-attempts cap.
-            log.error("Failed to record OTP attempt for flow: {}; invalidating flow", resetFlowId, e);
-            deleteFlowKeys(resetFlowId);
+        } catch (JsonProcessingException | DataAccessException e) {
+            // Failing closed is safer than an uncounted attempt: without the increment
+            // a brute-forcer would never hit the max-attempts cap. But the OTP was
+            // already consumed by the claim script, so first attempt a best-effort
+            // restore so the user can retry; only delete flow keys if that also fails.
+            log.error("Failed to record OTP attempt for flow: {}; attempting restore", resetFlowId, e);
+            try {
+                restoreOtpIfPresent(resetFlowId, otpRecord, claimedJson, remainingTtlSeconds);
+            } catch (Exception restoreEx) {
+                log.error("Restore also failed for flow: {}; invalidating flow", resetFlowId, restoreEx);
+                deleteFlowKeys(resetFlowId);
+            }
         }
     }
 
@@ -245,7 +252,7 @@ public class VerifyOtpService {
                     COMPARE_AND_RESTORE_SCRIPT,
                     Collections.singletonList(PasswordResetKeys.OTP_PREFIX + resetFlowId),
                     claimedJson, updatedJson, String.valueOf(remainingTtlSeconds));
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException | DataAccessException e) {
             log.error("Failed to restore OTP for flow: {}", resetFlowId, e);
         }
     }

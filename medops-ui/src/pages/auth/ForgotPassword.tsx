@@ -19,7 +19,7 @@ export function ForgotPassword() {
     const email = formData.get("email") as string;
 
     try {
-      const { flowId, message } = await forgotPassword(email);
+      const { resetFlowId: flowId, message } = await forgotPassword(email);
       if (flowId == null) {
         setErrorMessage(message);
         return;

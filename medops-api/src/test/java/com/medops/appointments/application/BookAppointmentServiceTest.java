@@ -117,7 +117,7 @@ class BookAppointmentServiceTest {
         ArgumentCaptor<Appointment> captor = ArgumentCaptor.forClass(Appointment.class);
         verify(appointmentRepository).save(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(AppointmentStatus.BOOKED);
-        verify(auditService).recordEvent(AuditEventType.APPOINTMENT_BOOKED, patient.getUserId(), PATIENT_EMAIL);
+        verify(auditService).recordEventInCallerTx(AuditEventType.APPOINTMENT_BOOKED, patient.getUserId(), PATIENT_EMAIL);
         verify(domainEventPublisher).publishAfterCommit(any(AppointmentBookedEvent.class));
     }
 

@@ -97,7 +97,7 @@ public class BookAppointmentService {
                     schedule.slotLength(),
                     blankToNull(request.reason())));
 
-            auditService.recordEvent(AuditEventType.APPOINTMENT_BOOKED, patient.getUserId(), patientEmail);
+            auditService.recordEventInCallerTx(AuditEventType.APPOINTMENT_BOOKED, patient.getUserId(), patientEmail);
             domainEventPublisher.publishAfterCommit(AppointmentBookedEvent.of(saved.getId()));
             return assembler.toResponse(saved);
         } catch (DataIntegrityViolationException ex) {

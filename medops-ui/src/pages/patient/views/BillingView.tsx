@@ -40,12 +40,11 @@ function shortInvoiceNumber(id: string): string {
 export function BillingView() {
   const { patientId } = usePatientPortal();
   const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!patientId) {
-      setLoading(false);
       return;
     }
     let cancelled = false;

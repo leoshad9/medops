@@ -28,6 +28,7 @@ import com.medops.auth.application.ForgotPasswordService;
 import com.medops.auth.application.ResetPasswordService;
 import com.medops.auth.application.ResendOtpService;
 import com.medops.auth.application.VerifyOtpService;
+import com.medops.shared.config.MedopsSecurityProperties;
 import com.medops.shared.response.ApiResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,7 @@ public final class PasswordResetController {
     private final VerifyOtpService verifyOtpService;
     private final ResetPasswordService resetPasswordService;
     private final PasswordResetProperties passwordResetProperties;
+    private final MedopsSecurityProperties securityProperties;
 
     @PostMapping("/forgot")
     public ResponseEntity<ApiResponse<ForgotPasswordResponse>> forgotPassword(
@@ -143,21 +145,93 @@ public final class PasswordResetController {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        // X-Forwarded-For is only trustworthy behind a reverse proxy;
-        // the original client is the FIRST entry (proxies prepend, not append).
-        // We validate the IP format to reject malformed/host spoofed values.
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            String firstIp = xForwardedFor.split(",")[0].trim();
-            if (isValidIp(firstIp)) {
-                return firstIp;
+        // X-Forwarded-For is only trustworthy when the direct connection peer is a
+        // configured reverse proxy. Without this check a caller could spoof the header
+        // to bypass per-IP rate limiting on the forgot-password flow.
+        String remoteAddr = request.getRemoteAddr();
+        if (isTrustedProxy(remoteAddr)) {
+            String xForwardedFor = request.getHeader("X-Forwarded-For");
+            if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+                String firstIp = xForwardedFor.split(",")[0].trim();
+                if (isValidIp(firstIp)) {
+                    return firstIp;
+                }
+            }
+            String xRealIp = request.getHeader("X-Real-IP");
+            if (xRealIp != null && !xRealIp.isEmpty() && isValidIp(xRealIp)) {
+                return xRealIp;
             }
         }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty() && isValidIp(xRealIp)) {
-            return xRealIp;
+        return remoteAddr;
+    }
+
+    /**
+     * Checks whether the given address matches any configured trusted-proxy CIDR.
+     *
+     * @param remoteAddr the direct connection peer IP
+     * @return {@code true} when the address falls inside a configured CIDR range
+     */
+    private boolean isTrustedProxy(String remoteAddr) {
+        if (remoteAddr == null || securityProperties.trustedProxyCidrs() == null
+                || securityProperties.trustedProxyCidrs().isEmpty()) {
+            return false;
         }
-        return request.getRemoteAddr();
+        for (String cidr : securityProperties.trustedProxyCidrs()) {
+            if (cidrContains(cidr, remoteAddr)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Tests whether an IP address falls inside a CIDR or literal-address range.
+     *
+     * @param cidr the configured CIDR (e.g. {@code 127.0.0.1/8} or {@code 10.0.0.0/8})
+     * @param ip the address to test
+     * @return {@code true} when the IP is covered by the CIDR
+     */
+    private static boolean cidrContains(String cidr, String ip) {
+        if (cidr == null || ip == null) {
+            return false;
+        }
+        if (!cidr.contains("/")) {
+            return ip.trim().equals(cidr);
+        }
+        String[] parts = cidr.split("/");
+        String network = parts[0];
+        int prefixLen = Integer.parseInt(parts[1]);
+        return ipv4InSubnet(network, prefixNetmask(prefixLen), ip)
+                || ipv6InSubnet(network, prefixLen, ip);
+    }
+
+    private static int prefixNetmask(int prefixLen) {
+        return prefixLen >= 32 ? -1 : ~((1 << (32 - prefixLen)) - 1);
+    }
+
+    private static boolean ipv4InSubnet(String network, int netmask, String ip) {
+        String[] nw = network.split("\\.");
+        String[] addr = ip.split("\\.");
+        if (nw.length != 4 || addr.length != 4) {
+            return false;
+        }
+        for (int i = 0; i < 4; i++) {
+            int n, a;
+            try {
+                n = Integer.parseInt(nw[i]);
+                a = Integer.parseInt(addr[i]);
+            } catch (NumberFormatException e) {
+                return false;
+            }
+            if ((n & netmask) != (a & netmask)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean ipv6InSubnet(String network, int prefixLen, String ip) {
+        return false;
     }
 
     private static boolean isValidIp(String ip) {

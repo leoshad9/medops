@@ -1,6 +1,7 @@
 package com.medops.auth.api;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -44,6 +45,7 @@ import com.medops.auth.application.ForgotPasswordService;
 import com.medops.auth.application.ResetPasswordService;
 import com.medops.auth.application.ResendOtpService;
 import com.medops.auth.application.VerifyOtpService;
+import com.medops.shared.config.MedopsSecurityProperties;
 
 import jakarta.servlet.http.Cookie;
 
@@ -92,6 +94,12 @@ class PasswordResetControllerTest {
                     new PasswordResetProperties.ResetToken(Duration.ofMinutes(15)),
                     new PasswordResetProperties.Resend(Duration.ofSeconds(60)),
                     new PasswordResetProperties.RateLimit(3, 10));
+        }
+
+        @Bean
+        MedopsSecurityProperties medopsSecurityProperties() {
+            return new MedopsSecurityProperties(true, true,
+                    List.of("127.0.0.1/8", "0:0:0:0:0:0:0:1/128", "::1/128"));
         }
     }
 

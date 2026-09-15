@@ -17,7 +17,6 @@ import com.medops.billing.infrastructure.Payment;
 import com.medops.billing.infrastructure.PaymentRepository;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
-import com.medops.shared.exception.ConflictException;
 import com.medops.shared.exception.InvalidRequestException;
 import com.medops.shared.exception.ResourceNotFoundException;
 

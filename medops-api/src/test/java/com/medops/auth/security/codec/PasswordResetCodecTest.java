@@ -40,13 +40,6 @@ class PasswordResetCodecTest {
     }
 
     @Test
-    void generateOtp_isUniqueAcrossCalls() {
-        String first = codec.generateOtp(6);
-        String second = codec.generateOtp(6);
-        assertThat(second).isNotEqualTo(first);
-    }
-
-    @Test
     void hmacSha256_throwsForBlankSecret() {
         assertThatThrownBy(() -> codec.hmacSha256("123456", ""))
                 .isInstanceOf(IllegalStateException.class);

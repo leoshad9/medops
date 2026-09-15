@@ -10,9 +10,10 @@ export function VerifyOtp() {
   const [searchParams] = useSearchParams();
 
   const flowId = searchParams.get("flowId");
-  const [otp, setOtp] = useState("");
+  const [otpSlots, setOtpSlots] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const isOtpComplete = otpSlots.every((d) => d !== "");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -51,7 +52,7 @@ export function VerifyOtp() {
       setErrorMessage("Invalid reset flow. Please start over.");
       return;
     }
-    if (otp.length !== 6) {
+    if (!isOtpComplete) {
       setErrorMessage("Please enter a 6-digit OTP.");
       return;
     }
@@ -60,7 +61,7 @@ export function VerifyOtp() {
     setErrorMessage(null);
 
     try {
-      await verifyOtp(flowId, otp);
+      await verifyOtp(flowId, otpSlots.join(""));
       navigate("/reset-password");
     } catch (error) {
       setErrorMessage(messageFromApiError(error, "Invalid OTP. Please try again."));
@@ -77,8 +78,12 @@ export function VerifyOtp() {
     setErrorMessage(null);
 
     try {
-      await resendOtp(flowId);
-      startCooldown();
+      const response = await resendOtp(flowId);
+      if (response.status === "SENT") {
+        startCooldown();
+      } else {
+        setErrorMessage(response.message);
+      }
     } catch (error) {
       setErrorMessage(messageFromApiError(error, "Unable to resend OTP. Please try again."));
     } finally {
@@ -104,20 +109,24 @@ export function VerifyOtp() {
                   <input
                     key={i}
                     type="text"
-                    maxLength={1}
-                    value={otp[i] || ""}
-                    onChange={(e) => {
-                      const value = e.currentTarget.value;
-                      if (/^\d*$/.test(value) && value.length <= 1) {
-                        setOtp((prev) => prev.slice(0, i) + value + prev.slice(i + 1));
-                        if (value && i < 5) {
-                          const nextInput = e.currentTarget.parentElement?.querySelector(`input[data-index="${i + 1}"]`) as HTMLInputElement;
-                          nextInput?.focus();
-                        }
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Backspace" && !otp[i] && i > 0) {
+                     maxLength={1}
+                     value={otpSlots[i]}
+                     onChange={(e) => {
+                       const value = e.currentTarget.value;
+                       if (/^\d*$/.test(value) && value.length <= 1) {
+                         setOtpSlots((prev) => {
+                           const next = [...prev];
+                           next[i] = value;
+                           return next;
+                         });
+                       if (value && i < 5) {
+                         const nextInput = e.currentTarget.parentElement?.querySelector(`input[data-index="${i + 1}"]`) as HTMLInputElement;
+                         nextInput?.focus();
+                       }
+                     }
+                     }}
+                     onKeyDown={(e) => {
+                      if (e.key === "Backspace" && !otpSlots[i] && i > 0) {
                         const prevInput = e.currentTarget.parentElement?.querySelector(`input[data-index="${i - 1}"]`) as HTMLInputElement;
                         prevInput?.focus();
                       }
@@ -138,7 +147,7 @@ export function VerifyOtp() {
 
               <button
                 type="submit"
-                disabled={isLoading || otp.length !== 6}
+                disabled={isLoading || !isOtpComplete}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-primary py-2.5 text-sm font-semibold text-white transition hover:bg-brand-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isLoading ? (

@@ -147,6 +147,12 @@ medops:
   security:
     open-registration: true
     api-docs-public: true
+    # CIDR ranges from which X-Forwarded-For / X-Real-IP headers are honored.
+    # Local dev trusts loopback; production should list the load-balancer / ingress CIDRs.
+    trusted-proxy-cidrs:
+      - "127.0.0.1/8"
+      - "0:0:0:0:0:0:0:1/128"
+      - "::1/128"
   appointments:
     zone: Asia/Kolkata
     slot-minutes: 30
@@ -238,6 +244,9 @@ medops:
   security:
     open-registration: true
     api-docs-public: false
+    trusted-proxy-cidrs:
+      - "127.0.0.1/8"
+      - "::1/128"
   redis:
     enabled: false
   messaging:
