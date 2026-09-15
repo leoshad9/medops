@@ -35,6 +35,7 @@ class GenerateContentClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> ChatResult:
+        """Send a chat request to the generateContent-style LLM endpoint."""
         if not settings.llm_api_key.strip():
             raise LlmUnavailableError("LLM_API_KEY is not configured")
 
@@ -83,6 +84,7 @@ class GenerateContentClient:
 
 
 async def _run_with_retry(url: str, headers: dict, payload: dict, *, model: str) -> ChatResult:
+    """Execute the HTTP request with retry/backoff; raise the last error on exhaustion."""
     last_error: Exception | None = None
     attempts = max(1, settings.llm_max_attempts)
     for attempt in range(1, attempts + 1):
@@ -115,6 +117,7 @@ async def _attempt_request(
     *,
     model: str,
 ) -> tuple[httpx.Response | None, int, Exception | None]:
+    """Perform a single HTTP attempt, returning (response, latency_ms, error)."""
     started = time.perf_counter()
     try:
         timeout = httpx.Timeout(settings.request_timeout_seconds)
@@ -131,6 +134,7 @@ async def _attempt_request(
 
 
 def _retryable_error(response: httpx.Response, attempt: int, attempts: int, latency_ms: int):
+    """Classify a retryable response into the appropriate ``LlmError`` subclass."""
     code, message = _provider_error(response)
     logger.warning(
         "llm_retryable_status status=%s attempt=%s/%s latency_ms=%s code=%s message=%s",
@@ -144,6 +148,7 @@ def _retryable_error(response: httpx.Response, attempt: int, attempts: int, late
 
 
 def _handle_error_status(response: httpx.Response, latency_ms: int) -> None:
+    """Raise the appropriate ``LlmError`` for non-retryable error responses."""
     if response.status_code in {401, 403}:
         raise LlmUnavailableError("LLM API key rejected")
     if response.status_code >= 400:
@@ -156,6 +161,7 @@ def _handle_error_status(response: httpx.Response, latency_ms: int) -> None:
 
 
 def _build_result(response: httpx.Response, latency_ms: int, *, model: str) -> ChatResult:
+    """Parse a successful HTTP response into a ``ChatResult``."""
     data = response.json()
     content = _extract_content(data)
     usage = data.get("usageMetadata") or {}
@@ -176,6 +182,7 @@ def _build_result(response: httpx.Response, latency_ms: int, *, model: str) -> C
 
 
 def _backoff_seconds(attempt: int) -> float:
+    """Return the jittered backoff delay (seconds) for the given attempt number."""
     try:
         from app.utils.logging_utils import jittered_backoff
 
@@ -185,6 +192,7 @@ def _backoff_seconds(attempt: int) -> float:
 
 
 def _provider_error(response: httpx.Response) -> tuple[str | None, str | None]:
+    """Extract ``(code, message)`` from the provider's error payload, if present."""
     try:
         payload = response.json()
         err = payload.get("error") if isinstance(payload, dict) else None
@@ -200,6 +208,7 @@ def _provider_error(response: httpx.Response) -> tuple[str | None, str | None]:
 
 
 def _finish_reason(data: dict) -> str | None:
+    """Extract the finish reason from the generateContent response, if present."""
     try:
         return data["candidates"][0].get("finishReason")
     except (KeyError, IndexError, TypeError):
@@ -207,6 +216,7 @@ def _finish_reason(data: dict) -> str | None:
 
 
 def _extract_content(data: dict) -> str:
+    """Pull candidate text content from the generateContent response JSON."""
     try:
         candidates = data["candidates"]
         parts = candidates[0]["content"]["parts"]
@@ -220,6 +230,7 @@ def _extract_content(data: dict) -> str:
 
 
 def _as_int(value: object) -> int | None:
+    """Coerce ``value`` to ``int``, returning ``None`` when it is not an int."""
     if isinstance(value, int):
         return value
     return None

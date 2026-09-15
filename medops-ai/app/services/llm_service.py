@@ -39,6 +39,8 @@ _BLOCKED_CLAIM = re.compile(
 
 
 class ChatClient(Protocol):
+    """Interface for an LLM chat backend, regardless of API dialect."""
+
     async def chat(
         self,
         *,
@@ -50,6 +52,10 @@ class ChatClient(Protocol):
 
 
 def build_chat_client() -> ChatClient | None:
+    """Create the chat client matching the configured provider dialect.
+
+    :returns a ``ChatClient`` instance, or ``None`` when the provider is unconfigured
+    """
     provider = settings.resolved_provider()
     if provider == PROVIDER_GENERATE_CONTENT:
         return GenerateContentClient()
@@ -62,9 +68,19 @@ class LLMService:
     """Isolates provider choice (Strategy/Adapter) from FastAPI routes."""
 
     def __init__(self, client: ChatClient | None = None) -> None:
+        """Initialise with an explicit client or the auto-detected one."""
         self._client = client if client is not None else build_chat_client()
 
     async def summarize(self, report_id: str, pdf_bytes: bytes) -> str:
+        """Produce a plain-language summary of a clinical PDF.
+
+        When no LLM backend is configured, returns a deterministic stub string so
+        the endpoint remains usable for smoke tests.
+
+        :param report_id: identifier forwarded into the prompt for traceability
+        :param pdf_bytes: raw PDF file contents
+        :returns: summary text (never ``None``)
+        """
         if self._client is None:
             pages_estimate = max(1, len(pdf_bytes) // 50_000)
             return (
@@ -96,6 +112,10 @@ class LLMService:
 
 
 def extract_pdf_text(pdf_bytes: bytes) -> str:
+    """Extract text from PDF bytes, truncating to ``max_pdf_chars``.
+
+    Returns an empty string when the PDF is corrupt or text extraction fails.
+    """
     try:
         reader = PdfReader(io.BytesIO(pdf_bytes))
         parts: list[str] = []

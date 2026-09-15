@@ -34,6 +34,7 @@ class ChatCompletionsClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> ChatResult:
+        """Send a chat request to the /chat/completions endpoint."""
         if not settings.llm_api_key.strip():
             raise LlmUnavailableError("LLM_API_KEY is not configured")
 
@@ -64,6 +65,7 @@ class ChatCompletionsClient:
 
 
 async def _run_with_retry(url: str, headers: dict, payload: dict, *, model: str) -> ChatResult:
+    """Execute the HTTP request with retry/backoff; raise the last error on exhaustion."""
     last_error: Exception | None = None
     attempts = max(1, settings.llm_max_attempts)
     for attempt in range(1, attempts + 1):
@@ -101,6 +103,7 @@ async def _attempt_request(
     *,
     model: str,
 ) -> tuple[httpx.Response | None, int, Exception | None]:
+    """Perform a single HTTP attempt, returning (response, latency_ms, error)."""
     started = time.perf_counter()
     try:
         timeout = httpx.Timeout(settings.request_timeout_seconds)
@@ -117,6 +120,7 @@ async def _attempt_request(
 
 
 def _retryable_error(response: httpx.Response, attempt: int, attempts: int, latency_ms: int) -> LlmError:
+    """Classify a retryable response into the appropriate ``LlmError`` subclass."""
     provider_code, provider_message = _provider_error(response)
     logger.warning(
         "llm_retryable_status status=%s attempt=%s/%s latency_ms=%s code=%s",
@@ -130,6 +134,7 @@ def _retryable_error(response: httpx.Response, attempt: int, attempts: int, late
 
 
 def _handle_error_status(response: httpx.Response, latency_ms: int) -> None:
+    """Raise the appropriate ``LlmError`` for non-retryable error responses."""
     if response.status_code == 401:
         raise LlmUnavailableError("LLM API key rejected")
     if response.status_code >= 400:
@@ -142,6 +147,7 @@ def _handle_error_status(response: httpx.Response, latency_ms: int) -> None:
 
 
 def _build_result(response: httpx.Response, latency_ms: int, *, model: str) -> ChatResult:
+    """Parse a successful HTTP response into a ``ChatResult``."""
     data = response.json()
     content = _extract_content(data)
     usage = data.get("usage") or {}
@@ -162,6 +168,7 @@ def _build_result(response: httpx.Response, latency_ms: int, *, model: str) -> C
 
 
 def _backoff_seconds(attempt: int, *, rate_limited: bool) -> float:
+    """Return the jittered backoff delay (seconds), doubled for 429 responses."""
     try:
         from app.utils.logging_utils import jittered_backoff
 
@@ -173,6 +180,7 @@ def _backoff_seconds(attempt: int, *, rate_limited: bool) -> float:
 
 
 def _provider_error(response: httpx.Response) -> tuple[str | None, str | None]:
+    """Extract ``(code, message)`` from the provider's error payload, if present."""
     try:
         payload = response.json()
         err = payload.get("error") if isinstance(payload, dict) else None
@@ -188,6 +196,7 @@ def _provider_error(response: httpx.Response) -> tuple[str | None, str | None]:
 
 
 def _extract_content(data: dict) -> str:
+    """Pull assistant message content from the /chat/completions response JSON."""
     try:
         choices = data["choices"]
         message = choices[0]["message"]
@@ -200,6 +209,7 @@ def _extract_content(data: dict) -> str:
 
 
 def _as_int(value: object) -> int | None:
+    """Coerce ``value`` to ``int``, returning ``None`` when it is not an int."""
     if isinstance(value, int):
         return value
     return None

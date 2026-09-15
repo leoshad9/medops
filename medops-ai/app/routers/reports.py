@@ -24,17 +24,41 @@ llm_service = LLMService()
 
 
 class SummarizeRequest(BaseModel):
+    """Request payload for clinical report summarization.
+
+    :param content_base64: Base64-encoded PDF bytes (minimum 8 characters).
+    :param content_type: MIME type of the content; only ``application/pdf`` is accepted.
+    """
+
     content_base64: str = Field(..., min_length=8, description="PDF bytes as base64")
     content_type: str = Field(default="application/pdf")
 
 
 class SummarizeResponse(BaseModel):
+    """Response payload containing the generated report summary.
+
+    :param report_id: Identifier of the summarized report.
+    :param summary: The AI-generated summary text.
+    """
+
     report_id: str
     summary: str
 
 
 @router.post("/reports/{report_id}/summary", response_model=SummarizeResponse)
 async def summarize_report(report_id: str, body: SummarizeRequest):
+    """Summarize a clinical report PDF using the configured LLM service.
+
+    Accepts a base64-encoded PDF, validates it, and requests a summary from
+    the LLM backend.  Provider-specific errors (timeouts, rate limits,
+    unavailable errors) are mapped to appropriate HTTP status codes;
+    provider-specific exception details are logged server-side only and
+    never exposed to the client.
+
+    :param report_id: Identifier of the report to summarize.
+    :param body: Request containing the base64 PDF content.
+    :returns: The generated summary text keyed by report ID.
+    """
     if body.content_type.lower() != "application/pdf":
         raise HTTPException(status_code=400, detail="Only application/pdf is accepted")
 
@@ -57,9 +81,10 @@ async def summarize_report(report_id: str, body: SummarizeRequest):
     except LlmTimeoutError as exc:
         raise HTTPException(status_code=504, detail="LLM request timed out") from exc
     except LlmRateLimitError as exc:
+        logger.warning("LLM rate limit for report_id=%s: %s", report_id, exc)
         raise HTTPException(
             status_code=429,
-            detail=str(exc) or "LLM provider rate limit exceeded. Please try again shortly.",
+            detail="LLM provider rate limit exceeded. Please try again shortly.",
         ) from exc
     except LlmUnavailableError as exc:
         raise HTTPException(status_code=503, detail="LLM provider unavailable") from exc

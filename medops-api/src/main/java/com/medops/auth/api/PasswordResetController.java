@@ -205,10 +205,24 @@ public final class PasswordResetController {
                 || ipv6InSubnet(network, prefixLen, ip);
     }
 
+    /**
+     * Computes the bitmask for a CIDR prefix length.
+     *
+     * @param prefixLen the number of leading 1-bits (0&ndash;32)
+     * @return the netmask as a signed int, or {@code -1} (all-ones) for /32
+     */
     private static int prefixNetmask(int prefixLen) {
         return prefixLen >= 32 ? -1 : ~((1 << (32 - prefixLen)) - 1);
     }
 
+    /**
+     * Tests whether an IPv4 address falls inside a network defined by the given netmask.
+     *
+     * @param network the network address (dotted-quad)
+     * @param netmask the netmask as a signed int
+     * @param ip the address to test
+     * @return {@code true} when the IP is in the subnet
+     */
     private static boolean ipv4InSubnet(String network, int netmask, String ip) {
         String[] nw = network.split("\\.");
         String[] addr = ip.split("\\.");
@@ -230,6 +244,14 @@ public final class PasswordResetController {
         return true;
     }
 
+    /**
+     * Placeholder for IPv6 subnet matching (not yet implemented).
+     *
+     * @param network the network address
+     * @param prefixLen the prefix length
+     * @param ip the address to test
+     * @return {@code false} until IPv6 matching is implemented
+     */
     private static boolean ipv6InSubnet(String network, int prefixLen, String ip) {
         return false;
     }

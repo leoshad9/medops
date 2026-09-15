@@ -11,6 +11,7 @@ import httpx
 
 
 def make_pdf(path: Path, text: str) -> None:
+    """Write *text* as a one-page PDF at *path*, creating parent dirs as needed."""
     path.parent.mkdir(parents=True, exist_ok=True)
     c = canvas.Canvas(str(path))
     textobject = c.beginText(40, 800)
@@ -23,6 +24,7 @@ def make_pdf(path: Path, text: str) -> None:
 
 
 def main():
+    """Generate a sample patient-case PDF and POST it to the summarizer endpoint."""
     pdf_path = Path("tmp/test_text.pdf")
     sample_text = (
         "MedOps AI Summarizer Test\n"

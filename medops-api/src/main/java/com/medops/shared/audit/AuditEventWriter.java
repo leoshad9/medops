@@ -60,6 +60,13 @@ public class AuditEventWriter {
         doRecordEvent(eventType, subjectId, subjectEmail);
     }
 
+    /**
+     * Shared insert logic used by both transactional wrappers.
+     *
+     * @param eventType the audit event category
+     * @param subjectId the subject user id, may be {@code null}
+     * @param subjectEmail the subject email, may be {@code null}
+     */
     private void doRecordEvent(AuditEventType eventType, UUID subjectId, String subjectEmail) {
         AuditEvent event = Objects.requireNonNull(AuditEvent.builder()
                 .eventType(eventType)

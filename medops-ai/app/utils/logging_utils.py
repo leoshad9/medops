@@ -6,6 +6,11 @@ from typing import Dict
 
 
 def mask_secret(value: str) -> str:
+    """Mask a secret for logging, showing only the first and last 4 chars."""
+
+
+def redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Return a copy of *headers* with sensitive values masked."""
     if not value:
         return "(none)"
     s = value.strip()

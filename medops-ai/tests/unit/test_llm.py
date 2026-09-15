@@ -15,6 +15,7 @@ from app.services.llm_types import LlmTimeoutError
 
 @pytest.fixture
 def enable_chat_completions(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configure settings to use the chat-completions dialect."""
     monkeypatch.setattr(settings, "llm_provider", "chat_completions")
     monkeypatch.setattr(settings, "llm_api_key", "test-key")
     monkeypatch.setattr(settings, "llm_base_url", "https://llm.test/v1")
@@ -26,6 +27,7 @@ def enable_chat_completions(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def enable_generate_content(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configure settings to use the generateContent dialect."""
     monkeypatch.setattr(settings, "llm_provider", "generate_content")
     monkeypatch.setattr(settings, "llm_api_key", "test-key")
     monkeypatch.setattr(settings, "llm_base_url", "https://genai.test/v1beta")
@@ -38,6 +40,7 @@ def enable_generate_content(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 @respx.mock
 async def test_chat_completions_success(enable_chat_completions: None) -> None:
+    """A 200 response with usage metadata is parsed correctly."""
     respx.post("https://llm.test/v1/chat/completions").mock(
         return_value=httpx.Response(
             200,
@@ -60,6 +63,7 @@ async def test_chat_completions_success(enable_chat_completions: None) -> None:
 @pytest.mark.asyncio
 @respx.mock
 async def test_generate_content_success(enable_generate_content: None) -> None:
+    """A generateContent 200 with candidates and usageMetadata is parsed."""
     respx.post("https://genai.test/v1beta/models/model-test:generateContent").mock(
         return_value=httpx.Response(
             200,
@@ -81,6 +85,7 @@ async def test_generate_content_success(enable_generate_content: None) -> None:
 @pytest.mark.asyncio
 @respx.mock
 async def test_chat_completions_retries_then_succeeds(enable_chat_completions: None) -> None:
+    """A 503 followed by 200 results in a successful chat with two calls."""
     route = respx.post("https://llm.test/v1/chat/completions")
     route.side_effect = [
         httpx.Response(503, json={"error": "busy"}),
@@ -97,6 +102,7 @@ async def test_chat_completions_retries_then_succeeds(enable_chat_completions: N
 @pytest.mark.asyncio
 @respx.mock
 async def test_chat_completions_timeout_maps_error(enable_chat_completions: None) -> None:
+    """A network timeout is mapped to ``LlmTimeoutError``."""
     respx.post("https://llm.test/v1/chat/completions").mock(
         side_effect=httpx.ReadTimeout("slow")
     )
@@ -105,6 +111,7 @@ async def test_chat_completions_timeout_maps_error(enable_chat_completions: None
 
 
 def test_validate_summary_rejects_prescriptive_claims() -> None:
+    """Summaries containing diagnostic or prescriptive language are rejected."""
     service = LLMService(client=None)
     with pytest.raises(ValueError):
         service.validate_summary("I diagnose hypertension; start taking lisinopril.")
@@ -112,6 +119,7 @@ def test_validate_summary_rejects_prescriptive_claims() -> None:
 
 @pytest.mark.asyncio
 async def test_stub_when_no_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When no API key is configured, the stub summarizer returns placeholder text."""
     monkeypatch.setattr(settings, "llm_api_key", "")
     monkeypatch.setattr(settings, "llm_provider", "")
     text = await LLMService(client=None).summarize("r1", b"%PDF-1.4 x")

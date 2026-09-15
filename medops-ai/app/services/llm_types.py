@@ -10,11 +10,11 @@ class LlmError(Exception):
 
 
 class LlmTimeoutError(LlmError):
-    pass
+    """LLM request exceeded the configured timeout."""
 
 
 class LlmUnavailableError(LlmError):
-    pass
+    """LLM provider is unreachable or credentials are invalid."""
 
 
 class LlmRateLimitError(LlmUnavailableError):
@@ -22,11 +22,13 @@ class LlmRateLimitError(LlmUnavailableError):
 
 
 class LlmResponseError(LlmError):
-    pass
+    """LLM returned a response that could not be parsed or validated."""
 
 
 @dataclass(frozen=True)
 class ChatResult:
+    """Normalised chat response returned by all provider adapters."""
+
     content: str
     prompt_tokens: int | None
     completion_tokens: int | None
