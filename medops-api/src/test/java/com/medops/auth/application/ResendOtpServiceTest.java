@@ -45,6 +45,8 @@ class ResendOtpServiceTest {
     private static final String OTP_KEY = "password-reset:otp:" + FLOW_ID;
     private static final String RESEND_KEY = "password-reset:resend:" + FLOW_ID;
     private static final String FLOW_USER_KEY = "password-reset:flow:user:" + FLOW_ID;
+    private static final String FLOW_USER_ID_KEY = "password-reset:flow:user:id:" + FLOW_ID;
+    private static final String USER_ID = UUID.randomUUID().toString();
 
     private static final PasswordResetProperties PROPERTIES = new PasswordResetProperties(
             new PasswordResetProperties.Otp(Duration.ofMinutes(10), 5, 6, "test-hmac-secret"),
@@ -80,12 +82,14 @@ class ResendOtpServiceTest {
         when(valueOperations.get(OTP_KEY)).thenReturn(existingOtpJson);
         when(valueOperations.setIfAbsent(RESEND_KEY, "1", Duration.ofSeconds(60))).thenReturn(true);
         when(valueOperations.get(FLOW_USER_KEY)).thenReturn(EMAIL);
+        when(valueOperations.get(FLOW_USER_ID_KEY)).thenReturn(USER_ID);
 
         service.resendOtp(new ResendOtpRequest(FLOW_ID));
 
         verify(valueOperations).set(eq(OTP_KEY), anyString(), eq(Duration.ofMinutes(10)));
         verify(emailService).sendOtpEmail(eq(EMAIL), anyString(), eq(10));
-        verify(auditService).recordEventBestEffort(AuditEventType.PASSWORD_RESET_REQUESTED, null, EMAIL);
+        verify(auditService).recordEventBestEffort(AuditEventType.PASSWORD_RESET_REQUESTED,
+                UUID.fromString(USER_ID), EMAIL);
     }
 
     @Test

@@ -66,7 +66,7 @@ public class PasswordResetCodec {
 
     /**
      * SHA-256 digest, Base64-encoded. Deterministic, so it doubles as the Redis
-     * lookup key for high-entropy reset tokens (no need for a salted KDF here â€”
+      * lookup key for high-entropy reset tokens (no need for a salted KDF here --
      * the token is random, not user-chosen).
      *
      * @param data the raw reset token
@@ -91,6 +91,9 @@ public class PasswordResetCodec {
      * @return {@code true} when both byte arrays are equal
      */
     public boolean constantTimeEquals(String expected, String actual) {
+        if (expected == null || actual == null) {
+            return false;
+        }
         return MessageDigest.isEqual(
                 expected.getBytes(StandardCharsets.UTF_8),
                 actual.getBytes(StandardCharsets.UTF_8));

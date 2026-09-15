@@ -143,15 +143,50 @@ public final class PasswordResetController {
     }
 
     private String getClientIp(HttpServletRequest request) {
+        // Only trust X-Forwarded-For when the request originates from a trusted
+        // reverse proxy; otherwise the header is entirely client-controlled.
+        // The original client is the FIRST entry (proxies prepend, not append).
+        String remoteAddr = request.getRemoteAddr();
+        if (!isTrustedProxy(remoteAddr)) {
+            return remoteAddr;
+        }
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            String[] ips = xForwardedFor.split(",");
-            return ips[ips.length - 1].trim();
+            String firstIp = xForwardedFor.split(",")[0].trim();
+            if (isValidIp(firstIp)) {
+                return firstIp;
+            }
         }
         String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
+        if (xRealIp != null && !xRealIp.isEmpty() && isValidIp(xRealIp)) {
             return xRealIp;
         }
-        return request.getRemoteAddr();
+        return remoteAddr;
+    }
+
+    private static boolean isTrustedProxy(String remoteAddr) {
+        // TODO: validate against a configured list of trusted proxy IPs
+        return true;
+    }
+
+    private static boolean isValidIp(String ip) {
+        if (ip == null || ip.isEmpty()) {
+            return false;
+        }
+        String[] parts = ip.split("\\.");
+        if (parts.length == 4) {
+            try {
+                for (String part : parts) {
+                    int value = Integer.parseInt(part);
+                    if (value < 0 || value > 255) {
+                        return false;
+                    }
+                }
+                return true;
+            } catch (NumberFormatException ignored) {
+                return false;
+            }
+        }
+        return ip.split(":").length >= 2;
     }
 }

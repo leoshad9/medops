@@ -1,5 +1,6 @@
 package com.medops.auth.application;
 
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -113,7 +114,9 @@ public class ResendOtpService {
             }
         });
 
-        auditService.recordEventBestEffort(AuditEventType.PASSWORD_RESET_REQUESTED, null, email);
+        String userIdRaw = redisTemplate.opsForValue().get(PasswordResetKeys.USER_ID_PREFIX + resetFlowId);
+        UUID userId = userIdRaw != null ? UUID.fromString(userIdRaw) : null;
+        auditService.recordEventBestEffort(AuditEventType.PASSWORD_RESET_REQUESTED, userId, email);
         log.info("OTP resend queued for delivery, flow: {}", resetFlowId);
         return new ResendOtpResponse(Status.SENT,
                 "If an account exists for this flow, an OTP has been resent.");

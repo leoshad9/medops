@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, FormEvent, MouseEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Loader2, RotateCcw } from "lucide-react";
@@ -15,26 +15,37 @@ export function VerifyOtp() {
   const [isResending, setIsResending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startCooldown = useCallback(() => {
+    if (cooldownTimerRef.current) {
+      clearInterval(cooldownTimerRef.current);
+    }
     setResendCooldown(60);
-    const timer = setInterval(() => {
+    cooldownTimerRef.current = setInterval(() => {
       setResendCooldown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
+          if (cooldownTimerRef.current) {
+            clearInterval(cooldownTimerRef.current);
+            cooldownTimerRef.current = null;
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    return startCooldown();
-  }, [startCooldown]);
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
+    };
+  }, []);
 
-  async function handleVerify(event: React.FormEvent<HTMLFormElement>) {
+  async function handleVerify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!flowId) {
       setErrorMessage("Invalid reset flow. Please start over.");
@@ -58,7 +69,7 @@ export function VerifyOtp() {
     }
   }
 
-  async function handleResend(event: React.MouseEvent<HTMLButtonElement>) {
+  async function handleResend(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     if (!flowId || resendCooldown > 0) return;
 
