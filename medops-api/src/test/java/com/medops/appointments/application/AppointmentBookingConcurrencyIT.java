@@ -25,7 +25,7 @@ import org.springframework.test.context.ActiveProfiles;
 import com.medops.appointments.api.dto.BookAppointmentRequest;
 import com.medops.appointments.domain.AppointmentStatus;
 import com.medops.appointments.infrastructure.AppointmentRepository;
-import com.medops.auth.repository.UserRepository;
+import com.medops.auth.infrastructure.repository.UserRepository;
 import com.medops.doctors.api.dto.RegisterDoctorRequest;
 import com.medops.doctors.application.DoctorRegistrationService;
 import com.medops.doctors.infrastructure.DoctorProfile;

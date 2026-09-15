@@ -1,4 +1,5 @@
 import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 
@@ -75,12 +76,12 @@ export function LoginForm({ onSubmit, isLoading, errorMessage }: Readonly<LoginF
         </div>
 
         <div className="flex justify-end">
-          <button
-            type="button"
+          <Link
+            to="/forgot-password"
             className="text-sm font-medium text-brand-primary-dark hover:text-brand-primary"
           >
             Forgot Password?
-          </button>
+          </Link>
         </div>
 
         {errorMessage && (

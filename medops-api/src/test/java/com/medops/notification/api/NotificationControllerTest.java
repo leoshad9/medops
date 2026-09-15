@@ -25,9 +25,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.medops.appointments.application.AppointmentActorResolver;
-import com.medops.auth.entity.User;
-import com.medops.auth.security.AuthRateLimitFilter;
-import com.medops.auth.security.JwtAuthenticationFilter;
+import com.medops.auth.domain.User;
+import com.medops.auth.security.filters.AuthRateLimitFilter;
+import com.medops.auth.security.jwt.JwtAuthenticationFilter;
 import com.medops.notification.api.dto.NotificationPageResponse;
 import com.medops.notification.api.dto.NotificationResponse;
 import com.medops.notification.api.dto.UnreadCountResponse;

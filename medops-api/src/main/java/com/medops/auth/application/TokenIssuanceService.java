@@ -1,0 +1,57 @@
+package com.medops.auth.application;
+
+import java.time.Duration;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.Objects;
+
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.medops.auth.dto.login.UserInfo;
+import com.medops.auth.domain.RefreshToken;
+import com.medops.auth.domain.User;
+import com.medops.auth.infrastructure.repository.RefreshTokenRepository;
+import com.medops.auth.security.jwt.JwtService;
+import com.medops.auth.security.principal.MedOpsUserDetailsService;
+
+import lombok.RequiredArgsConstructor;
+
+/**
+ * Issues an access/refresh token pair for an already-authenticated {@link User}. Shared by
+ * login, token refresh, and registration (which auto-signs the new account in) so the
+ * access-token claims, refresh-token persistence, and expiry handling live in exactly one place.
+ */
+@Service
+@RequiredArgsConstructor
+public class TokenIssuanceService {
+
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final MedOpsUserDetailsService userDetailsService;
+    private final JwtService jwtService;
+
+    @Transactional
+    public SessionResult issue(User user) {
+        UserDetails userDetails = userDetailsService.buildUserDetails(user);
+
+        String accessToken = jwtService.generateAccessToken(userDetails);
+        String rawRefreshToken = jwtService.generateRefreshToken();
+
+        RefreshToken refreshToken = Objects.requireNonNull(RefreshToken.builder()
+                .user(user)
+                .tokenHash(jwtService.hashToken(rawRefreshToken))
+                .expiresAt(ZonedDateTime.now(ZoneOffset.UTC)
+                        .plus(Duration.ofMillis(jwtService.getRefreshTokenExpiryMs())))
+                .build());
+        refreshTokenRepository.save(refreshToken);
+
+        String primaryRole = user.getRoles().stream()
+                .findFirst()
+                .map(role -> role.getName())
+                .orElse("PATIENT");
+
+        UserInfo userInfo = new UserInfo(user.getId(), user.getEmail(), primaryRole);
+        return new SessionResult(accessToken, rawRefreshToken, userInfo);
+    }
+}

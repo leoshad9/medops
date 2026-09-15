@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.medops.auth.dto.AuthResponse;
+import com.medops.auth.dto.session.AuthResponse;
 import com.medops.doctors.api.dto.DoctorPatientSummaryResponse;
 import com.medops.doctors.api.dto.DoctorProfileResponse;
 import com.medops.doctors.api.dto.DoctorSummaryResponse;

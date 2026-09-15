@@ -16,9 +16,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
-import com.medops.auth.entity.User;
-import com.medops.auth.entity.UserStatus;
-import com.medops.auth.repository.UserRepository;
+import com.medops.auth.domain.User;
+import com.medops.auth.domain.UserStatus;
+import com.medops.auth.infrastructure.repository.UserRepository;
 import com.medops.doctors.infrastructure.DoctorProfile;
 import com.medops.doctors.infrastructure.DoctorProfileRepository;
 import com.medops.patients.infrastructure.PatientProfile;

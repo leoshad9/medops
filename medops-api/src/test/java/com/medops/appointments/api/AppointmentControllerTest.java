@@ -29,12 +29,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medops.appointments.api.dto.AppointmentResponse;
 import com.medops.appointments.api.dto.BookAppointmentRequest;
+import com.medops.appointments.application.AppointmentQueryReadService;
 import com.medops.appointments.application.AppointmentQueryService;
 import com.medops.appointments.application.AppointmentTransitionService;
 import com.medops.appointments.application.BookAppointmentService;
 import com.medops.appointments.domain.AppointmentStatus;
-import com.medops.auth.security.AuthRateLimitFilter;
-import com.medops.auth.security.JwtAuthenticationFilter;
+import com.medops.auth.security.filters.AuthRateLimitFilter;
+import com.medops.auth.security.jwt.JwtAuthenticationFilter;
 import com.medops.idempotency.application.IdempotencyExecutor;
 import com.medops.shared.exception.ConflictException;
 
@@ -57,6 +58,8 @@ class AppointmentControllerTest {
     private BookAppointmentService bookAppointmentService;
     @MockitoBean
     private AppointmentQueryService appointmentQueryService;
+    @MockitoBean
+    private AppointmentQueryReadService appointmentQueryReadService;
     @MockitoBean
     private AppointmentTransitionService appointmentTransitionService;
     @MockitoBean

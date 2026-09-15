@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.medops.auth.exception.InvalidRefreshTokenException;
+import com.medops.auth.infrastructure.email.EmailSendingException;
 import com.medops.shared.response.ErrorDetail;
 import com.medops.shared.response.ErrorResponse;
 
@@ -162,6 +163,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ServiceUnavailableException.class)
     public ResponseEntity<ErrorResponse> handleServiceUnavailable(ServiceUnavailableException ex) {
         return build(HttpStatus.SERVICE_UNAVAILABLE, "RESOURCE_EXHAUSTED", ex.getMessage(), null);
+    }
+
+    /**
+     * Maps SMTP delivery failures to 503 so clients can retry later. The reset
+     * services clean up their Redis state before this exception propagates, so
+     * no stale OTP/token is left behind.
+     *
+     * @param ex the email sending exception
+     * @return 503 Service Unavailable
+     */
+    @ExceptionHandler(EmailSendingException.class)
+    public ResponseEntity<ErrorResponse> handleEmailSending(EmailSendingException ex) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, "UNAVAILABLE",
+                "Email service temporarily unavailable. Please try again later.", null);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

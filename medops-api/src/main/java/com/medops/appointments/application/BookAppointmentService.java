@@ -67,6 +67,14 @@ public class BookAppointmentService {
                 .toList();
     }
 
+    /**
+     * Books an appointment for the given patient, translating a lost unique-index race
+     * into a user-facing conflict.
+     *
+     * @param patientEmail the booking patient's email
+     * @param request the booking request
+     * @return the booked appointment
+     */
     @Transactional
     public AppointmentResponse book(String patientEmail, BookAppointmentRequest request) {
         PatientProfile patient = actorResolver.requirePatient(patientEmail);
@@ -81,22 +89,22 @@ public class BookAppointmentService {
             throw new ConflictException("You already have an appointment overlapping that time");
         }
 
-        Appointment saved;
         try {
-            saved = appointmentRepository.save(Appointment.book(
+            Appointment saved = appointmentRepository.save(Appointment.book(
                     patient.getId(),
                     doctor.getId(),
                     startsAt,
                     schedule.slotLength(),
                     blankToNull(request.reason())));
+
+            auditService.recordEvent(AuditEventType.APPOINTMENT_BOOKED, patient.getUserId(), patientEmail);
+            domainEventPublisher.publishAfterCommit(AppointmentBookedEvent.of(saved.getId()));
+            return assembler.toResponse(saved);
         } catch (DataIntegrityViolationException ex) {
-            // Concurrent booking of the same doctor slot loses the unique index race.
+            // Pre-checks above cannot win a concurrent race for the same doctor slot: the
+            // unique index is the arbiter, so translate its violation into the same 409.
             throw new ConflictException("That time is no longer available", ex);
         }
-
-        auditService.recordEvent(AuditEventType.APPOINTMENT_BOOKED, patient.getUserId(), patientEmail);
-        domainEventPublisher.publishAfterCommit(AppointmentBookedEvent.of(saved.getId()));
-        return assembler.toResponse(saved);
     }
 
     void assertBookableSlot(UUID doctorId, Instant startsAt, Instant now, UUID excludeAppointmentId) {

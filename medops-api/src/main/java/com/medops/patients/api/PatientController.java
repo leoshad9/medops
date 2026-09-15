@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.medops.auth.dto.AuthResponse;
+import com.medops.auth.dto.session.AuthResponse;
 import com.medops.patients.api.dto.PatientProfileResponse;
 import com.medops.patients.api.dto.RegisterPatientRequest;
 import com.medops.patients.api.dto.UpdatePatientProfileRequest;

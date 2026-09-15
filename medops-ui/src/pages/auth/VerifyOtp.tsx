@@ -1,0 +1,171 @@
+import { useState, useEffect, useCallback } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+
+import { Loader2, RotateCcw } from "lucide-react";
+import { resendOtp, verifyOtp } from "../../services/authService";
+import { messageFromApiError } from "../../lib/apiError";
+
+export function VerifyOtp() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const flowId = searchParams.get("flowId");
+  const [otp, setOtp] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  const startCooldown = useCallback(() => {
+    setResendCooldown(60);
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    return startCooldown();
+  }, [startCooldown]);
+
+  async function handleVerify(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!flowId) {
+      setErrorMessage("Invalid reset flow. Please start over.");
+      return;
+    }
+    if (otp.length !== 6) {
+      setErrorMessage("Please enter a 6-digit OTP.");
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      await verifyOtp(flowId, otp);
+      navigate("/reset-password");
+    } catch (error) {
+      setErrorMessage(messageFromApiError(error, "Invalid OTP. Please try again."));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleResend(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    if (!flowId || resendCooldown > 0) return;
+
+    setIsResending(true);
+    setErrorMessage(null);
+
+    try {
+      await resendOtp(flowId);
+      startCooldown();
+    } catch (error) {
+      setErrorMessage(messageFromApiError(error, "Unable to resend OTP. Please try again."));
+    } finally {
+      setIsResending(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-brand-primary-tint via-brand-paper to-brand-primary-tint/60 px-4 py-8 sm:px-6 sm:py-12">
+        <div className="w-full max-w-md">
+          <div className="w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl shadow-brand-ink/10 sm:p-10">
+            <div className="flex flex-col items-center text-center">
+              <h1 className="text-2xl font-bold text-brand-ink">Verify OTP</h1>
+              <p className="mt-1 text-sm text-brand-muted">
+                Enter the 6-digit code sent to your email
+              </p>
+            </div>
+
+            <form onSubmit={handleVerify} className="mt-8 space-y-5">
+              <div className="flex justify-center gap-3">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <input
+                    key={i}
+                    type="text"
+                    maxLength={1}
+                    value={otp[i] || ""}
+                    onChange={(e) => {
+                      const value = e.currentTarget.value;
+                      if (/^\d*$/.test(value) && value.length <= 1) {
+                        setOtp((prev) => prev.slice(0, i) + value + prev.slice(i + 1));
+                        if (value && i < 5) {
+                          const nextInput = e.currentTarget.parentElement?.querySelector(`input[data-index="${i + 1}"]`) as HTMLInputElement;
+                          nextInput?.focus();
+                        }
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Backspace" && !otp[i] && i > 0) {
+                        const prevInput = e.currentTarget.parentElement?.querySelector(`input[data-index="${i - 1}"]`) as HTMLInputElement;
+                        prevInput?.focus();
+                      }
+                    }}
+                    data-index={i}
+                    className="w-10 h-12 text-center text-2xl font-bold rounded-lg border border-brand-line focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none"
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                  />
+                ))}
+              </div>
+
+              {errorMessage && (
+                <p className="rounded-lg bg-brand-rust-tint px-3 py-2 text-sm text-brand-rust text-center">
+                  {errorMessage}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading || otp.length !== 6}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-primary py-2.5 text-sm font-semibold text-white transition hover:bg-brand-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <RotateCcw className="h-4 w-4" />
+                    Verify OTP
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <button
+                onClick={handleResend}
+                disabled={resendCooldown > 0 || isResending}
+                className="text-sm font-medium text-brand-primary-dark hover:text-brand-primary disabled:text-brand-muted disabled:cursor-not-allowed"
+              >
+                {resendCooldown > 0 ? (
+                  <>
+                    Resend OTP in {resendCooldown}s
+                    <RotateCcw className="inline-block h-4 w-4 animate-spin ml-1" />
+                  </>
+                ) : (
+                  "Resend OTP"
+                )}
+              </button>
+            </div>
+
+            <p className="mt-6 text-center text-sm text-brand-muted">
+              <Link to="/forgot-password" className="font-semibold text-brand-primary-dark hover:text-brand-primary">
+                Back to Forgot Password
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
