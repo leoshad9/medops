@@ -28,6 +28,7 @@ import { PrescriptionsView } from "../pages/patient/views/PrescriptionsView";
 import { ProfileView } from "../pages/patient/views/ProfileView";
 import { ProtectedRoute } from "./ProtectedRoute";
 
+/** Defines the public, authenticated, and password-recovery routes. */
 export function AppRoutes() {
   const { user, isAuthenticated } = useAuth();
   const homePath = isAuthenticated && user ? roleDashboardPath(user.role) : "/login";

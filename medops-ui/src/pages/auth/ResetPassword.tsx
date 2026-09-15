@@ -5,6 +5,7 @@ import { Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import { resetPassword } from "../../services/authService";
 import { messageFromApiError } from "../../lib/apiError";
 
+/** Renders the form for choosing a replacement password. */
 export function ResetPassword() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
@@ -14,6 +15,7 @@ export function ResetPassword() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  /** Validates and submits the replacement password. */
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (password !== confirmPassword) {

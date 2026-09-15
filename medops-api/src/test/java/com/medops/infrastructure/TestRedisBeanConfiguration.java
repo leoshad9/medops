@@ -21,6 +21,7 @@ public class TestRedisBeanConfiguration {
     /** Redis default port; only ever wired, never connected to in tests. */
     private static final int REDIS_PORT = 6379;
 
+    /** Provides a lazy Redis template for application tests. */
     @Bean
     public StringRedisTemplate stringRedisTemplate() {
         // LettuceConnectionFactory connects lazily; constructing it never opens a

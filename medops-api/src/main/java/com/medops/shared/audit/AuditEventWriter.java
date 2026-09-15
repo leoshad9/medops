@@ -60,6 +60,7 @@ public class AuditEventWriter {
         doRecordEvent(eventType, subjectId, subjectEmail);
     }
 
+    /** Persists one audit event in an independent transaction. */
     private void doRecordEvent(AuditEventType eventType, UUID subjectId, String subjectEmail) {
         AuditEvent event = Objects.requireNonNull(AuditEvent.builder()
                 .eventType(eventType)

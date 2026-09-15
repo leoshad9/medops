@@ -54,6 +54,7 @@ class AppointmentQueryServiceAuthorizationTest {
         appointment.prePersist();
     }
 
+    /** Verifies that get denies patient when appointment belongs to someone else. */
     @Test
     void getDeniesPatientWhenAppointmentBelongsToSomeoneElse() {
         when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
@@ -66,6 +67,7 @@ class AppointmentQueryServiceAuthorizationTest {
         verify(assembler, never()).toResponse(any());
     }
 
+    /** Verifies that get denies doctor when appointment belongs to another doctor. */
     @Test
     void getDeniesDoctorWhenAppointmentBelongsToAnotherDoctor() {
         when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));

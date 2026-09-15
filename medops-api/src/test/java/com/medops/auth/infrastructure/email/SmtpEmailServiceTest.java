@@ -29,11 +29,13 @@ class SmtpEmailServiceTest {
 
     private SmtpEmailService emailService;
 
+    /** Initializes the test fixtures. */
     @BeforeEach
     void setUp() {
         emailService = new SmtpEmailService(mailSender, FROM);
     }
 
+    /** Verifies that send otp email builds and sends mime message. */
     @Test
     void sendOtpEmail_buildsAndSendsMimeMessage() throws Exception {
         MimeMessage mimeMessage = new MimeMessage((Session) null);
@@ -49,6 +51,7 @@ class SmtpEmailServiceTest {
         assertThat(sent.getSubject()).isEqualTo("MedOps Password Reset OTP");
     }
 
+    /** Verifies that send otp email throws email sending exception when mail sender fails. */
     @Test
     void sendOtpEmail_throwsEmailSendingException_whenMailSenderFails() {
         MimeMessage mimeMessage = new MimeMessage((Session) null);
@@ -60,6 +63,7 @@ class SmtpEmailServiceTest {
                 .hasMessageContaining("Failed to send OTP email");
     }
 
+    /** Verifies that send password reset confirmation email builds and sends mime message. */
     @Test
     void sendPasswordResetConfirmationEmail_buildsAndSendsMimeMessage() throws Exception {
         MimeMessage mimeMessage = new MimeMessage((Session) null);
@@ -75,6 +79,7 @@ class SmtpEmailServiceTest {
         assertThat(sent.getSubject()).isEqualTo("MedOps Password Reset Successful");
     }
 
+    /** Verifies that send password reset confirmation email throws email sending exception when mail sender fails. */
     @Test
     void sendPasswordResetConfirmationEmail_throwsEmailSendingException_whenMailSenderFails() {
         MimeMessage mimeMessage = new MimeMessage((Session) null);

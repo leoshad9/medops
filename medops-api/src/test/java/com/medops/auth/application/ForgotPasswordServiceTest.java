@@ -69,6 +69,7 @@ class ForgotPasswordServiceTest {
 
     private ForgotPasswordService service;
 
+    /** Initializes the test fixtures. */
     @BeforeEach
     void setUp() {
         // redisTemplate.opsForValue() is stubbed per-test: most flows short-circuit
@@ -78,6 +79,7 @@ class ForgotPasswordServiceTest {
                 rateLimiterStore, PROPERTIES, codec);
     }
 
+    /** Verifies that forgot password stores otp sends email and audits when account exists. */
     @Test
     void forgotPassword_storesOtpSendsEmailAndAudits_whenAccountExists() {
         User user = userWithId(EMAIL);
@@ -96,6 +98,7 @@ class ForgotPasswordServiceTest {
         verify(auditService).recordEventBestEffort(AuditEventType.PASSWORD_RESET_REQUESTED, user.getId(), EMAIL);
     }
 
+    /** Verifies that forgot password is generic response when account does not exist. */
     @Test
     void forgotPassword_isGenericResponse_whenAccountDoesNotExist() {
         when(rateLimiterStore.tryAcquire(anyString(), anyInt(), any())).thenReturn(true);
@@ -113,6 +116,7 @@ class ForgotPasswordServiceTest {
         verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
     }
 
+    /** Verifies that forgot password returns no flow id when email rate limited. */
     @Test
     void forgotPassword_returnsNoFlowId_whenEmailRateLimited() {
         when(rateLimiterStore.tryAcquire(anyString(), anyInt(), any())).thenReturn(false);
@@ -124,6 +128,7 @@ class ForgotPasswordServiceTest {
         verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyInt());
     }
 
+    /** Creates a user fixture with the supplied identifier. */
     private static User userWithId(String email) {
         return User.builder()
                 .id(UUID.randomUUID())

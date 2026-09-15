@@ -9,6 +9,7 @@ interface LoginFormProps {
   errorMessage: string | null;
 }
 
+/** Renders the login form and password-recovery entry point. */
 export function LoginForm({ onSubmit, isLoading, errorMessage }: Readonly<LoginFormProps>) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -24,6 +24,7 @@ public final class PasswordResetKeys {
     /** JSON-serialised {@code PasswordResetToken} record (keyed by SHA-256 hash). */
     public static final String TOKEN_PREFIX    = "password-reset:token:";
 
+    /** Prevents instantiation of this Redis-key utility. */
     private PasswordResetKeys() {
     }
 }

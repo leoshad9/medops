@@ -66,6 +66,7 @@ class ResetPasswordServiceTest {
 
     private ResetPasswordService service;
 
+    /** Initializes the test fixtures. */
     @BeforeEach
     void setUp() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -74,6 +75,7 @@ class ResetPasswordServiceTest {
                 new MailDeliveryExecutor(Runnable::run), auditService, codec);
     }
 
+    /** Verifies that reset password updates password revokes tokens audits and confirms by email. */
     @Test
     void resetPassword_updatesPasswordRevokesTokensAudits_andConfirmsByEmail() throws Exception {
         UUID userId = UUID.randomUUID();
@@ -96,6 +98,7 @@ class ResetPasswordServiceTest {
         verify(emailService).sendPasswordResetConfirmationEmail(EMAIL);
     }
 
+    /** Verifies that reset password rejects already used token. */
     @Test
     void resetPassword_rejectsAlreadyUsedToken() throws Exception {
         UUID userId = UUID.randomUUID();
@@ -111,6 +114,7 @@ class ResetPasswordServiceTest {
         verify(emailService, never()).sendPasswordResetConfirmationEmail(anyString());
     }
 
+    /** Verifies that reset password rejects unknown token. */
     @Test
     void resetPassword_rejectsUnknownToken() {
         String tokenKey = "password-reset:token:" + codec.sha256(TOKEN);
@@ -123,10 +127,12 @@ class ResetPasswordServiceTest {
         verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
     }
 
+    /** Serializes a password-reset token fixture. */
     private String storedTokenJson(UUID userId, boolean used) throws Exception {
         return objectMapper.writeValueAsString(new PasswordResetToken(userId, FLOW_ID, used));
     }
 
+    /** Creates a user fixture with the supplied identifier. */
     private static User userWithId(UUID userId) {
         return User.builder()
                 .id(userId)

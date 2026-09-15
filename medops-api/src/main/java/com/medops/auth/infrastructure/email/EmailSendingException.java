@@ -8,6 +8,7 @@ package com.medops.auth.infrastructure.email;
  */
 public class EmailSendingException extends RuntimeException {
 
+    /** Creates an exception for a failed email delivery. */
     public EmailSendingException(String message, Throwable cause) {
         super(message, cause);
     }

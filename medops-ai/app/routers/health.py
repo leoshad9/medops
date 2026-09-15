@@ -11,6 +11,7 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health")
 async def health():
+    """Return service health and the active LLM configuration state."""
     provider = None
     model = None
     try:

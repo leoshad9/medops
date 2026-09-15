@@ -64,6 +64,7 @@ public class AuthService {
         return "login-lock|" + email.trim().toLowerCase(Locale.ROOT);
     }
 
+    /** Rotates a refresh token and returns a renewed authenticated session. */
     @Transactional
     public SessionResult refresh(String rawRefreshToken) {
         String tokenHash = jwtService.hashToken(rawRefreshToken);

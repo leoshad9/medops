@@ -89,6 +89,7 @@ class PasswordResetControllerTest {
     /** Real (non-mocked) properties so the cookie max-age comes from config, not a stub. */
     @TestConfiguration
     static class ResetPropertiesConfig {
+        /** Provides password-reset properties for controller tests. */
         @Bean
         PasswordResetProperties passwordResetProperties() {
             return new PasswordResetProperties(
@@ -98,6 +99,7 @@ class PasswordResetControllerTest {
                     new PasswordResetProperties.RateLimit(3, 10));
         }
 
+        /** Provides trusted-proxy security properties for controller tests. */
         @Bean
         MedopsSecurityProperties medopsSecurityProperties() {
             return new MedopsSecurityProperties(true, true,
@@ -105,6 +107,7 @@ class PasswordResetControllerTest {
         }
     }
 
+    /** Verifies that verify otp sets http only cookie and keeps token out of the body. */
     @Test
     void verifyOtp_setsHttpOnlyCookie_andKeepsTokenOutOfTheBody() throws Exception {
         when(verifyOtpService.verifyOtp(any()))
@@ -123,6 +126,7 @@ class PasswordResetControllerTest {
                 .andExpect(cookie().path(CookieConstants.PASSWORD_RESET, "/api/auth/password"));
     }
 
+    /** Verifies that forgot password ignores forwarded ip from peer outside trusted cidr. */
     @Test
     void forgotPassword_ignoresForwardedIpFromPeerOutsideTrustedCidr() throws Exception {
         String remoteAddr = "203.0.113.7";
@@ -143,6 +147,7 @@ class PasswordResetControllerTest {
         verify(forgotPasswordService).forgotPassword(any(), eq(remoteAddr));
     }
 
+    /** Verifies that reset password reads token from cookie and clears it. */
     @Test
     void resetPassword_readsTokenFromCookie_andClearsIt() throws Exception {
         when(resetPasswordService.resetPassword(any(), eq(RAW_RESET_TOKEN)))
@@ -159,6 +164,7 @@ class PasswordResetControllerTest {
         verify(resetPasswordService).resetPassword(any(), eq(RAW_RESET_TOKEN));
     }
 
+    /** Verifies that reset password without cookie is rejected and never reaches the service. */
     @Test
     void resetPassword_withoutCookie_isRejected_andNeverReachesTheService() throws Exception {
         mockMvc.perform(post("/api/auth/password/reset")
@@ -170,6 +176,7 @@ class PasswordResetControllerTest {
         verify(resetPasswordService, never()).resetPassword(any(), anyString());
     }
 
+    /** Verifies that reset password with weak password returns bad request. */
     @Test
     void resetPassword_withWeakPassword_returnsBadRequest() throws Exception {
         mockMvc.perform(post("/api/auth/password/reset")
@@ -181,6 +188,7 @@ class PasswordResetControllerTest {
         verify(resetPasswordService, never()).resetPassword(any(), anyString());
     }
 
+    /** Verifies that reset password keeps cookie when service fails transiently. */
     @Test
     void resetPassword_keepsCookie_whenServiceFailsTransiently() throws Exception {
         when(resetPasswordService.resetPassword(any(), eq(RAW_RESET_TOKEN)))
@@ -198,6 +206,7 @@ class PasswordResetControllerTest {
         verify(resetPasswordService).resetPassword(any(), eq(RAW_RESET_TOKEN));
     }
 
+    /** Verifies that reset password clears cookie when token rejected. */
     @Test
     void resetPassword_clearsCookie_whenTokenRejected() throws Exception {
         when(resetPasswordService.resetPassword(any(), eq(RAW_RESET_TOKEN)))

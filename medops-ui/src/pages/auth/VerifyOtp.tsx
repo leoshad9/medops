@@ -5,6 +5,7 @@ import { Loader2, RotateCcw } from "lucide-react";
 import { resendOtp, verifyOtp } from "../../services/authService";
 import { messageFromApiError } from "../../lib/apiError";
 
+/** Renders OTP verification and resend controls for a recovery flow. */
 export function VerifyOtp() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -46,6 +47,7 @@ export function VerifyOtp() {
     };
   }, []);
 
+  /** Submits a complete OTP and advances to password reset. */
   async function handleVerify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!flowId) {
@@ -70,6 +72,7 @@ export function VerifyOtp() {
     }
   }
 
+  /** Requests a replacement OTP and restarts the resend cooldown. */
   async function handleResend(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     if (!flowId || resendCooldown > 0) return;

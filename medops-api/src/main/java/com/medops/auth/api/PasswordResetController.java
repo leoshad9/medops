@@ -51,6 +51,7 @@ public final class PasswordResetController {
     private final PasswordResetProperties passwordResetProperties;
     private final MedopsSecurityProperties securityProperties;
 
+    /** Starts a password-recovery flow without disclosing account existence. */
     @PostMapping("/forgot")
     public ResponseEntity<ApiResponse<ForgotPasswordResponse>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest httpRequest) {
@@ -59,12 +60,14 @@ public final class PasswordResetController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /** Requests a replacement OTP for an existing recovery flow. */
     @PostMapping("/resend-otp")
     public ResponseEntity<ApiResponse<ResendOtpResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         ResendOtpResponse response = resendOtpService.resendOtp(request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /** Verifies an OTP and stores the resulting reset token in a secure cookie. */
     @PostMapping("/verify-otp")
     public ResponseEntity<ApiResponse<VerifyOtpResponse>> verifyOtp(
             @Valid @RequestBody VerifyOtpRequest request, HttpServletResponse httpResponse) {
@@ -79,6 +82,7 @@ public final class PasswordResetController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /** Resets a password using the verified token cookie. */
     @PostMapping("/reset")
     public ResponseEntity<ApiResponse<ResetPasswordResponse>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request,
@@ -113,6 +117,7 @@ public final class PasswordResetController {
                 && (message.contains("reset successfully") || message.contains("Invalid or expired"));
     }
 
+    /** Builds the secure cookie that carries a password-reset token. */
     private ResponseCookie passwordResetCookie(String token) {
         return ResponseCookie.from(CookieConstants.PASSWORD_RESET, token)
                 .httpOnly(true)
@@ -123,6 +128,7 @@ public final class PasswordResetController {
                 .build();
     }
 
+    /** Builds an expired cookie that clears the password-reset token. */
     private ResponseCookie clearPasswordResetCookie() {
         return ResponseCookie.from(CookieConstants.PASSWORD_RESET, "")
                 .httpOnly(true)
@@ -133,6 +139,7 @@ public final class PasswordResetController {
                 .build();
     }
 
+    /** Reads the password-reset token from the request cookie. */
     private String readPasswordResetCookie(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
@@ -144,6 +151,7 @@ public final class PasswordResetController {
         return null;
     }
 
+    /** Returns the trusted client address used for rate limiting. */
     private String getClientIp(HttpServletRequest request) {
         // X-Forwarded-For is only trustworthy when the direct connection peer is a
         // configured reverse proxy. Without this check a caller could spoof the header
@@ -214,6 +222,7 @@ public final class PasswordResetController {
                 || ipv6InSubnet(network, prefixLen, address);
     }
 
+    /** Checks whether an IPv4 address belongs to a configured subnet. */
     private static boolean ipv4InSubnet(String network, int prefixLen, String ip) {
         if (prefixLen < 0 || prefixLen > 32) {
             return false;
@@ -227,6 +236,7 @@ public final class PasswordResetController {
         return (ipv4ToInt(networkBytes) & netmask) == (ipv4ToInt(addressBytes) & netmask);
     }
 
+    /** Parses a dotted-decimal IPv4 address into four octets. */
     private static byte[] parseIpv4(String address) {
         String[] octets = address.split("\\.", -1);
         if (octets.length != 4) {
@@ -248,6 +258,7 @@ public final class PasswordResetController {
         return result;
     }
 
+    /** Converts four IPv4 octets into their integer representation. */
     private static int ipv4ToInt(byte[] address) {
         int result = 0;
         for (byte octet : address) {
@@ -256,10 +267,12 @@ public final class PasswordResetController {
         return result;
     }
 
+    /** Rejects IPv6 CIDR matches until IPv6 subnet comparison is supported. */
     private static boolean ipv6InSubnet(String network, int prefixLen, String ip) {
         return false;
     }
 
+    /** Checks whether a value is a valid IPv4 or IPv6 address. */
     private static boolean isValidIp(String ip) {
         if (ip == null || ip.isEmpty()) {
             return false;

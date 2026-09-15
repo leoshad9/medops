@@ -80,6 +80,7 @@ class ResendOtpServiceTest {
                 new MailDeliveryExecutor(Runnable::run), auditService, PROPERTIES, codec);
     }
 
+    /** Verifies that resend otp regenerates otp sends email and audits when cooldown available. */
     @Test
     void resendOtp_regeneratesOtpSendsEmailAndAudits_whenCooldownAvailable() throws Exception {
         String existingOtpJson = objectMapper.writeValueAsString(
@@ -97,6 +98,7 @@ class ResendOtpServiceTest {
                 UUID.fromString(USER_ID), EMAIL);
     }
 
+    /** Verifies that resend otp is skipped during cooldown. */
     @Test
     void resendOtp_isSkippedDuringCooldown() throws Exception {
         String existingOtpJson = objectMapper.writeValueAsString(
@@ -111,6 +113,7 @@ class ResendOtpServiceTest {
         verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
     }
 
+    /** Verifies that resend otp is skipped for unknown flow. */
     @Test
     void resendOtp_isSkippedForUnknownFlow() {
         when(valueOperations.get(OTP_KEY)).thenReturn(null);
@@ -122,6 +125,7 @@ class ResendOtpServiceTest {
         verify(valueOperations, never()).setIfAbsent(anyString(), anyString(), any());
     }
 
+    /** Verifies that resend otp returns generic sent without email for dummy flow. */
     @Test
     void resendOtp_returnsGenericSent_withoutEmail_forDummyFlow() throws Exception {
         String existingOtpJson = objectMapper.writeValueAsString(
@@ -139,6 +143,7 @@ class ResendOtpServiceTest {
         verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
     }
 
+    /** Verifies that resend otp email failure deletes flow keys when otp unchanged. */
     @Test
     void resendOtp_emailFailure_deletesFlowKeys_whenOtpUnchanged() throws Exception {
         String existingOtpJson = objectMapper.writeValueAsString(
@@ -165,6 +170,7 @@ class ResendOtpServiceTest {
         verify(redisTemplate).delete(RESEND_KEY);
     }
 
+    /** Verifies that resend otp email failure preserves flow keys when otp superseded. */
     @Test
     void resendOtp_emailFailure_preservesFlowKeys_whenOtpSuperseded() throws Exception {
         String existingOtpJson = objectMapper.writeValueAsString(

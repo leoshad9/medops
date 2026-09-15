@@ -38,6 +38,7 @@ function shortInvoiceNumber(id: string): string {
   return `INV-${id.slice(0, 8).toUpperCase()}`;
 }
 
+/** Renders the selected patient's invoices and payment controls. */
 export function BillingView() {
   const { patientId } = usePatientPortal();
   const [patientQuery, setPatientQuery] = useState<{

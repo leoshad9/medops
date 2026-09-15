@@ -5,11 +5,13 @@ import { Loader2, Mail } from "lucide-react";
 import { forgotPassword } from "../../services/authService";
 import { messageFromApiError } from "../../lib/apiError";
 
+/** Renders the page that starts a password-recovery flow. */
 export function ForgotPassword() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  /** Submits the recovery email and routes to OTP verification when appropriate. */
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);

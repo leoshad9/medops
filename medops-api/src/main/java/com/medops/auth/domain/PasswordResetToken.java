@@ -10,6 +10,7 @@ public record PasswordResetToken(
         String resetFlowId,
         boolean used) {
 
+    /** Creates a persisted password-reset token record. */
     @JsonCreator
     public PasswordResetToken(
             @JsonProperty("userId") UUID userId,
@@ -20,6 +21,7 @@ public record PasswordResetToken(
         this.used = used;
     }
 
+    /** Returns a copy marked as consumed. */
     public PasswordResetToken markUsed() {
         return new PasswordResetToken(userId, resetFlowId, true);
     }

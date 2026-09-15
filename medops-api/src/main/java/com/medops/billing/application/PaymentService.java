@@ -31,6 +31,7 @@ public class PaymentService {
     private final InvoiceAssembler assembler;
     private final AuditService auditService;
 
+    /** Records a payment and updates its invoice within one transaction. */
     @Transactional
     public PaymentResponse recordPayment(
             UUID invoiceId,

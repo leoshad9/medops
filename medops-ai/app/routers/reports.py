@@ -35,6 +35,7 @@ class SummarizeResponse(BaseModel):
 
 @router.post("/reports/{report_id}/summary", response_model=SummarizeResponse)
 async def summarize_report(report_id: str, body: SummarizeRequest):
+    """Validate a PDF payload and return its generated clinical summary."""
     if body.content_type.lower() != "application/pdf":
         raise HTTPException(status_code=400, detail="Only application/pdf is accepted")
 
