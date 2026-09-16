@@ -8,7 +8,8 @@ out of rotation.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, JSONResponse
+from fastapi import APIRouter
+from starlette.responses import JSONResponse
 
 from app.config import settings
 
