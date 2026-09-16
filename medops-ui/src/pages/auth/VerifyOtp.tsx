@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef, FormEvent, MouseEvent } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { FormEvent, MouseEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Loader2, RotateCcw } from "lucide-react";
