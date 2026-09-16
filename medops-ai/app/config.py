@@ -58,7 +58,7 @@ class Settings(BaseSettings):
 
     @property
     def llm_enabled(self) -> bool:
-        """Whether the LLM is wired up and has all required settings (key + model + URL)."""
+        """Whether an API key resolves to a supported provider."""
         try:
             return self.resolved_provider() is not None
         except ValueError:

@@ -1,5 +1,7 @@
 package com.medops.auth.api;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Duration;
 
 import jakarta.servlet.http.Cookie;
@@ -275,15 +277,47 @@ public final class PasswordResetController {
     }
 
     /**
-     * Placeholder for IPv6 subnet matching (not yet implemented).
+     * Tests whether an IPv6 address falls inside a network defined by the given prefix length.
      *
-     * @param network the network address
-     * @param prefixLen the prefix length
+     * @param network the network address (IPv6 textual form)
+     * @param prefixLen the CIDR prefix length (0&ndash;128)
      * @param ip the address to test
-     * @return {@code false} until IPv6 matching is implemented
+     * @return {@code true} when the IP is within the subnet
      */
     private static boolean ipv6InSubnet(String network, int prefixLen, String ip) {
-        return false;
+        if (prefixLen < 0 || prefixLen > 128) {
+            return false;
+        }
+        byte[] networkBytes = parseIpv6(network);
+        byte[] addressBytes = parseIpv6(ip);
+        if (networkBytes == null || addressBytes == null) {
+            return false;
+        }
+        int fullBytes = prefixLen / 8;
+        int remainingBits = prefixLen % 8;
+        for (int i = 0; i < fullBytes; i++) {
+            if (networkBytes[i] != addressBytes[i]) {
+                return false;
+            }
+        }
+        if (remainingBits > 0 && fullBytes < 16) {
+            int mask = (0xFF << (8 - remainingBits)) & 0xFF;
+            if ((networkBytes[fullBytes] & mask) != (addressBytes[fullBytes] & mask)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Parses an IPv6 textual address into a 16-byte array, or {@code null} on failure. */
+    private static byte[] parseIpv6(String address) {
+        try {
+            InetAddress addr = InetAddress.getByName(address);
+            byte[] bytes = addr.getAddress();
+            return bytes.length == 16 ? bytes : null;
+        } catch (UnknownHostException e) {
+            return null;
+        }
     }
 
     /** Checks whether a value is a valid IPv4 or IPv6 address. */
