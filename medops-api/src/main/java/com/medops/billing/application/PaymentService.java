@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +17,6 @@ import com.medops.billing.infrastructure.Payment;
 import com.medops.billing.infrastructure.PaymentRepository;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
-import com.medops.shared.exception.ConflictException;
 import com.medops.shared.exception.InvalidRequestException;
 import com.medops.shared.exception.ResourceNotFoundException;
 
@@ -33,6 +31,7 @@ public class PaymentService {
     private final InvoiceAssembler assembler;
     private final AuditService auditService;
 
+    /** Records a payment and updates its invoice within one transaction. */
     @Transactional
     public PaymentResponse recordPayment(
             UUID invoiceId,
@@ -51,20 +50,15 @@ public class PaymentService {
                     "Payment of " + request.amountCents() + " cents exceeds outstanding balance of " + remaining);
         }
 
-        Payment payment;
-        try {
-            payment = paymentRepository.saveAndFlush(Payment.builder()
-                    .invoice(invoice)
-                    .idempotencyKey(idempotencyKey)
-                    .amountCents(request.amountCents())
-                    .method(request.method())
-                    .status(PaymentStatus.COMPLETED)
-                    .reference(request.reference())
-                    .paidAt(Instant.now())
-                    .build());
-        } catch (DataIntegrityViolationException ex) {
-            throw new ConflictException("A payment with this Idempotency-Key already exists", ex);
-        }
+        Payment payment = paymentRepository.saveAndFlush(Payment.builder()
+                .invoice(invoice)
+                .idempotencyKey(idempotencyKey)
+                .amountCents(request.amountCents())
+                .method(request.method())
+                .status(PaymentStatus.COMPLETED)
+                .reference(request.reference())
+                .paidAt(Instant.now())
+                .build());
 
         updateInvoiceStatus(invoice, paidSoFar + request.amountCents());
         auditService.recordEvent(AuditEventType.PAYMENT_RECORDED, actorUserId, actorEmail);

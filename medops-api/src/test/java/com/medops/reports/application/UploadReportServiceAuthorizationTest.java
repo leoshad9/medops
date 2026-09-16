@@ -1,6 +1,7 @@
 package com.medops.reports.application;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -56,14 +57,16 @@ class UploadReportServiceAuthorizationTest {
         byte[] pdf = (
                 "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n")
                 .getBytes();
+        UploadedPdf uploadedPdf = new UploadedPdf("cbc.pdf", "application/pdf", pdf);
 
-        assertThrows(AccessDeniedException.class, () -> service.upload(
+        AccessDeniedException thrown = assertThrows(AccessDeniedException.class, () -> service.upload(
                 DOCTOR_EMAIL,
                 foreignPatientId,
                 "CBC",
                 null,
-                new UploadedPdf("cbc.pdf", "application/pdf", pdf)));
+                uploadedPdf));
 
+        assertEquals("denied", thrown.getMessage());
         verify(fileStorage, never()).store(any(), any(), any(), any());
         verify(reportRepository, never()).save(any());
         verify(domainEventPublisher, never()).publishAfterCommit(any());

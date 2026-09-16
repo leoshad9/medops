@@ -1,10 +1,39 @@
 # Local development overlay. Docker Compose applies this automatically on top of
-# docker-compose.yml, so `docker compose up -d` publishes the sidecar ports for a
-# medops-api instance running on the host (IDE or ./mvnw.cmd spring-boot:run).
+# docker-compose.yml, so `docker compose up -d` starts the sidecars AND the local
+# Postgres that a medops-api instance running on the host (IDE or
+# ./mvnw.cmd spring-boot:run) expects, and publishes their ports for it.
 #
 # Explicit `-f` invocations (such as the prod deploy) skip this file.
+#
+# Two port caveats: 5432 must be free, so a native Postgres install or the
+# deploy-local stack (same compose project name, also bound to 127.0.0.1:5432)
+# will conflict - run one at a time, or move the host side with LOCAL_DB_PORT and
+# point the API's DB_URL at it. The defaults below mirror application.yml, so a
+# host-run API connects with no extra config.
 
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      # application.yml's local defaults, deliberately using the DB_* names a
+      # host-run medops-api reads instead of the prod-side POSTGRES_* keys sitting
+      # in the git-ignored .env.
+      POSTGRES_DB: ${POSTGRES_DB:-medops}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-root}
+    # Localhost only, as in prod.
+    ports:
+      - "127.0.0.1:${LOCAL_DB_PORT:-5432}:5432"
+    volumes:
+      # Its own volume on purpose: the prod overlay's postgres_data is the
+      # deploy-local database, and both stacks share the compose project name.
+      - local_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${POSTGRES_DB:-medops}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   redis:
     ports:
       - "6379:6379"
@@ -16,3 +45,6 @@ services:
   medops-ai:
     ports:
       - "8000:8000"
+
+volumes:
+  local_postgres_data:

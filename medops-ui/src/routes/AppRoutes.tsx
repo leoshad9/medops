@@ -6,6 +6,10 @@ import { useAuth } from "../context/useAuth";
 import { roleDashboardPath } from "../lib/roles";
 import { Login } from "../pages/auth/Login";
 import { Register } from "../pages/auth/Register";
+import { ForgotPassword } from "../pages/auth/ForgotPassword";
+import { VerifyOtp } from "../pages/auth/VerifyOtp";
+import { ResetPassword } from "../pages/auth/ResetPassword";
+import { PasswordResetSuccess } from "../pages/auth/PasswordResetSuccess";
 import { DoctorAppointmentsView } from "../pages/doctor/AppointmentsView";
 import { DoctorDashboard } from "../pages/doctor/Dashboard";
 import { DoctorLabsView } from "../pages/doctor/LabsView";
@@ -24,6 +28,7 @@ import { PrescriptionsView } from "../pages/patient/views/PrescriptionsView";
 import { ProfileView } from "../pages/patient/views/ProfileView";
 import { ProtectedRoute } from "./ProtectedRoute";
 
+/** Defines the public, authenticated, and password-recovery routes. */
 export function AppRoutes() {
   const { user, isAuthenticated } = useAuth();
   const homePath = isAuthenticated && user ? roleDashboardPath(user.role) : "/login";
@@ -37,6 +42,22 @@ export function AppRoutes() {
       <Route
         path="/register"
         element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <Register />}
+      />
+      <Route
+        path="/forgot-password"
+        element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <ForgotPassword />}
+      />
+      <Route
+        path="/verify-otp"
+        element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <VerifyOtp />}
+      />
+      <Route
+        path="/reset-password"
+        element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <ResetPassword />}
+      />
+      <Route
+        path="/password-reset-success"
+        element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <PasswordResetSuccess />}
       />
 
       <Route element={<ProtectedRoute allowedRoles={["DOCTOR"]} />}>

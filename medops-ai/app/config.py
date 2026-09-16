@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     llm_use_bearer: bool = False
 
     def resolved_provider(self) -> str | None:
+        """Return the normalised provider dialect, or ``None`` when no API key is set.
+
+        :raises ValueError: when ``LLM_PROVIDER`` contains an unsupported value
+        """
         if not self.llm_api_key.strip():
             return None
         raw = self.llm_provider.strip().lower().replace("-", "_")
@@ -54,6 +58,7 @@ class Settings(BaseSettings):
 
     @property
     def llm_enabled(self) -> bool:
+        """Whether an API key resolves to a supported provider."""
         try:
             return self.resolved_provider() is not None
         except ValueError:
@@ -61,6 +66,7 @@ class Settings(BaseSettings):
 
     @property
     def active_model(self) -> str | None:
+        """Return the resolved model name, or ``None`` when the provider is not set."""
         if self.resolved_provider() is None:
             return None
         model = self.llm_model.strip()
@@ -70,6 +76,7 @@ class Settings(BaseSettings):
 
     @property
     def active_base_url(self) -> str | None:
+        """Return the resolved API base URL, or ``None`` when the provider is not set."""
         if self.resolved_provider() is None:
             return None
         base = self.llm_base_url.strip()

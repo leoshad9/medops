@@ -1,5 +1,6 @@
 package com.medops.appointments.application;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
@@ -16,9 +17,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
-import com.medops.auth.entity.User;
-import com.medops.auth.entity.UserStatus;
-import com.medops.auth.repository.UserRepository;
+import com.medops.auth.domain.User;
+import com.medops.auth.domain.UserStatus;
+import com.medops.auth.infrastructure.repository.UserRepository;
 import com.medops.doctors.infrastructure.DoctorProfile;
 import com.medops.doctors.infrastructure.DoctorProfileRepository;
 import com.medops.patients.infrastructure.PatientProfile;
@@ -79,8 +80,11 @@ class AppointmentActorResolverTest {
         when(doctorProfileRepository.findByUserId(user.getId())).thenReturn(Optional.empty());
         when(patientProfileRepository.findByUserId(user.getId())).thenReturn(Optional.of(patient));
 
-        assertThrows(AccessDeniedException.class,
-                () -> resolver.requireAppointmentParty(EMAIL, UUID.randomUUID(), UUID.randomUUID()));
+        UUID appointmentId = UUID.randomUUID();
+        UUID otherPatientId = UUID.randomUUID();
+        AccessDeniedException thrown = assertThrows(AccessDeniedException.class,
+                () -> resolver.requireAppointmentParty(EMAIL, appointmentId, otherPatientId));
+        assertThat(thrown).isNotNull();
     }
 
     @Test
@@ -97,8 +101,11 @@ class AppointmentActorResolverTest {
     void requireAppointmentPartyDeniesDoctorOnAnotherClinicianSlot() {
         when(doctorProfileRepository.findByUserId(user.getId())).thenReturn(Optional.of(doctor));
 
-        assertThrows(AccessDeniedException.class,
-                () -> resolver.requireAppointmentParty(EMAIL, UUID.randomUUID(), UUID.randomUUID()));
+        UUID appointmentId = UUID.randomUUID();
+        UUID otherDoctorId = UUID.randomUUID();
+        AccessDeniedException thrown = assertThrows(AccessDeniedException.class,
+                () -> resolver.requireAppointmentParty(EMAIL, appointmentId, otherDoctorId));
+        assertThat(thrown).isNotNull();
         verify(patientProfileRepository, never()).findByUserId(user.getId());
     }
 }

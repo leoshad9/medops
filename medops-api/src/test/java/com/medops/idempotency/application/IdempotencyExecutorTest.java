@@ -50,18 +50,20 @@ class IdempotencyExecutorTest {
 
     @Test
     void executeRejectsReusedKeyWithDifferentHash() {
-        executor.execute("patient@x", "appointments.book", "key-1", "hash-a", String.class, () -> "one");
+        assertThat(executor.execute("patient@x", "appointments.book", "key-1", "hash-a", String.class, () -> "one")).isEqualTo("one");
 
-        assertThrows(ConflictException.class, () ->
+        ConflictException thrown = assertThrows(ConflictException.class, () ->
                 executor.execute("patient@x", "appointments.book", "key-1", "hash-b", String.class, () -> "two"));
+        assertThat(thrown).isNotNull();
     }
 
     @Test
     void executeAbandonsKeyWhenActionFails() {
-        assertThrows(IllegalStateException.class, () ->
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
                 executor.execute("patient@x", "appointments.book", "key-1", "hash-a", String.class, () -> {
                     throw new IllegalStateException("boom");
                 }));
+        assertThat(thrown).hasMessageContaining("boom");
 
         String recovered = executor.execute(
                 "patient@x", "appointments.book", "key-1", "hash-a", String.class, () -> "ok");
@@ -70,7 +72,8 @@ class IdempotencyExecutorTest {
 
     @Test
     void executeRejectsInvalidKey() {
-        assertThrows(InvalidRequestException.class, () ->
+        InvalidRequestException thrown = assertThrows(InvalidRequestException.class, () ->
                 executor.execute("a", "op", "bad key!", "h", String.class, () -> "x"));
+        assertThat(thrown).isNotNull();
     }
 }

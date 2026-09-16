@@ -1,6 +1,7 @@
 package com.medops.reports.application;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -76,8 +77,10 @@ class ReportQueryServiceAuthorizationTest {
                 .when(clinicalAccess)
                 .requireReportReader(PATIENT_A, reportOwnedByPatientB.getPatientProfileId());
 
-        assertThrows(AccessDeniedException.class,
-                () -> service.download(reportOwnedByPatientB.getId(), PATIENT_A));
+        UUID reportId = reportOwnedByPatientB.getId();
+        AccessDeniedException thrown = assertThrows(AccessDeniedException.class,
+                () -> service.download(reportId, PATIENT_A));
+        assertEquals("denied", thrown.getMessage());
 
         verify(fileStorage, never()).load(any());
         verify(auditService, never()).recordEvent(any(), any(), any());
@@ -92,8 +95,10 @@ class ReportQueryServiceAuthorizationTest {
                 .when(clinicalAccess)
                 .requireReportReader(DOCTOR_A, reportOwnedByPatientB.getPatientProfileId());
 
-        assertThrows(AccessDeniedException.class,
-                () -> service.download(reportOwnedByPatientB.getId(), DOCTOR_A));
+        UUID reportId = reportOwnedByPatientB.getId();
+        AccessDeniedException thrown = assertThrows(AccessDeniedException.class,
+                () -> service.download(reportId, DOCTOR_A));
+        assertEquals("denied", thrown.getMessage());
 
         verify(fileStorage, never()).load(any());
         verify(auditService, never()).recordEvent(any(), any(), any());
@@ -108,7 +113,9 @@ class ReportQueryServiceAuthorizationTest {
                 .when(clinicalAccess)
                 .assertPatientOwns(reportOwnedByPatientB.getPatientProfileId(), PATIENT_A);
 
-        assertThrows(AccessDeniedException.class,
-                () -> service.markReviewed(reportOwnedByPatientB.getId(), PATIENT_A));
+        UUID reportId = reportOwnedByPatientB.getId();
+        AccessDeniedException thrown = assertThrows(AccessDeniedException.class,
+                () -> service.markReviewed(reportId, PATIENT_A));
+        assertEquals("denied", thrown.getMessage());
     }
 }

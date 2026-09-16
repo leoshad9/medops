@@ -5,8 +5,8 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.medops.auth.entity.User;
-import com.medops.auth.repository.UserRepository;
+import com.medops.auth.domain.User;
+import com.medops.auth.infrastructure.repository.UserRepository;
 import com.medops.cache.domain.DoctorDirectoryCache;
 import com.medops.doctors.api.dto.DoctorProfileResponse;
 import com.medops.doctors.api.dto.DoctorSummaryResponse;

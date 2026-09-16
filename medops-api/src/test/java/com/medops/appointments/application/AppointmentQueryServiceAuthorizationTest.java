@@ -14,6 +14,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
@@ -24,6 +25,10 @@ import com.medops.patients.infrastructure.PatientProfile;
 
 /**
  * BOLA: patients and doctors cannot open or mutate another actor's appointment by ID swap.
+ *
+ * Authorization is enforced in {@link AppointmentQueryReadService#get} via
+ * {@code actorResolver.requireAppointmentParty}, so the test wires mocks into a
+ * real instance of the read service (matching the production proxy target).
  */
 @ExtendWith(MockitoExtension.class)
 class AppointmentQueryServiceAuthorizationTest {
@@ -34,6 +39,9 @@ class AppointmentQueryServiceAuthorizationTest {
     private AppointmentActorResolver actorResolver;
     @Mock
     private AppointmentResponseAssembler assembler;
+
+    @InjectMocks
+    private AppointmentQueryReadService readService;
 
     private Appointment appointment;
 
@@ -46,29 +54,29 @@ class AppointmentQueryServiceAuthorizationTest {
         appointment.prePersist();
     }
 
+    /** Verifies that get denies patient when appointment belongs to someone else. */
     @Test
     void getDeniesPatientWhenAppointmentBelongsToSomeoneElse() {
-        AppointmentQueryService service = new AppointmentQueryService(appointmentRepository, actorResolver, assembler);
         when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
         when(actorResolver.requireAppointmentParty(
                 "patient.a@medops.dev", appointment.getPatientProfileId(), appointment.getDoctorProfileId()))
                 .thenThrow(new AccessDeniedException("denied"));
 
         assertThrows(AccessDeniedException.class,
-                () -> service.get(appointment.getId(), "patient.a@medops.dev"));
+                () -> readService.get(appointment.getId(), "patient.a@medops.dev"));
         verify(assembler, never()).toResponse(any());
     }
 
+    /** Verifies that get denies doctor when appointment belongs to another doctor. */
     @Test
     void getDeniesDoctorWhenAppointmentBelongsToAnotherDoctor() {
-        AppointmentQueryService service = new AppointmentQueryService(appointmentRepository, actorResolver, assembler);
         when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
         when(actorResolver.requireAppointmentParty(
                 "doctor.a@medops.dev", appointment.getPatientProfileId(), appointment.getDoctorProfileId()))
                 .thenThrow(new AccessDeniedException("denied"));
 
         assertThrows(AccessDeniedException.class,
-                () -> service.get(appointment.getId(), "doctor.a@medops.dev"));
+                () -> readService.get(appointment.getId(), "doctor.a@medops.dev"));
         verify(assembler, never()).toResponse(any());
     }
 }

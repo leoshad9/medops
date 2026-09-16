@@ -4,7 +4,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +43,7 @@ public class AppointmentTransitionService {
         return assembler.toResponse(appointmentRepository.save(visible.appointment()));
     }
 
+    /** Reschedules an authorized appointment into an available slot. */
     @Transactional
     public AppointmentResponse reschedule(
             UUID appointmentId, String email, RescheduleAppointmentRequest request) {
@@ -64,11 +64,7 @@ public class AppointmentTransitionService {
 
         appointment.reschedule(newStart, schedule.slotLength(), now);
         auditService.recordEvent(AuditEventType.APPOINTMENT_RESCHEDULED, visible.actorUserId(), email);
-        try {
-            return assembler.toResponse(appointmentRepository.saveAndFlush(appointment));
-        } catch (DataIntegrityViolationException ex) {
-            throw new ConflictException("That time is no longer available", ex);
-        }
+        return assembler.toResponse(appointmentRepository.saveAndFlush(appointment));
     }
 
     @Transactional

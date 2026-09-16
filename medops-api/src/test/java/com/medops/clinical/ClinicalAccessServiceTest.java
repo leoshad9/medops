@@ -1,5 +1,6 @@
 package com.medops.clinical;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -81,9 +82,11 @@ class ClinicalAccessServiceTest {
         when(patientProfileRepository.findById(patientB.getId())).thenReturn(Optional.of(patientB));
         when(careRelationship.doctorMayTreat(doctorA.getId(), patientB.getId())).thenReturn(false);
 
-        assertThrows(AccessDeniedException.class,
-                () -> access.requireTreatingDoctor(DOCTOR_EMAIL, patientB.getId()));
-        verify(careRelationship).doctorMayTreat(doctorA.getId(), patientB.getId());
+        UUID patientBId = patientB.getId();
+        AccessDeniedException thrown = assertThrows(AccessDeniedException.class,
+                () -> access.requireTreatingDoctor(DOCTOR_EMAIL, patientBId));
+        assertThat(thrown).isNotNull();
+        verify(careRelationship).doctorMayTreat(doctorA.getId(), patientBId);
     }
 
     @Test
@@ -97,8 +100,10 @@ class ClinicalAccessServiceTest {
     void assertPatientOwnsDeniesOtherPatientsId() {
         when(actorResolver.requirePatient(PATIENT_EMAIL)).thenReturn(patientA);
 
-        assertThrows(AccessDeniedException.class,
-                () -> access.assertPatientOwns(patientB.getId(), PATIENT_EMAIL));
+        UUID patientBId = patientB.getId();
+        AccessDeniedException thrown = assertThrows(AccessDeniedException.class,
+                () -> access.assertPatientOwns(patientBId, PATIENT_EMAIL));
+        assertThat(thrown).isNotNull();
     }
 
     @Test
@@ -106,8 +111,9 @@ class ClinicalAccessServiceTest {
         when(actorResolver.requireDoctor(DOCTOR_EMAIL)).thenReturn(doctorA);
         UUID otherDoctorId = UUID.randomUUID();
 
-        assertThrows(AccessDeniedException.class,
+        AccessDeniedException thrown = assertThrows(AccessDeniedException.class,
                 () -> access.assertDoctorOwns(otherDoctorId, DOCTOR_EMAIL));
+        assertThat(thrown).isNotNull();
     }
 
     @Test
@@ -136,8 +142,10 @@ class ClinicalAccessServiceTest {
         when(patientProfileRepository.findById(patientB.getId())).thenReturn(Optional.of(patientB));
         when(careRelationship.doctorMayTreat(doctorA.getId(), patientB.getId())).thenReturn(false);
 
-        assertThrows(AccessDeniedException.class,
-                () -> access.requireReportReader(DOCTOR_EMAIL, patientB.getId()));
+        UUID requiredId = patientB.getId();
+        AccessDeniedException thrown = assertThrows(AccessDeniedException.class,
+                () -> access.requireReportReader(DOCTOR_EMAIL, requiredId));
+        assertThat(thrown).isNotNull();
         verify(actorResolver, never()).requirePatient(DOCTOR_EMAIL);
     }
 }

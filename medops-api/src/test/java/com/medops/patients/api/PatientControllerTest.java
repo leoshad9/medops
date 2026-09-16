@@ -16,9 +16,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.medops.auth.dto.AuthResponse;
-import com.medops.auth.security.AuthRateLimitFilter;
-import com.medops.auth.security.JwtAuthenticationFilter;
+import com.medops.auth.dto.session.AuthResponse;
+import com.medops.auth.security.filters.AuthRateLimitFilter;
+import com.medops.auth.security.jwt.JwtAuthenticationFilter;
 import com.medops.patients.api.dto.RegisterPatientRequest;
 import com.medops.patients.api.dto.PatientProfileResponse;
 import com.medops.patients.api.dto.UpdatePatientProfileRequest;

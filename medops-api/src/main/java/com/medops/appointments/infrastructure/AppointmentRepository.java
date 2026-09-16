@@ -52,8 +52,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     Page<Appointment> findByDoctorProfileIdAndStatusOrderByStartsAtAsc(
             UUID doctorProfileId, AppointmentStatus status, Pageable pageable);
 
+    /** Finds a doctor's appointments with the requested status in chronological order. */
+    Page<Appointment> findByDoctorProfileIdAndStatusAndStartsAtGreaterThanEqualAndStartsAtLessThanOrderByStartsAtAsc(
+            UUID doctorProfileId, AppointmentStatus status, Instant fromInclusive, Instant toExclusive,
+            Pageable pageable);
+
+    /** Finds a doctor's appointments in a time range in chronological order. */
     Page<Appointment> findByDoctorProfileIdAndStartsAtGreaterThanEqualAndStartsAtLessThanOrderByStartsAtAsc(
-            UUID doctorProfileId, Instant fromInclusive, Instant toExclusive, Pageable pageable);
+            UUID doctorProfileId, Instant fromInclusive, Instant toExclusive,
+            Pageable pageable);
 
     boolean existsByDoctorProfileIdAndPatientProfileIdAndStatusIn(
             UUID doctorProfileId, UUID patientProfileId, Collection<AppointmentStatus> statuses);

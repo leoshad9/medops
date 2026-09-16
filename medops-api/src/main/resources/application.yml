@@ -24,7 +24,32 @@ spring:
         "[hbm2ddl.create_namespaces]": true
 
   flyway:
-    enabled: ${FLYWAY_ENABLED:false}
+    # Local dev runs the same migrations prod does (db/migration/V*.sql) so a
+    # migration that only works on a hibernate-created schema fails here instead of
+    # at prod startup, where ddl-auto is validate. baseline-on-migrate matches
+    # application-prod.yml: a dev database that predates Flyway gets baselined at V1
+    # and then picks up the newer migrations rather than refusing to start.
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: true
+    baseline-version: 1
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            # Never silently fall back to cleartext SMTP: fail fast instead.
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    from: ${MAIL_FROM:MedOps <noreply@medops.dev>}
 
   servlet:
     multipart:
@@ -94,6 +119,11 @@ resilience4j:
         failure-rate-threshold: 50
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 2
+      smtpMail:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
   retry:
     instances:
       reportSummarizer:
@@ -103,11 +133,26 @@ resilience4j:
           - java.io.IOException
           - java.util.concurrent.TimeoutException
           - org.springframework.web.client.ResourceAccessException
+      smtpMail:
+        max-attempts: 3
+        wait-duration: 1s
+        retry-exceptions:
+          - org.springframework.mail.MailException
+          - jakarta.mail.MessagingException
+          # The service wraps both of the above in EmailSendingException; without this
+          # entry the @Retry(smtpMail) annotations never trigger.
+          - com.medops.auth.infrastructure.email.EmailSendingException
 
 medops:
   security:
     open-registration: true
     api-docs-public: true
+    # CIDR ranges from which X-Forwarded-For / X-Real-IP headers are honored.
+    # Local dev trusts loopback; production should list the load-balancer / ingress CIDRs.
+    trusted-proxy-cidrs:
+      - "127.0.0.1/8"
+      - "0:0:0:0:0:0:0:1/128"
+      - "::1/128"
   appointments:
     zone: Asia/Kolkata
     slot-minutes: 30
@@ -129,6 +174,23 @@ medops:
     service-base-url: "${MEDOPS_AI_BASE_URL:http://localhost:8000}"
     summary-cache-ttl: PT24H
     doctor-list-cache-ttl: PT1M
+
+password-reset:
+  otp:
+    ttl: 10m
+    max-attempts: 5
+    length: 6
+    # HMAC secret for hashing OTPs at rest in Redis; must come from the environment.
+    # Empty default + @NotBlank => fails fast at startup if not configured.
+    # Matches docker-compose.prod.yml's PASSWORD_RESET_OTP_HMAC_SECRET passthrough.
+    hmac-secret: ${PASSWORD_RESET_OTP_HMAC_SECRET:}
+  reset-token:
+    ttl: 15m
+  resend:
+    cooldown: 60s
+  rate-limit:
+    forgot-per-email-per-hour: 3
+    forgot-per-ip-per-minute: 10
 
 logging:
   level:
@@ -157,6 +219,20 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
       - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
 
+password-reset:
+  otp:
+    ttl: 60s
+    max-attempts: 5
+    length: 6
+    hmac-secret: test-hmac-secret-for-unit-tests-only
+  reset-token:
+    ttl: 15m
+  resend:
+    cooldown: 60s
+  rate-limit:
+    forgot-per-email-per-hour: 3
+    forgot-per-ip-per-minute: 10
+
 jwt:
   secret: dGVzdC1zZWNyZXQta2V5LWZvci1tZWRvcHMtdGVzdGluZy1vbmx5LTMyYnl0ZQ==
   access-token-expiry-ms: 900000
@@ -168,6 +244,9 @@ medops:
   security:
     open-registration: true
     api-docs-public: false
+    trusted-proxy-cidrs:
+      - "127.0.0.1/8"
+      - "::1/128"
   redis:
     enabled: false
   messaging:
