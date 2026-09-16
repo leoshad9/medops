@@ -18,9 +18,11 @@ final class EmailTemplates {
             MedOps
             """;
 
+    /** Prevents instantiation of this template utility. */
     private EmailTemplates() {
     }
 
+    /** Builds the plain-text password-recovery OTP email. */
     static String otpEmail(String otp, int ttlMinutes) {
         return """
                 Hi,

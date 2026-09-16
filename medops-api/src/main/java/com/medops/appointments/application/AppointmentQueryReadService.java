@@ -37,6 +37,7 @@ public class AppointmentQueryReadService {
     private final AppointmentActorResolver actorResolver;
     private final AppointmentResponseAssembler assembler;
 
+    /** Returns an appointment visible to the authenticated actor. */
     @Transactional(readOnly = true)
     public AppointmentResponse get(UUID appointmentId, String email) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
@@ -112,6 +113,7 @@ public class AppointmentQueryReadService {
         return toPage(result);
     }
 
+    /** Converts appointments and page metadata into an API response. */
     private AppointmentPageResponse toPage(Page<Appointment> result) {
         return new AppointmentPageResponse(
                 result.getContent().stream().map(assembler::toResponse).toList(),
@@ -120,6 +122,7 @@ public class AppointmentQueryReadService {
                 result.getTotalElements());
     }
 
+    /** Creates validated pagination settings. */
     private static Pageable pageable(int page, int size) {
         int safePage = Math.max(page, 0);
         int safeSize = size < 1 ? 20 : Math.min(size, MAX_PAGE_SIZE);

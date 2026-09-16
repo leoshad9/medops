@@ -18,6 +18,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -94,6 +95,7 @@ class VerifyOtpServiceTest {
         });
     }
 
+    /** Verifies that verify otp issues reset token and cleans up flow on correct otp. */
     @Test
     void verifyOtp_issuesResetToken_andCleansUpFlow_onCorrectOtp() throws Exception {
         UUID userId = UUID.randomUUID();
@@ -116,6 +118,7 @@ class VerifyOtpServiceTest {
         verify(auditService).recordEventBestEffort(AuditEventType.PASSWORD_RESET_OTP_VERIFIED, null, EMAIL);
     }
 
+    /** Verifies that verify otp increments attempts without extending ttl and audits on wrong otp. */
     @Test
     void verifyOtp_incrementsAttemptsWithoutExtendingTtl_andAudits_onWrongOtp() throws Exception {
         String otpJson = objectMapper.writeValueAsString(
@@ -135,6 +138,7 @@ class VerifyOtpServiceTest {
         verify(auditService).recordEventBestEffort(AuditEventType.PASSWORD_RESET_OTP_FAILED, null, EMAIL);
     }
 
+    /** Verifies that verify otp returns generic failure when flow is gone or expired. */
     @Test
     @SuppressWarnings("unchecked")
     void verifyOtp_returnsGenericFailure_whenFlowIsGoneOrExpired() {
@@ -147,11 +151,12 @@ class VerifyOtpServiceTest {
         verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
     }
 
+    /** Verifies that verify otp returns recoverable error when redis claim fails. */
     @Test
     @SuppressWarnings("unchecked")
     void verifyOtp_returnsRecoverableError_whenRedisClaimFails() {
         when(redisTemplate.execute(any(RedisScript.class), anyList()))
-                .thenThrow(new org.springframework.data.redis.RedisConnectionFailureException("down"));
+                .thenThrow(new RedisConnectionFailureException("down"));
 
         VerifyOtpResponse response = service.verifyOtp(new VerifyOtpRequest(FLOW_ID, OTP));
 
@@ -160,6 +165,29 @@ class VerifyOtpServiceTest {
         verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
     }
 
+    /** Verifies that verify otp invalidates flow when failed attempt cannot be restored. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void verifyOtp_invalidatesFlow_whenFailedAttemptCannotBeRestored() throws Exception {
+        String otpJson = objectMapper.writeValueAsString(
+                new PasswordResetOtp(codec.hmacSha256(OTP, "test-hmac-secret"), 0));
+        when(redisTemplate.execute(any(RedisScript.class), anyList()))
+                .thenReturn(List.of(otpJson, Long.toString(OTP_TTL_SECONDS)));
+        when(redisTemplate.execute(any(RedisScript.class), anyList(), anyString(), anyString(), anyString()))
+                .thenThrow(new RedisConnectionFailureException("down"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("password-reset:flow:user:" + FLOW_ID)).thenReturn(EMAIL);
+
+        VerifyOtpResponse response = service.verifyOtp(new VerifyOtpRequest(FLOW_ID, "000000"));
+
+        assertThat(response.message()).isEqualTo("Invalid OTP.");
+        verify(redisTemplate).delete(OTP_KEY);
+        verify(redisTemplate).delete("password-reset:flow:user:" + FLOW_ID);
+        verify(redisTemplate).delete("password-reset:flow:user:id:" + FLOW_ID);
+        verify(redisTemplate).delete("password-reset:resend:" + FLOW_ID);
+    }
+
+    /** Verifies that verify otp cleans up whole flow when max attempts reached. */
     @Test
     void verifyOtp_cleansUpWholeFlow_whenMaxAttemptsReached() throws Exception {
         String otpJson = objectMapper.writeValueAsString(

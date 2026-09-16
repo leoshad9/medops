@@ -59,6 +59,7 @@ public class SmtpEmailService implements EmailService {
         }
     }
 
+    /** Reports an OTP delivery failure after retries are exhausted. */
     @SuppressWarnings("unused")
     private void sendOtpEmailFallback(String to, String otp, int ttlMinutes, Exception e) {
         log.error("Circuit open - OTP email not delivered to {}: {}",
@@ -91,6 +92,7 @@ public class SmtpEmailService implements EmailService {
         }
     }
 
+    /** Reports a confirmation-email failure after retries are exhausted. */
     @SuppressWarnings("unused")
     private void sendPasswordResetConfirmationEmailFallback(String to, Exception e) {
         log.error("Circuit open - confirmation email not delivered to {}: {}",

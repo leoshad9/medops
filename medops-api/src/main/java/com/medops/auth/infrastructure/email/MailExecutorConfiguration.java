@@ -18,6 +18,7 @@ public class MailExecutorConfiguration {
     private static final int MAX_POOL_SIZE = 4;
     private static final int QUEUE_CAPACITY = 100;
 
+    /** Provides the mail-delivery executor bean. */
     @Bean(destroyMethod = "shutdown")
     public MailDeliveryExecutor mailDeliveryExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();

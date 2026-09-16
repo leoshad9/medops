@@ -72,6 +72,7 @@ public class VerifyOtpService {
     private final PasswordResetCodec codec;
     private final SecureRandom secureRandom = new SecureRandom();
 
+    /** Atomically verifies an OTP and issues a single-use password-reset token. */
     public VerifyOtpResponse verifyOtp(VerifyOtpRequest request) {
         String resetFlowId = request.resetFlowId();
         String otpKey = PasswordResetKeys.OTP_PREFIX + resetFlowId;
@@ -220,6 +221,7 @@ public class VerifyOtpService {
         }
     }
 
+    /** Deletes all Redis state associated with a recovery flow. */
     private void deleteFlowKeys(String resetFlowId) {
         redisTemplate.delete(PasswordResetKeys.OTP_PREFIX + resetFlowId);
         redisTemplate.delete(PasswordResetKeys.USER_PREFIX + resetFlowId);
@@ -227,6 +229,7 @@ public class VerifyOtpService {
         redisTemplate.delete(PasswordResetKeys.RESEND_PREFIX + resetFlowId);
     }
 
+    /** Generates a cryptographically secure URL-safe reset token. */
     private String generateResetToken() {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);
@@ -245,15 +248,12 @@ public class VerifyOtpService {
      * @param remainingTtlSeconds the TTL to re-apply to the restored record
      */
     private void restoreOtpIfPresent(
-            String resetFlowId, PasswordResetOtp otpRecord, String claimedJson, long remainingTtlSeconds) {
-        try {
-            String updatedJson = objectMapper.writeValueAsString(otpRecord);
-            redisTemplate.execute(
-                    COMPARE_AND_RESTORE_SCRIPT,
-                    Collections.singletonList(PasswordResetKeys.OTP_PREFIX + resetFlowId),
-                    claimedJson, updatedJson, String.valueOf(remainingTtlSeconds));
-        } catch (JsonProcessingException | DataAccessException e) {
-            log.error("Failed to restore OTP for flow: {}", resetFlowId, e);
-        }
+            String resetFlowId, PasswordResetOtp otpRecord, String claimedJson, long remainingTtlSeconds)
+            throws JsonProcessingException, DataAccessException {
+        String updatedJson = objectMapper.writeValueAsString(otpRecord);
+        redisTemplate.execute(
+                COMPARE_AND_RESTORE_SCRIPT,
+                Collections.singletonList(PasswordResetKeys.OTP_PREFIX + resetFlowId),
+                claimedJson, updatedJson, String.valueOf(remainingTtlSeconds));
     }
 }

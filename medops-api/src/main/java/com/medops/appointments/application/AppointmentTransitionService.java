@@ -43,6 +43,7 @@ public class AppointmentTransitionService {
         return assembler.toResponse(appointmentRepository.save(visible.appointment()));
     }
 
+    /** Reschedules an authorized appointment into an available slot. */
     @Transactional
     public AppointmentResponse reschedule(
             UUID appointmentId, String email, RescheduleAppointmentRequest request) {

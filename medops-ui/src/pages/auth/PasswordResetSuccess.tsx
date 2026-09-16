@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import { CheckCircle } from "lucide-react";
 
+/** Renders confirmation after a successful password reset. */
 export function PasswordResetSuccess() {
   return (
     <div className="flex min-h-screen">

@@ -10,6 +10,7 @@ package com.medops.shared.util;
  */
 public final class LogMasking {
 
+    /** Prevents instantiation of this log-masking utility. */
     private LogMasking() {
     }
 

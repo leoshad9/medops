@@ -22,6 +22,7 @@ public class AppointmentQueryService {
     private final AppointmentQueryReadService readService;
     private final AppointmentActorResolver actorResolver;
 
+    /** Lists appointments visible to the authenticated actor. */
     public AppointmentPageResponse list(
             String email, AppointmentStatus status, Instant from, Instant to, int page, int size) {
         if (actorResolver.findDoctor(email).isPresent()) {

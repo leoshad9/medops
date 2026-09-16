@@ -51,6 +51,7 @@ public final class PasswordResetController {
     private final PasswordResetProperties passwordResetProperties;
     private final MedopsSecurityProperties securityProperties;
 
+    /** Starts a password-recovery flow without disclosing account existence. */
     @PostMapping("/forgot")
     public ResponseEntity<ApiResponse<ForgotPasswordResponse>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest httpRequest) {
@@ -59,12 +60,14 @@ public final class PasswordResetController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /** Requests a replacement OTP for an existing recovery flow. */
     @PostMapping("/resend-otp")
     public ResponseEntity<ApiResponse<ResendOtpResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         ResendOtpResponse response = resendOtpService.resendOtp(request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /** Verifies an OTP and stores the resulting reset token in a secure cookie. */
     @PostMapping("/verify-otp")
     public ResponseEntity<ApiResponse<VerifyOtpResponse>> verifyOtp(
             @Valid @RequestBody VerifyOtpRequest request, HttpServletResponse httpResponse) {
@@ -79,6 +82,7 @@ public final class PasswordResetController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /** Resets a password using the verified token cookie. */
     @PostMapping("/reset")
     public ResponseEntity<ApiResponse<ResetPasswordResponse>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request,
@@ -113,6 +117,7 @@ public final class PasswordResetController {
                 && (message.contains("reset successfully") || message.contains("Invalid or expired"));
     }
 
+    /** Builds the secure cookie that carries a password-reset token. */
     private ResponseCookie passwordResetCookie(String token) {
         return ResponseCookie.from(CookieConstants.PASSWORD_RESET, token)
                 .httpOnly(true)
@@ -123,6 +128,7 @@ public final class PasswordResetController {
                 .build();
     }
 
+    /** Builds an expired cookie that clears the password-reset token. */
     private ResponseCookie clearPasswordResetCookie() {
         return ResponseCookie.from(CookieConstants.PASSWORD_RESET, "")
                 .httpOnly(true)
@@ -133,6 +139,7 @@ public final class PasswordResetController {
                 .build();
     }
 
+    /** Reads the password-reset token from the request cookie. */
     private String readPasswordResetCookie(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
@@ -144,6 +151,7 @@ public final class PasswordResetController {
         return null;
     }
 
+    /** Returns the trusted client address used for rate limiting. */
     private String getClientIp(HttpServletRequest request) {
         // X-Forwarded-For is only trustworthy when the direct connection peer is a
         // configured reverse proxy. Without this check a caller could spoof the header
@@ -198,50 +206,72 @@ public final class PasswordResetController {
         if (!cidr.contains("/")) {
             return ip.trim().equals(cidr);
         }
-        String[] parts = cidr.split("/");
-        String network = parts[0];
-        int prefixLen = Integer.parseInt(parts[1]);
-        return ipv4InSubnet(network, prefixNetmask(prefixLen), ip)
-                || ipv6InSubnet(network, prefixLen, ip);
+        String[] parts = cidr.trim().split("/", -1);
+        if (parts.length != 2) {
+            return false;
+        }
+        int prefixLen;
+        try {
+            prefixLen = Integer.parseInt(parts[1]);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        String network = parts[0].trim();
+        String address = ip.trim();
+        return ipv4InSubnet(network, prefixLen, address)
+                || ipv6InSubnet(network, prefixLen, address);
     }
 
     /**
-     * Computes the bitmask for a CIDR prefix length.
-     *
-     * @param prefixLen the number of leading 1-bits (0&ndash;32)
-     * @return the netmask as a signed int, or {@code -1} (all-ones) for /32
-     */
-    private static int prefixNetmask(int prefixLen) {
-        return prefixLen >= 32 ? -1 : ~((1 << (32 - prefixLen)) - 1);
-    }
-
-    /**
-     * Tests whether an IPv4 address falls inside a network defined by the given netmask.
+     * Tests whether an IPv4 address falls inside a network defined by the given prefix length.
      *
      * @param network the network address (dotted-quad)
-     * @param netmask the netmask as a signed int
+     * @param prefixLen the CIDR prefix length (0&ndash;32)
      * @param ip the address to test
      * @return {@code true} when the IP is in the subnet
      */
-    private static boolean ipv4InSubnet(String network, int netmask, String ip) {
-        String[] nw = network.split("\\.");
-        String[] addr = ip.split("\\.");
-        if (nw.length != 4 || addr.length != 4) {
+    private static boolean ipv4InSubnet(String network, int prefixLen, String ip) {
+        if (prefixLen < 0 || prefixLen > 32) {
             return false;
         }
-        for (int i = 0; i < 4; i++) {
-            int n, a;
-            try {
-                n = Integer.parseInt(nw[i]);
-                a = Integer.parseInt(addr[i]);
-            } catch (NumberFormatException e) {
-                return false;
-            }
-            if ((n & netmask) != (a & netmask)) {
-                return false;
-            }
+        byte[] networkBytes = parseIpv4(network);
+        byte[] addressBytes = parseIpv4(ip);
+        if (networkBytes == null || addressBytes == null) {
+            return false;
         }
-        return true;
+        int netmask = prefixLen == 0 ? 0 : -1 << (32 - prefixLen);
+        return (ipv4ToInt(networkBytes) & netmask) == (ipv4ToInt(addressBytes) & netmask);
+    }
+
+    /** Parses a dotted-decimal IPv4 address into four octets. */
+    private static byte[] parseIpv4(String address) {
+        String[] octets = address.split("\\.", -1);
+        if (octets.length != 4) {
+            return null;
+        }
+        byte[] result = new byte[4];
+        for (int i = 0; i < octets.length; i++) {
+            int value;
+            try {
+                value = Integer.parseInt(octets[i]);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+            if (value < 0 || value > 255) {
+                return null;
+            }
+            result[i] = (byte) value;
+        }
+        return result;
+    }
+
+    /** Converts four IPv4 octets into their integer representation. */
+    private static int ipv4ToInt(byte[] address) {
+        int result = 0;
+        for (byte octet : address) {
+            result = (result << 8) | Byte.toUnsignedInt(octet);
+        }
+        return result;
     }
 
     /**
@@ -256,6 +286,7 @@ public final class PasswordResetController {
         return false;
     }
 
+    /** Checks whether a value is a valid IPv4 or IPv6 address. */
     private static boolean isValidIp(String ip) {
         if (ip == null || ip.isEmpty()) {
             return false;

@@ -92,6 +92,7 @@ class BookAppointmentServiceTest {
                 .build();
     }
 
+    /** Verifies that book persists and audits. */
     @Test
     void bookPersistsAndAudits() {
         Instant start = LocalDate.of(2026, 8, 31).atTime(10, 0)

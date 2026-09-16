@@ -18,10 +18,12 @@ public class MailDeliveryExecutor {
 
     private final Executor delegate;
 
+    /** Creates an executor for guarded mail delivery. */
     public MailDeliveryExecutor(Executor delegate) {
         this.delegate = delegate;
     }
 
+    /** Executes a mail operation with the configured resilience policy. */
     public void execute(Runnable task) {
         delegate.execute(task);
     }

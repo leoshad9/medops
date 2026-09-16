@@ -77,6 +77,7 @@ public class AppointmentController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /** Checks whether the authenticated actor has one of the allowed roles. */
     @GetMapping("/{appointmentId}")
     @PreAuthorize("hasAnyRole('PATIENT','DOCTOR')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> get(
