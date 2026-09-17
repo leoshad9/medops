@@ -13,6 +13,12 @@ public class StubAssistantClient implements AssistantClient {
             "I'm the MedOps AI Assistant. I can currently help with appointments, reports, "
                     + "prescriptions, billing, and using MedOps.";
 
+    /**
+     * Returns the deterministic reply without making a network request.
+     *
+     * @param userMessage the validated user message
+     * @return the configured stub reply
+     */
     @Override
     public AssistantReply chat(String userMessage) {
         return new AssistantReply(STUB_REPLY);

@@ -13,11 +13,13 @@ class FakeChatClient:
     """Records the prompt and returns a canned reply."""
 
     def __init__(self, content: str) -> None:
+        """Initialise the fake with the reply content it should return."""
         self._content = content
         self.last_system: str | None = None
         self.last_user: str | None = None
 
     async def chat(self, *, system: str, user: str, temperature=None, max_tokens=None) -> ChatResult:
+        """Record the prompts and return the configured chat result."""
         self.last_system = system
         self.last_user = user
         return ChatResult(content=self._content, prompt_tokens=None, completion_tokens=None,
@@ -60,23 +62,27 @@ async def test_chat_returns_stub_when_no_provider_configured(monkeypatch: pytest
 
 
 def test_validate_reply_strips_whitespace() -> None:
+    """Reply validation removes surrounding whitespace."""
     service = AssistantService(client=None)
     assert service.validate_reply("  Hello!  ") == "Hello!"
 
 
 def test_validate_reply_rejects_empty() -> None:
+    """Reply validation rejects an empty completion."""
     service = AssistantService(client=None)
     with pytest.raises(ValueError):
         service.validate_reply("   ")
 
 
 def test_validate_reply_rejects_oversized() -> None:
+    """Reply validation rejects content over the reply limit."""
     service = AssistantService(client=None)
     with pytest.raises(ValueError):
         service.validate_reply("x" * 4001)
 
 
 def test_validate_reply_rejects_diagnostic_claims() -> None:
+    """Reply validation rejects diagnostic and prescriptive claims."""
     service = AssistantService(client=None)
     with pytest.raises(ValueError):
         service.validate_reply("You may have hypertension; I recommend treatment.")

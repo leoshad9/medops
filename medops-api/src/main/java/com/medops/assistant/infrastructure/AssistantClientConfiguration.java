@@ -36,6 +36,15 @@ public class AssistantClientConfiguration {
     private static final String ASSISTANT_CHAT = "assistantChat";
     private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(20);
 
+    /**
+     * Selects the local stub or a resilient HTTP assistant client.
+     *
+     * @param properties AI service connection settings
+     * @param circuitBreakerRegistry registry for the assistant circuit breaker
+     * @param retryRegistry registry for the assistant retry policy
+     * @param timeLimiterRegistry registry for the assistant time limit
+     * @return the configured assistant client
+     */
     @org.springframework.context.annotation.Bean
     @org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean(AssistantClient.class)
     AssistantClient assistantClient(
@@ -69,6 +78,11 @@ public class AssistantClientConfiguration {
 
         private final RestClient restClient;
 
+        /**
+         * Creates a sidecar client from the configured service base URL.
+         *
+         * @param properties AI service connection settings
+         */
         HttpAssistantClient(AiClientProperties properties) {
             ClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.detect()
                     .build(ClientHttpRequestFactorySettings.defaults()
@@ -85,6 +99,12 @@ public class AssistantClientConfiguration {
             this.restClient = restClient;
         }
 
+        /**
+         * Posts a chat message to the AI sidecar and maps provider failures.
+         *
+         * @param userMessage the validated user message
+         * @return the non-blank assistant reply
+         */
         @Override
         public AssistantReply chat(String userMessage) {
             try {

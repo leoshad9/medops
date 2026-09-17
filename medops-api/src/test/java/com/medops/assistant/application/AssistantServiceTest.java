@@ -46,12 +46,14 @@ class AssistantServiceTest {
     private AssistantService service;
     private User user;
 
+    /** Creates the service under test and an authenticated user fixture. */
     @BeforeEach
     void setUp() {
         service = new AssistantService(assistantClient, rateLimiterStore, actorResolver, auditService);
         user = User.builder().id(UUID.randomUUID()).email(EMAIL).build();
     }
 
+    /** Verifies that chat delegates to the client and returns its reply. */
     @Test
     void chatDelegatesToClientAndReturnsReply() {
         when(actorResolver.requireActiveUser(EMAIL)).thenReturn(user);
@@ -64,6 +66,7 @@ class AssistantServiceTest {
         verify(assistantClient).chat("Hello");
     }
 
+    /** Verifies that a successful chat records the resolved user identifier. */
     @Test
     void chatRecordsAuditEventWithResolvedUserId() {
         when(actorResolver.requireActiveUser(EMAIL)).thenReturn(user);
@@ -75,6 +78,7 @@ class AssistantServiceTest {
         verify(auditService).recordEvent(AuditEventType.ASSISTANT_CHAT, user.getId(), EMAIL);
     }
 
+    /** Verifies that the rate-limit key uses the server-resolved user identifier. */
     @Test
     void chatRateLimitKeyIsDerivedFromServerSideUserId() {
         when(actorResolver.requireActiveUser(EMAIL)).thenReturn(user);
@@ -87,6 +91,7 @@ class AssistantServiceTest {
         verify(rateLimiterStore).tryAcquire("assistant:chat:" + user.getId(), 20, Duration.ofMinutes(5));
     }
 
+    /** Verifies that an exhausted rate limit skips both the client and audit. */
     @Test
     void chatThrowsAndSkipsClientAndAuditWhenRateLimited() {
         when(actorResolver.requireActiveUser(EMAIL)).thenReturn(user);
@@ -99,6 +104,7 @@ class AssistantServiceTest {
         verify(auditService, never()).recordEvent(any(), any(), any());
     }
 
+    /** Verifies that an unavailable rate-limit store fails closed. */
     @Test
     void chatFailsClosedWhenRateLimiterStoreUnavailable() {
         when(actorResolver.requireActiveUser(EMAIL)).thenReturn(user);
@@ -111,6 +117,7 @@ class AssistantServiceTest {
         verify(assistantClient, never()).chat(anyString());
     }
 
+    /** Verifies that a failed assistant call is not recorded as successful. */
     @Test
     void chatDoesNotAuditWhenClientFails() {
         when(actorResolver.requireActiveUser(EMAIL)).thenReturn(user);

@@ -30,13 +30,28 @@ public class ResilientAssistantClient implements AssistantClient {
     private final Retry retry;
     private final TimeLimiter timeLimiter;
 
-    ResilientAssistantClient(AssistantClient delegate, CircuitBreaker circuitBreaker, Retry retry, TimeLimiter timeLimiter) {
+    /**
+     * Creates a client that applies the supplied resilience policies.
+     *
+     * @param delegate underlying assistant client
+     * @param circuitBreaker assistant circuit breaker
+     * @param retry assistant retry policy
+     * @param timeLimiter assistant call time limit
+     */
+    ResilientAssistantClient(
+            AssistantClient delegate, CircuitBreaker circuitBreaker, Retry retry, TimeLimiter timeLimiter) {
         this.delegate = delegate;
         this.circuitBreaker = circuitBreaker;
         this.retry = retry;
         this.timeLimiter = timeLimiter;
     }
 
+    /**
+     * Executes a chat call through the circuit breaker, retry, and time limiter.
+     *
+     * @param userMessage the validated user message
+     * @return the assistant reply
+     */
     @Override
     public AssistantReply chat(String userMessage) {
         Supplier<AssistantReply> supplier = () -> delegate.chat(userMessage);

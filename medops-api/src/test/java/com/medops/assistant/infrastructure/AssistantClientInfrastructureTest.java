@@ -37,6 +37,7 @@ class AssistantClientInfrastructureTest {
     private MockRestServiceServer server;
     private AssistantClientConfiguration.HttpAssistantClient client;
 
+    /** Creates an HTTP client backed by a mock sidecar server. */
     @BeforeEach
     void setUp() {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
@@ -44,6 +45,7 @@ class AssistantClientInfrastructureTest {
         client = new AssistantClientConfiguration.HttpAssistantClient(builder.build());
     }
 
+    /** Verifies the sidecar request and successful response mapping. */
     @Test
     void chatPostsMessageToFastApiEndpointAndParsesReply() {
         server.expect(org.springframework.test.web.client.ExpectedCount.once(),
@@ -61,6 +63,7 @@ class AssistantClientInfrastructureTest {
         server.verify();
     }
 
+    /** Verifies that provider rate limiting becomes a friendly service failure. */
     @Test
     void chatMapsProviderRateLimitToServiceUnavailableWithFriendlyMessage() {
         server.expect(org.springframework.test.web.client.ExpectedCount.once(),
@@ -73,6 +76,7 @@ class AssistantClientInfrastructureTest {
                 .hasMessageContaining("rate limit");
     }
 
+    /** Verifies that a sidecar gateway timeout becomes a friendly service failure. */
     @Test
     void chatMapsGatewayTimeoutToServiceUnavailableWithFriendlyMessage() {
         server.expect(org.springframework.test.web.client.ExpectedCount.once(),
@@ -85,6 +89,7 @@ class AssistantClientInfrastructureTest {
                 .hasMessageContaining("timed out");
     }
 
+    /** Verifies that other sidecar failures become generic service failures. */
     @Test
     void chatMapsGenericProviderErrorToServiceUnavailable() {
         server.expect(org.springframework.test.web.client.ExpectedCount.once(),
@@ -97,6 +102,7 @@ class AssistantClientInfrastructureTest {
                 .hasMessageContaining("unavailable");
     }
 
+    /** Verifies that the disabled-service stub returns its deterministic reply. */
     @Test
     void stubReturnsDeterministicReplyWithoutAiService() {
         assertThat(new StubAssistantClient().chat("anything").text())
@@ -104,11 +110,13 @@ class AssistantClientInfrastructureTest {
                 .contains("appointments");
     }
 
+    /** Verifies that the resilience wrapper retries a transient failure. */
     @Test
     void resilienceWrapperRetriesTransientFailureThenSucceeds() {
         AssistantClient flaky = new AssistantClient() {
             private int calls = 0;
 
+            /** Simulates one transient failure followed by a successful reply. */
             @Override
             public AssistantReply chat(String userMessage) {
                 calls++;
@@ -135,6 +143,7 @@ class AssistantClientInfrastructureTest {
         assertThat(resilient.chat("Hello").text()).isEqualTo("recovered");
     }
 
+    /** Verifies that the resilience wrapper times out a slow delegate. */
     @Test
     void resilienceWrapperTimesOutSlowDelegate() {
         AssistantClient slow = userMessage -> {

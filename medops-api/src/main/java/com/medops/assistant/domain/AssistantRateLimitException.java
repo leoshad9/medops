@@ -6,6 +6,7 @@ package com.medops.assistant.domain;
  */
 public class AssistantRateLimitException extends RuntimeException {
 
+    /** Creates an exception with the user-facing retry guidance. */
     public AssistantRateLimitException() {
         super("Too many assistant requests. Please try again shortly.");
     }

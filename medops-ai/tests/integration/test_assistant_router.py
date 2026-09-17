@@ -14,16 +14,19 @@ class StubService:
     """Configurable stand-in for ``AssistantService`` at the router boundary."""
 
     def __init__(self, reply: str = "Stub reply") -> None:
+        """Initialise the stub with the reply returned by ``chat``."""
         self._reply = reply
         self.raise_chat: Exception | None = None
         self.raise_validate: Exception | None = None
 
     async def chat(self, message: str) -> str:
+        """Return the configured reply or raise the configured chat error."""
         if self.raise_chat:
             raise self.raise_chat
         return self._reply
 
     def validate_reply(self, reply: str) -> str:
+        """Model the production validator or raise its configured error."""
         if self.raise_validate:
             raise self.raise_validate
         text = reply.strip()
@@ -35,10 +38,12 @@ class StubService:
 
 @pytest.fixture
 def client() -> TestClient:
+    """Create a test client for the FastAPI application."""
     return TestClient(app)
 
 
 def test_valid_request_returns_reply(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A valid message returns the assistant reply with HTTP 200."""
     stub = StubService(reply="Open the Appointments section.")
     monkeypatch.setattr(assistant_router, "assistant_service", stub)
 
@@ -49,6 +54,7 @@ def test_valid_request_returns_reply(client: TestClient, monkeypatch: pytest.Mon
 
 
 def test_blank_message_rejected(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A whitespace-only message is rejected with HTTP 400."""
     monkeypatch.setattr(assistant_router, "assistant_service", StubService())
 
     response = client.post("/ai/assistant/chat", json={"message": "   "})
@@ -57,6 +63,7 @@ def test_blank_message_rejected(client: TestClient, monkeypatch: pytest.MonkeyPa
 
 
 def test_oversized_message_rejected(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A message over the declared limit is rejected during validation."""
     monkeypatch.setattr(assistant_router, "assistant_service", StubService())
 
     response = client.post("/ai/assistant/chat", json={"message": "x" * 2001})
@@ -65,6 +72,7 @@ def test_oversized_message_rejected(client: TestClient, monkeypatch: pytest.Monk
 
 
 def test_provider_failure_maps_to_503(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unavailable LLM provider is exposed as HTTP 503."""
     stub = StubService()
     stub.raise_chat = LlmUnavailableError("provider down")
     monkeypatch.setattr(assistant_router, "assistant_service", stub)
@@ -75,6 +83,7 @@ def test_provider_failure_maps_to_503(client: TestClient, monkeypatch: pytest.Mo
 
 
 def test_empty_llm_response_maps_to_502(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty provider response is exposed as HTTP 502."""
     stub = StubService(reply="   ")
     monkeypatch.setattr(assistant_router, "assistant_service", stub)
 

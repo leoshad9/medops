@@ -60,6 +60,7 @@ class AssistantControllerTest {
 
     private final UUID userId = UUID.randomUUID();
 
+    /** Verifies that an authenticated patient receives the assistant reply. */
     @Test
     @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
     void chatReturnsAssistantReplyForPatient() throws Exception {
@@ -74,6 +75,7 @@ class AssistantControllerTest {
                 .andExpect(jsonPath("$.data.message").value("Open the Appointments section to reschedule."));
     }
 
+    /** Verifies that an authenticated doctor can use the assistant endpoint. */
     @Test
     @WithMockUser(username = "doctor@medops.dev", roles = "DOCTOR")
     void chatReturnsAssistantReplyForDoctor() throws Exception {
@@ -85,6 +87,7 @@ class AssistantControllerTest {
                 .andExpect(jsonPath("$.success").value(true));
     }
 
+    /** Verifies that unauthenticated requests cannot reach the service. */
     @Test
     void chatRejectedForUnauthenticatedUser() throws Exception {
         mockMvc.perform(post(CHAT_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(CHAT_BODY))
@@ -98,6 +101,7 @@ class AssistantControllerTest {
     // consistent with the other controller tests in this codebase. The unauthenticated
     // case above verifies the endpoint is never public.
 
+    /** Verifies that request validation rejects a whitespace-only message. */
     @Test
     @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
     void chatRejectedForBlankMessage() throws Exception {
@@ -108,6 +112,7 @@ class AssistantControllerTest {
         verify(assistantService, never()).chat(anyString(), anyString());
     }
 
+    /** Verifies that request validation rejects a message over the size limit. */
     @Test
     @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
     void chatRejectedForOversizedMessage() throws Exception {
@@ -120,6 +125,7 @@ class AssistantControllerTest {
         verify(assistantService, never()).chat(anyString(), anyString());
     }
 
+    /** Verifies that assistant rate-limit exhaustion is mapped to HTTP 429. */
     @Test
     @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
     void rateLimitExhaustionMapsTo429() throws Exception {
