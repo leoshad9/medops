@@ -32,7 +32,7 @@
 		<owasp.dependency-check.version>13.0.0</owasp.dependency-check.version>
 		<checkstyle.version>10.21.4</checkstyle.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-		<lombok.version>1.18.40</lombok.version>
+		<lombok.version>1.18.48</lombok.version>
 	</properties>
 
 	<dependencyManagement>
