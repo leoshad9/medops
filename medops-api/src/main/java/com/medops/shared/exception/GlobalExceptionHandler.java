@@ -166,6 +166,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Maps assistant chat rate-limit exhaustion to 429 so clients back off instead
+     * of hammering the LLM-backed endpoint.
+     *
+     * @param ex the rate limit exception
+     * @return 429 Too Many Requests
+     */
+    @ExceptionHandler(com.medops.assistant.domain.AssistantRateLimitException.class)
+    public ResponseEntity<ErrorResponse> handleAssistantRateLimit(
+            com.medops.assistant.domain.AssistantRateLimitException ex) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, "RESOURCE_EXHAUSTED", ex.getMessage(), null);
+    }
+
+    /**
      * Maps SMTP delivery failures to 503 so clients can retry later. The reset
      * services clean up their Redis state before this exception propagates, so
      * no stale OTP/token is left behind.
