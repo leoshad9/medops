@@ -83,17 +83,17 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
   const displayMessages = initialMessage ? [initialMessage, ...messages] : messages;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex h-dvh w-full max-w-md flex-col overflow-hidden border-l border-brand-line bg-white shadow-xl animate-in slide-in-from-right">
-      <div className="flex items-center justify-between border-b border-brand-line p-4">
+    <div className="fixed inset-y-0 right-0 z-50 flex h-dvh w-full sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-md flex-col overflow-hidden border-l border-brand-line bg-white shadow-xl animate-in slide-in-from-right safe-top safe-bottom">
+      <div className="flex items-center justify-between border-b border-brand-line p-3 sm:p-4">
         <div className="flex items-center gap-2">
           <Bot className="h-5 w-5 text-brand-primary" />
-          <h2 className="text-sm font-bold text-brand-ink">MedOps AI Assistant</h2>
+          <h2 className="fluid-text-sm font-bold text-brand-ink truncate">MedOps AI Assistant</h2>
         </div>
         <button
           type="button"
           onClick={handleClose}
           disabled={isLoading}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-paper hover:text-brand-ink disabled:cursor-not-allowed"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-paper hover:text-brand-ink disabled:cursor-not-allowed touch-target"
           aria-label="Close chat"
         >
           <X className="h-4 w-4" />
@@ -102,7 +102,7 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
 
       <AIMessageList messages={displayMessages} onQuickAction={handleQuickAction} />
 
-      <div className="border-t border-brand-line p-3">
+      <div className="border-t border-brand-line p-2 sm:p-3">
         <AIChatInput
           value={inputValue}
           onChange={setInputValue}
@@ -111,8 +111,8 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
         />
       </div>
 
-      <div className="px-3 pb-2 pt-1">
-        <p className="text-center text-xs text-brand-muted">AI assistant • Not medical advice</p>
+      <div className="px-2 sm:px-3 pb-1 sm:pb-2 pt-1">
+        <p className="text-center fluid-text-xs text-brand-muted">AI assistant • Not medical advice</p>
       </div>
     </div>
   );
