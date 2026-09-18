@@ -1,4 +1,9 @@
 import { Helmet } from 'react-helmet-async';
+import {
+  ORGANIZATION_SCHEMA,
+  WEBSITE_SCHEMA,
+  SOFTWARE_APPLICATION_SCHEMA,
+} from './schemas';
 
 interface SEOProps {
   title: string;
@@ -16,6 +21,12 @@ const DEFAULT_OG_IMAGE = 'https://medops.ai/og-image.png';
 const DEFAULT_TWITTER_CARD = 'summary_large_image';
 const SITE_NAME = 'MedOps';
 const BASE_URL = 'https://medops.ai';
+
+export {
+  ORGANIZATION_SCHEMA,
+  WEBSITE_SCHEMA,
+  SOFTWARE_APPLICATION_SCHEMA,
+};
 
 export function SEO({
   title,
@@ -57,51 +68,3 @@ export function SEO({
     </Helmet>
   );
 }
-
-export const ORGANIZATION_SCHEMA = {
-  '@context': 'https://schema.org',
-  '@type': 'Organization',
-  name: 'MedOps',
-  url: 'https://medops.ai',
-  logo: 'https://medops.ai/logo.png',
-  sameAs: [
-    'https://twitter.com/medops',
-    'https://linkedin.com/company/medops',
-  ],
-  contactPoint: {
-    '@type': 'ContactPoint',
-    telephone: '+1-800-MED-OPS1',
-    contactType: 'customer service',
-    availableLanguage: 'English',
-  },
-};
-
-export const WEBSITE_SCHEMA = {
-  '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  name: 'MedOps',
-  url: 'https://medops.ai',
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: {
-      '@type': 'EntryPoint',
-      urlTemplate: 'https://medops.ai/search?q={search_term_string}',
-    },
-    'query-input': 'required name=search_term_string',
-  },
-};
-
-export const SOFTWARE_APPLICATION_SCHEMA = {
-  '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'MedOps',
-  applicationCategory: 'MedicalApplication',
-  operatingSystem: 'Cloud',
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'USD',
-    availability: 'https://schema.org/InStock',
-  },
-  description: 'AI-powered medical operations platform for healthcare professionals.',
-};
