@@ -33,9 +33,9 @@ export function DoctorLayout() {
   }, []);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-brand-paper font-brand-sans text-brand-ink">
+    <div className="flex min-h-dvh bg-brand-paper font-brand-sans text-brand-ink">
       <DoctorSidebar />
-      <main className="min-h-0 flex-1 overflow-y-auto space-y-6 p-8">
+      <main className="min-h-0 flex-1 overflow-y-auto space-y-6 p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12 max-w-full w-full lg:max-w-7xl xl:max-w-6xl mx-auto container-main safe-top safe-bottom">
         <DoctorHeader
           profile={profile ?? mockDoctorDashboard.profile}
           unreadAlertsCount={unreadCount}

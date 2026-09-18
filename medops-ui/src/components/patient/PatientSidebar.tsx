@@ -54,12 +54,12 @@ export function PatientSidebar({ mobileOpen = false, onCloseMobile }: Readonly<P
           type="button"
           aria-label="Close menu overlay"
           onClick={onCloseMobile}
-          className="fixed inset-0 z-40 bg-brand-ink/40 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-40 bg-brand-ink/40 backdrop-blur-xs lg:hidden xl:hidden"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans transition-transform duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans transition-transform duration-200 lg:static lg:translate-x-0 xl:w-72 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -75,7 +75,7 @@ export function PatientSidebar({ mobileOpen = false, onCloseMobile }: Readonly<P
             <button
               type="button"
               onClick={onCloseMobile}
-              className="p-1 text-brand-muted hover:text-brand-ink lg:hidden"
+              className="p-1 text-brand-muted hover:text-brand-ink lg:hidden xl:hidden"
               aria-label="Close menu"
             >
               <X className="h-5 w-5" />
@@ -83,14 +83,14 @@ export function PatientSidebar({ mobileOpen = false, onCloseMobile }: Readonly<P
           )}
         </div>
 
-        <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto">
+        <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto scrollbar-thin">
           {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
             <NavLink
               key={id}
               to={PATIENT_PATHS[id]}
               onClick={onCloseMobile}
               className={({ isActive }) =>
-                `relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition cursor-pointer ${
+                `relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition cursor-pointer touch-target ${
                   isActive
                     ? "bg-brand-primary-tint text-brand-primary-dark font-semibold shadow-2xs before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-brand-primary"
                     : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
@@ -104,7 +104,7 @@ export function PatientSidebar({ mobileOpen = false, onCloseMobile }: Readonly<P
                       isActive ? "opacity-100 text-brand-primary" : "opacity-75"
                     }`}
                   />
-                  {label}
+                  <span className="truncate">{label}</span>
                 </>
               )}
             </NavLink>
@@ -115,10 +115,10 @@ export function PatientSidebar({ mobileOpen = false, onCloseMobile }: Readonly<P
           <button
             type="button"
             onClick={() => void logout()}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-700 transition cursor-pointer"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-700 transition cursor-pointer touch-target"
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            Sign Out
+            <span className="truncate">Sign Out</span>
           </button>
         </div>
       </aside>

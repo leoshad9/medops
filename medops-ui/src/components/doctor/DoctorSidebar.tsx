@@ -25,7 +25,7 @@ export function DoctorSidebar() {
   const { logout } = useAuth();
 
   return (
-    <aside className="flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans">
+    <aside className="flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans lg:w-72">
       <div className="flex items-center gap-2 border-b border-brand-line px-2 pb-6">
         <MedOpsLogo className="h-10 w-10 text-brand-primary" />
         <div>
@@ -34,14 +34,14 @@ export function DoctorSidebar() {
         </div>
       </div>
 
-      <nav className="mt-4 min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+      <nav className="mt-4 min-h-0 flex-1 space-y-0.5 overflow-y-auto scrollbar-thin">
         {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
           <NavLink
             key={label}
             to={DOCTOR_PATHS[id]}
             end={id === "dashboard"}
             className={({ isActive }) =>
-              `flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              `flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition touch-target ${
                 isActive
                   ? "bg-brand-primary-tint text-brand-primary-dark"
                   : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
@@ -49,7 +49,7 @@ export function DoctorSidebar() {
             }
           >
             <Icon className="h-4 w-4 shrink-0" />
-            {label}
+            <span className="truncate">{label}</span>
           </NavLink>
         ))}
       </nav>
@@ -60,7 +60,7 @@ export function DoctorSidebar() {
           <p className="mt-1 text-xs leading-relaxed text-brand-muted">
             Need immediate hospital IT, pharmacy liaison, or on-call staff coordination?
           </p>
-          <span className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-primary py-2 text-xs font-semibold text-brand-primary-dark">
+          <span className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-primary py-2 text-xs font-semibold text-brand-primary-dark touch-target-sm">
             <Headset className="h-3.5 w-3.5" />
             Page Clinical Ops
           </span>
@@ -68,10 +68,10 @@ export function DoctorSidebar() {
         <button
           type="button"
           onClick={() => void logout()}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-700 transition"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-700 transition touch-target"
         >
           <LogOut className="h-4 w-4 shrink-0" />
-          Sign Out
+          <span className="truncate">Sign Out</span>
         </button>
       </div>
     </aside>

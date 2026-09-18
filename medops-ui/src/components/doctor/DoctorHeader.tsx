@@ -28,26 +28,26 @@ export function DoctorHeader({
   const sub = subtitle ?? `Clinical Command Center · ${profile.specialty} Division`;
 
   return (
-    <div className="relative flex flex-col justify-between gap-4 border-b border-brand-line pb-6 sm:flex-row sm:items-center">
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+    <div className="relative flex flex-col gap-4 border-b border-brand-line pb-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 fluid-text-xs font-semibold text-emerald-700 whitespace-nowrap">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {"Duty Active"}
           </span>
-          <span className="inline-flex items-center gap-1 text-xs text-brand-muted">
-            <Stethoscope className="h-3.5 w-3.5" />
+          <span className="inline-flex items-center gap-1 fluid-text-xs text-brand-muted whitespace-nowrap">
+            <Stethoscope className="h-3.5 w-3.5 shrink-0" />
             {profile.specialty}
           </span>
         </div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-brand-ink">{heading}</h1>
-        <p className="mt-0.5 text-sm text-brand-muted">{sub}</p>
+        <h1 className="mt-1 fluid-text-xl lg:fluid-text-2xl font-bold tracking-tight text-brand-ink truncate">{heading}</h1>
+        <p className="mt-0.5 fluid-text-sm text-brand-muted truncate">{sub}</p>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <button
           type="button"
-          className="relative grid h-10 w-10 place-items-center rounded-lg border border-brand-line bg-white text-brand-muted transition hover:text-brand-ink"
+          className="relative grid h-10 w-10 place-items-center rounded-lg border border-brand-line bg-white text-brand-muted transition hover:text-brand-ink touch-target"
           aria-label="Clinical Alerts"
         >
           <Bell className="h-4 w-4" />
@@ -56,16 +56,16 @@ export function DoctorHeader({
           )}
         </button>
 
-        <div className="flex items-center gap-3 rounded-lg border border-brand-line bg-white p-1.5 pr-4 shadow-xs">
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-primary text-sm font-bold text-white">
+        <div className="flex items-center gap-2 sm:gap-3 rounded-lg border border-brand-line bg-white p-1.5 pr-3 shadow-xs shrink-0">
+          <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-primary text-sm font-bold text-white shrink-0">
             {initialsOf(profile.name)}
           </div>
-          <div className="text-left">
+          <div className="text-left hidden sm:block min-w-0">
             <div className="flex items-center gap-1">
-              <p className="text-sm font-semibold text-brand-ink">{profile.name}</p>
-              <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+              <p className="fluid-text-sm font-semibold text-brand-ink truncate">{profile.name}</p>
+              <ShieldCheck className="h-3.5 w-3.5 text-blue-600 shrink-0" />
             </div>
-            <p className="font-brand-mono text-xs text-brand-muted">License: {profile.licenseNumber}</p>
+            <p className="font-brand-mono fluid-text-xs text-brand-muted truncate">License: {profile.licenseNumber}</p>
           </div>
         </div>
       </div>

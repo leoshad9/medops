@@ -77,10 +77,13 @@ export function PatientLayout() {
   const firstName = resolvedProfile.name.split(" ")[0] ?? "there";
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-brand-paper font-brand-sans text-brand-ink">
+    <div className="flex min-h-dvh bg-brand-paper font-brand-sans text-brand-ink">
       <PatientSidebar mobileOpen={mobileSidebarOpen} onCloseMobile={() => setMobileSidebarOpen(false)} />
 
-      <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto space-y-6 p-4 sm:p-8 max-w-7xl w-full">
+      <main
+        ref={mainRef}
+        className="min-h-0 flex-1 overflow-y-auto space-y-6 p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12 max-w-full w-full lg:max-w-7xl xl:max-w-6xl mx-auto container-main safe-top safe-bottom"
+      >
         <PatientHeader
           profile={resolvedProfile}
           unreadNotificationCount={unreadCount}
@@ -107,9 +110,9 @@ export function PatientLayout() {
             }
           />
         </div>
-       </main>
+      </main>
 
-      <MedOpsAIFloatingButton onClick={() => setAiChatOpen(true)} />
+      <MedOpsAIFloatingButton onClick={() => setAiChatOpen(true)} className="lg:hidden" />
       <MedOpsAIChatPanel
         isOpen={aiChatOpen}
         onClose={() => setAiChatOpen(false)}
