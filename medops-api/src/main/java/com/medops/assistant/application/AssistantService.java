@@ -48,7 +48,8 @@ public class AssistantService {
 
         // Fail-closed: RateLimiterStore implementations throw
         // ServiceUnavailableException when the backing store is unreachable.
-        if (!rateLimiterStore.tryAcquire(RATE_LIMIT_KEY_PREFIX + user.getId(), MAX_CHATS_PER_WINDOW, RATE_LIMIT_WINDOW)) {
+        if (!rateLimiterStore.tryAcquire(RATE_LIMIT_KEY_PREFIX + user.getId(),
+                MAX_CHATS_PER_WINDOW, RATE_LIMIT_WINDOW)) {
             throw new AssistantRateLimitException();
         }
 
