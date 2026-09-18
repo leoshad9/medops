@@ -77,7 +77,7 @@ export function Register() {
               </button>
             </div>
 
-{role === "PATIENT" ? (
+            {role === "PATIENT" ? (
               <RegisterPatientForm
                 isLoading={isLoading}
                 errorMessage={errorMessage}

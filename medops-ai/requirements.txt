@@ -5,12 +5,6 @@ uvicorn[standard]>=0.53.0,<1
 pydantic>=2.13.5,<3
 pydantic-settings>=2.15.0,<3
 httpx>=0.28.1,<1
-# starlette 1.6 testclient deprecates plain httpx in favour of httpx2;
-# installing it eliminates the corresponding DeprecationWarning at test time.
-httpx2>=2.0.0,<3
-# anyio 4.15 deprecated anyio.abc.BlockingPortal, which starlette 1.6 still
-# imports at module load. Pin to the 4.14 line to avoid that upstream warning.
-anyio>=4.14.0,<4.15
 pypdf>=6.18.1,<7
 pytest>=9.1.1,<10
 pytest-asyncio>=1.4.0,<2

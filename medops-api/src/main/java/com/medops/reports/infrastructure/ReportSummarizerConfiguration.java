@@ -162,7 +162,7 @@ public class ReportSummarizerConfiguration {
                 return new ReportSummary(response.summary().trim());
             } catch (RestClientResponseException ex) {
                 String detail = ex.getResponseBodyAsString();
-                String lower = detail == null ? "" : detail.toLowerCase();
+                String lower = detail.toLowerCase();
                 String message = "AI summarizer unavailable";
                 if (lower.contains("credit") || lower.contains("billing") || lower.contains("quota")) {
                     message = "OpenAI account has no credits remaining. Add billing credits, then try again.";
