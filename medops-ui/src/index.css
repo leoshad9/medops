@@ -17,6 +17,142 @@
   --color-brand-muted: #5c6f6c;
   --font-brand-sans: "IBM Plex Sans", system-ui, sans-serif;
   --font-brand-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Responsive breakpoints - mobile-first */
+  --breakpoint-xs: 320px;
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  --breakpoint-3xl: 1920px;
+
+  /* Container queries */
+  --container-xs: 320px;
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+}
+
+/* Fluid typography scale */
+@utility fluid-text-xs {
+  font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+}
+@utility fluid-text-sm {
+  font-size: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+}
+@utility fluid-text-base {
+  font-size: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+}
+@utility fluid-text-lg {
+  font-size: clamp(1.125rem, 1rem + 0.6vw, 1.25rem);
+}
+@utility fluid-text-xl {
+  font-size: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+}
+@utility fluid-text-2xl {
+  font-size: clamp(1.5rem, 1.25rem + 1.25vw, 2rem);
+}
+@utility fluid-text-3xl {
+  font-size: clamp(1.875rem, 1.5rem + 1.875vw, 2.5rem);
+}
+@utility fluid-text-4xl {
+  font-size: clamp(2.25rem, 1.75rem + 2.5vw, 3.5rem);
+}
+
+/* Responsive spacing */
+@utility fluid-space-xs {
+  padding: clamp(0.5rem, 0.4rem + 0.5vw, 1rem);
+}
+@utility fluid-space-sm {
+  padding: clamp(0.75rem, 0.6rem + 0.75vw, 1.5rem);
+}
+@utility fluid-space-md {
+  padding: clamp(1rem, 0.8rem + 1vw, 2rem);
+}
+@utility fluid-space-lg {
+  padding: clamp(1.5rem, 1.1rem + 2vw, 3rem);
+}
+@utility fluid-space-xl {
+  padding: clamp(2rem, 1.5rem + 2.5vw, 4rem);
+}
+
+/* Touch-friendly targets */
+@utility touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+@utility touch-target-sm {
+  min-height: 36px;
+  min-width: 36px;
+}
+
+/* Focus visible for accessibility */
+@utility focus-visible-ring {
+  @media (prefers-reduced-motion: no-preference) {
+    &:focus-visible {
+      outline: 2px solid var(--color-brand-primary);
+      outline-offset: 2px;
+    }
+  }
+}
+
+/* Scrollbar styling */
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-brand-line) transparent;
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-brand-line);
+    border-radius: 3px;
+  }
+}
+
+/* Container queries for component-level responsiveness */
+@utility container-main {
+  container-type: inline-size;
+  container-name: main;
+}
+@utility container-sidebar {
+  container-type: inline-size;
+  container-name: sidebar;
+}
+@utility container-card {
+  container-type: inline-size;
+  container-name: card;
+}
+
+/* Responsive grid utilities */
+@utility grid-auto-fit-sm {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+@utility grid-auto-fit-md {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+}
+@utility grid-auto-fit-lg {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+}
+
+/* Safe area insets for notched devices */
+@utility safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@utility safe-left {
+  padding-left: env(safe-area-inset-left);
+}
+@utility safe-right {
+  padding-right: env(safe-area-inset-right);
 }
 
 @keyframes draw {
