@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://medops.ai/sitemap.xml
+
+Disallow: /api/
+Disallow: /private/
+Disallow: /admin/
