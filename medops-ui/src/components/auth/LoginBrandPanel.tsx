@@ -20,9 +20,9 @@ const features = [
   },
 ];
 
-export function LoginBrandPanel() {
+export function LoginBrandPanel({ className = '' }) {
   return (
-    <div className="relative hidden flex-1 flex-col justify-center overflow-hidden px-16 py-12 text-white lg:flex">
+    <div className={`relative hidden flex-1 flex-col justify-center overflow-hidden px-8 sm:px-10 md:px-12 lg:px-14 xl:px-16 py-10 sm:py-12 lg:flex ${className}`}>
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${hospitalBg})` }}
@@ -33,33 +33,33 @@ export function LoginBrandPanel() {
       <div className="relative flex items-center gap-3">
         <MedOpsLogo className="h-10 w-10 shrink-0 text-white" />
         <div>
-          <span className="text-2xl font-bold tracking-tight">MEDOPS</span>
-          <p className="text-sm text-brand-primary-tint/90">Healthcare Management System</p>
+          <span className="text-xl sm:text-2xl font-bold tracking-tight">MEDOPS</span>
+          <p className="text-xs sm:text-sm text-brand-primary-tint/90">Healthcare Management System</p>
         </div>
       </div>
 
-      <div className="relative mt-10 h-1 w-12 rounded-full bg-brand-primary-tint" />
+      <div className="relative mt-6 sm:mt-10 h-1 w-10 sm:w-12 rounded-full bg-brand-primary-tint" />
 
-      <h1 className="relative mt-6 text-4xl leading-tight font-bold">
+      <h1 className="relative mt-4 sm:mt-6 text-2xl sm:text-3xl lg:text-4xl leading-tight font-bold">
         Simplifying Healthcare,
         <br />
         Empowering Better Care
       </h1>
 
-      <p className="relative mt-4 max-w-md text-brand-primary-tint/95">
+      <p className="relative mt-3 sm:mt-4 max-w-md text-sm sm:text-base text-brand-primary-tint/95">
         MedOps helps hospitals and clinics manage patients, appointments,
         doctors, and records efficiently in one secure platform.
       </p>
 
-      <div className="relative mt-12 space-y-6">
+      <div className="relative mt-8 sm:mt-12 space-y-5 sm:space-y-6">
         {features.map(({ icon: Icon, title, description }) => (
-          <div key={title} className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20">
+          <div key={title} className="flex items-start gap-3 sm:gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20">
               <Icon className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-semibold">{title}</p>
-              <p className="text-sm text-brand-primary-tint/85">{description}</p>
+              <p className="font-semibold text-sm sm:text-base">{title}</p>
+              <p className="text-xs sm:text-sm text-brand-primary-tint/85">{description}</p>
             </div>
           </div>
         ))}
