@@ -118,7 +118,7 @@ export function PatientLayout() {
         </div>
       </main>
 
-      <MedOpsAIFloatingButton onClick={() => setAiChatOpen(true)} className="lg:hidden" />
+      <MedOpsAIFloatingButton onClick={() => setAiChatOpen(true)} />
       <MedOpsAIChatPanel
         isOpen={aiChatOpen}
         onClose={() => setAiChatOpen(false)}
