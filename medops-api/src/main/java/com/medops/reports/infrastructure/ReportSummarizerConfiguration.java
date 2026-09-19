@@ -1,6 +1,7 @@
 package com.medops.reports.infrastructure;
 
 import java.io.IOException;
+import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.Base64;
@@ -14,13 +15,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
-import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -132,10 +132,14 @@ public class ReportSummarizerConfiguration {
         private final RestClient restClient;
 
         FastApiReportSummarizer(AiClientProperties properties) {
-            ClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.detect()
-                    .build(ClientHttpRequestFactorySettings.defaults()
-                            .withConnectTimeout(Duration.ofSeconds(5))
-                            .withReadTimeout(Duration.ofSeconds(20)));
+            // Same uvicorn/h2c constraint as AssistantClientConfiguration: pin HTTP/1.1
+            // so the JDK HttpClient never attempts an upgrade the sidecar rejects.
+            HttpClient httpClient = HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+            JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+            factory.setReadTimeout(Duration.ofSeconds(20));
             this.restClient = RestClient.builder()
                     .baseUrl(properties.serviceBaseUrl())
                     .requestFactory(factory)

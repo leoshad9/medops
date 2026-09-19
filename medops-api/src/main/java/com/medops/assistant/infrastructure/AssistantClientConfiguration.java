@@ -1,12 +1,11 @@
 package com.medops.assistant.infrastructure;
 
+import java.net.http.HttpClient;
 import java.time.Duration;
 
-import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
-import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -84,10 +83,16 @@ public class AssistantClientConfiguration {
          * @param properties AI service connection settings
          */
         HttpAssistantClient(AiClientProperties properties) {
-            ClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.detect()
-                    .build(ClientHttpRequestFactorySettings.defaults()
-                            .withConnectTimeout(Duration.ofSeconds(5))
-                            .withReadTimeout(CHAT_TIMEOUT));
+            // The AI sidecar runs uvicorn, which rejects the h2c upgrade request the
+            // JDK HttpClient sends by default on plaintext HTTP ("Unsupported upgrade
+            // request", after which the body is mis-parsed and FastAPI answers 422).
+            // Pin HTTP/1.1 on the client itself so no upgrade is ever attempted.
+            HttpClient httpClient = HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+            JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+            factory.setReadTimeout(CHAT_TIMEOUT);
             this.restClient = RestClient.builder()
                     .baseUrl(properties.serviceBaseUrl())
                     .requestFactory(factory)
