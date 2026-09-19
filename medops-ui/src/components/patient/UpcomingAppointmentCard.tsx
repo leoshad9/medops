@@ -16,7 +16,7 @@ export function UpcomingAppointmentCard({ appointment }: Readonly<UpcomingAppoin
         <p className="mt-4 text-sm text-brand-muted">No upcoming visit. Book a slot when you are ready.</p>
         <Link
           to={PATIENT_PATHS.book}
-          className="mt-4 inline-flex rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white hover:bg-brand-primary-dark"
+          className="mt-4 inline-flex rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-2xs transition duration-150 hover:-translate-y-px hover:bg-brand-primary-dark hover:shadow-sm active:translate-y-0 focus-visible-ring"
         >
           Book Appointment
         </Link>
@@ -37,9 +37,10 @@ export function UpcomingAppointmentCard({ appointment }: Readonly<UpcomingAppoin
         </Link>
       </div>
 
+      {/* Soft pastel date badge so it doesn't overpower the doctor details. */}
       <div className="relative mt-4 flex flex-col sm:flex-row gap-5">
-        <div className="flex w-24 shrink-0 flex-col items-center justify-center rounded-xl bg-brand-primary py-3.5 text-center text-white shadow-2xs">
-          <span className="font-brand-mono text-2xl leading-none font-semibold">{appointment.day}</span>
+        <div className="flex w-20 shrink-0 flex-col items-center justify-center rounded-xl border border-brand-primary/20 bg-brand-primary-tint py-3 text-center text-brand-primary-dark shadow-2xs">
+          <span className="font-brand-mono text-xl leading-none font-bold">{appointment.day}</span>
           <span className="mt-1 text-[11px] font-semibold tracking-wide">{appointment.month}</span>
           <span className="mt-0.5 text-[10px] opacity-80">{appointment.weekday}</span>
         </div>
@@ -66,13 +67,13 @@ export function UpcomingAppointmentCard({ appointment }: Readonly<UpcomingAppoin
           <div className="mt-4 flex flex-wrap gap-2.5">
             <Link
               to={PATIENT_PATHS.appointments}
-              className="rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-primary-dark cursor-pointer shadow-2xs"
+              className="rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-2xs transition duration-150 hover:-translate-y-px hover:bg-brand-primary-dark hover:shadow-sm active:translate-y-0 cursor-pointer focus-visible-ring"
             >
               View Details
             </Link>
             <Link
               to={PATIENT_PATHS.appointments}
-              className="rounded-lg border border-brand-primary bg-white px-4 py-2 text-xs font-semibold text-brand-primary-dark transition hover:bg-brand-primary-tint cursor-pointer"
+              className="rounded-lg border border-brand-primary bg-white px-4 py-2 text-xs font-semibold text-brand-primary-dark transition duration-150 hover:-translate-y-px hover:bg-brand-primary-tint hover:shadow-sm active:translate-y-0 cursor-pointer focus-visible-ring"
             >
               Reschedule / Cancel
             </Link>

@@ -34,14 +34,14 @@ export function PatientHeader({
   const displaySubtitle = subtitle ?? "Here's your health overview and upcoming appointments.";
 
   return (
-    <header className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 pb-4">
+    <header className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 border-b border-brand-line pb-4 sm:pb-5">
       <div className="relative">
         <div className="flex items-center gap-2 sm:gap-3">
           {onOpenMobileMenu && (
             <button
               type="button"
               onClick={onOpenMobileMenu}
-              className="grid h-9 w-9 place-items-center rounded-lg border border-brand-line bg-white text-brand-muted transition hover:text-brand-ink lg:hidden cursor-pointer touch-target"
+              className="grid h-9 w-9 place-items-center rounded-lg border border-brand-line bg-white text-brand-muted transition hover:text-brand-ink lg:hidden cursor-pointer touch-target focus-visible-ring"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" />
@@ -56,27 +56,13 @@ export function PatientHeader({
             </p>
           </div>
         </div>
-
-        {/* ECG pulse line animation matching wireframe */}
-        <div className="mt-2 w-full max-w-56 sm:w-56 h-4 text-brand-primary opacity-60">
-          <svg viewBox="0 0 220 20" fill="none" aria-hidden="true" className="w-full h-full">
-            <path
-              d="M0 10 H70 L80 2 L92 18 L102 6 L110 10 H220"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="pulseline-path"
-            />
-          </svg>
-        </div>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <button
           type="button"
           onClick={onViewNotifications}
-          className="relative grid h-9 w-9 place-items-center rounded-lg border border-brand-line bg-white text-brand-muted transition hover:text-brand-ink hover:border-brand-primary cursor-pointer touch-target"
+          className="relative grid h-9 w-9 place-items-center rounded-lg border border-brand-line bg-white text-brand-muted transition hover:text-brand-ink hover:border-brand-primary cursor-pointer touch-target focus-visible-ring"
           aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />

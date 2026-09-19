@@ -10,8 +10,8 @@ interface NotificationsPanelProps {
   onMarkRead?: (notificationId: string) => void;
 }
 
-// Icon chips alternate teal/amber by position, matching the stat cards above.
-const CHIP_STYLES = ["bg-brand-primary-tint text-brand-primary-dark", "bg-brand-amber-tint text-brand-amber"];
+// Icon chips share the teal palette used by the stat cards and quick actions.
+const CHIP_TEAL = "bg-brand-primary-tint text-brand-primary-dark";
 
 export function NotificationsPanel({
   notifications,
@@ -38,7 +38,7 @@ export function NotificationsPanel({
         ) : notifications.length === 0 ? (
           <p className="py-4 text-sm text-brand-muted">No recent activity yet.</p>
         ) : (
-          notifications.map((notification, index) => (
+          notifications.map((notification) => (
             <button
               key={notification.id}
               type="button"
@@ -47,7 +47,7 @@ export function NotificationsPanel({
               className="flex w-full cursor-pointer items-start gap-3 py-2.5 text-left first:pt-0 last:pb-0 disabled:cursor-default"
             >
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${CHIP_STYLES[index % CHIP_STYLES.length]}`}
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${CHIP_TEAL}`}
               >
                 <Bell className="h-3.5 w-3.5" />
               </span>

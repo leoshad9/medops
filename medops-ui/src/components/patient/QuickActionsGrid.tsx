@@ -18,27 +18,31 @@ const ACTIONS: QuickAction[] = [
   { id: "records", label: "Medical Records", description: "Access your documents", icon: Folder },
 ];
 
-const CHIP_STYLES = ["bg-brand-primary-tint text-brand-primary-dark", "bg-brand-amber-tint text-brand-amber"];
+// Shared teal badge style, matching the overview stat cards above.
+const ICON_BADGE =
+  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary-tint text-brand-primary-dark transition-transform group-hover:scale-105";
 
 export function QuickActionsGrid() {
   return (
     <div className="rounded-2xl border border-brand-line bg-white p-5 shadow-xs">
       <h2 className="font-bold text-brand-ink text-base">Quick Actions</h2>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {ACTIONS.map(({ id, label, description, icon: Icon }, index) => (
+      {/* Compact 2x2 tile grid so the card stays level with Upcoming Appointment. */}
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {ACTIONS.map(({ id, label, description, icon: Icon }) => (
           <Link
             key={label}
             to={PATIENT_PATHS[id]}
-            className="flex flex-col items-start gap-2 rounded-xl border border-brand-line p-4 text-left transition hover:border-brand-primary hover:bg-brand-primary-tint/60 cursor-pointer group"
+            title={label}
+            className="group flex items-center gap-3 rounded-xl border border-brand-line p-3 text-left transition duration-150 hover:-translate-y-0.5 hover:border-brand-primary hover:bg-brand-primary-tint/60 hover:shadow-sm cursor-pointer focus-visible-ring"
           >
-            <span
-              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-transform group-hover:scale-105 ${CHIP_STYLES[index % CHIP_STYLES.length]}`}
-            >
-              <Icon className="h-4 w-4" />
+            <span className={ICON_BADGE}>
+              <Icon className="h-5 w-5" />
             </span>
-            <p className="text-sm font-semibold text-brand-ink">{label}</p>
-            <p className="-mt-1 text-xs text-brand-muted">{description}</p>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-brand-ink">{label}</span>
+              <span className="block truncate text-xs text-brand-muted">{description}</span>
+            </span>
           </Link>
         ))}
       </div>

@@ -14,7 +14,8 @@
   --color-brand-success: #1f7a4d;
   --color-brand-success-tint: #e2f5ea;
   --color-brand-line: #dfe6e4;
-  --color-brand-muted: #5c6f6c;
+  /* Darkened from #5c6f6c so secondary text meets WCAG AA (>= 4.5:1) on white/paper. */
+  --color-brand-muted: #4c5f5c;
   --font-brand-sans: "IBM Plex Sans", system-ui, sans-serif;
   --font-brand-mono: "IBM Plex Mono", ui-monospace, monospace;
 
