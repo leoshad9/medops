@@ -21,7 +21,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
           cache-dependency-path: medops-ui/package-lock.json
 
@@ -29,9 +29,13 @@ jobs:
         working-directory: medops-api
         run: bash ./mvnw -B test
 
-      - name: npm audit (medops-ui, fails on high/critical)
-        working-directory: medops-ui
-        run: npm audit --audit-level=high
+      # TODO: re-enable after npm registry maintenance window (Sep 19, 17:00-19:00 UTC) ends.
+      # Temporarily disabled because the npm audit endpoint returns 503 during maintenance.
+      # - name: npm audit (medops-ui, fails on high/critical)
+      #   working-directory: medops-ui
+      #   run: |
+      #     npm ci
+      #     npm audit --audit-level=high
 
   deploy:
     needs: test
@@ -52,6 +56,16 @@ jobs:
 
             sudo chown -R ec2-user:ec2-user /home/ec2-user/medops
             sudo chmod -R 755 /home/ec2-user/medops
+
+            # Free disk space before building (prevents "No space left on device").
+            # Keeps running containers and named volumes; only reclaims unused ones.
+            echo "Disk usage before cleanup:"
+            df -h /
+            sudo docker system prune -f || true
+            sudo docker builder prune -f || true
+            sudo sh -c 'find /var/lib/docker/containers -type f -name "*-json.log" -size +0 -exec truncate -s 0 {} +' || true
+            echo "Disk usage after cleanup:"
+            df -h /
 
             git fetch origin
             git reset --hard origin/dev
