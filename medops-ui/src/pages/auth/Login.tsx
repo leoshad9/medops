@@ -38,7 +38,7 @@ export function Login() {
       <div className="flex min-h-screen">
         <LoginBrandPanel className="hidden lg:block xl:block" />
         <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-brand-primary-tint via-brand-paper to-brand-primary-tint/60 px-4 py-8 sm:px-6 sm:py-10 md:px-8 md:py-12 lg:px-10 lg:py-14 xl:px-12 xl:py-16 safe-top safe-bottom">
-          <div className="w-full max-w-md sm:max-w-lg">
+          <div className="w-full max-w-[480px]">
             <div className="lg:hidden text-center mb-8 px-4">
               <h1 className="fluid-text-2xl font-bold text-brand-primary-dark">MedOps</h1>
               <p className="fluid-text-sm text-brand-muted mt-1">Medical Operations Platform</p>

@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2, RotateCcw } from "lucide-react";
 import { resendOtp, verifyOtp } from "../../services/authService";
 import { messageFromApiError } from "../../lib/apiError";
+import { LoginBrandPanel } from "../../components/auth/LoginBrandPanel";
 
 /** Renders OTP verification and resend controls for a recovery flow. */
 export function VerifyOtp() {
@@ -97,9 +98,14 @@ export function VerifyOtp() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-brand-primary-tint via-brand-paper to-brand-primary-tint/60 px-4 py-8 sm:px-6 sm:py-12">
-        <div className="w-full max-w-md">
-          <div className="w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl shadow-brand-ink/10 sm:p-10">
+      <LoginBrandPanel className="hidden lg:block xl:block" />
+      <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-brand-primary-tint via-brand-paper to-brand-primary-tint/60 px-4 py-8 sm:px-6 sm:py-10 md:px-8 md:py-12 lg:px-10 lg:py-14 xl:px-12 xl:py-16 safe-top safe-bottom">
+        <div className="w-full max-w-[480px]">
+          <div className="lg:hidden text-center mb-8 px-4">
+            <h1 className="fluid-text-2xl font-bold text-brand-primary-dark">MedOps</h1>
+            <p className="fluid-text-sm text-brand-muted mt-1">Medical Operations Platform</p>
+          </div>
+          <div className="w-full max-w-[480px] rounded-2xl border border-brand-line bg-white p-6 shadow-2xl shadow-brand-ink/10 sm:p-10">
             <div className="flex flex-col items-center text-center">
               <h1 className="text-2xl font-bold text-brand-ink">Verify OTP</h1>
               <p className="mt-1 text-sm text-brand-muted">

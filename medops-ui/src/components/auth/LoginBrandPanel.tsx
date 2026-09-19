@@ -54,8 +54,8 @@ export function LoginBrandPanel({ className = '' }) {
       <div className="relative mt-8 sm:mt-12 space-y-5 sm:space-y-6">
         {features.map(({ icon: Icon, title, description }) => (
           <div key={title} className="flex items-start gap-3 sm:gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20">
-              <Icon className="h-5 w-5" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/[0.12]">
+              <Icon className="h-5 w-5 text-white" />
             </div>
             <div>
               <p className="font-semibold text-sm sm:text-base text-white">{title}</p>

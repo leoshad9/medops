@@ -21,7 +21,7 @@ export function LoginForm({ onSubmit, isLoading, errorMessage }: Readonly<LoginF
   }
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-brand-line bg-white p-6 shadow-2xl shadow-brand-ink/10 sm:p-10">
+    <div className="w-full max-w-[480px] rounded-2xl border border-brand-line bg-white p-6 shadow-2xl shadow-brand-ink/10 sm:p-10">
       <div className="flex flex-col items-center text-center">
         <h1 className="text-2xl font-bold text-brand-ink">Welcome</h1>
         <p className="mt-1 text-sm text-brand-muted">
