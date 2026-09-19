@@ -89,10 +89,11 @@ class NotificationEventConsumerTest {
                 .containsExactlyInAnyOrder(patientUserId, doctorUserId);
         assertThat(created).extracting(CreateNotification::title)
                 .containsExactlyInAnyOrder("Appointment confirmed", "New appointment");
-        assertThat(created).allMatch(n -> n.type() == NotificationType.APPOINTMENT_BOOKED);
-        assertThat(created).allMatch(n -> n.referenceType().equals("APPOINTMENT"));
-        assertThat(created).allMatch(n -> n.referenceId().equals(appointmentId));
-        assertThat(created).allMatch(n -> n.sourceEventId().equals(eventId));
+        assertThat(created)
+                .allMatch(n -> n.type() == NotificationType.APPOINTMENT_BOOKED)
+                .allMatch(n -> "APPOINTMENT".equals(n.referenceType()))
+                .allMatch(n -> n.referenceId().equals(appointmentId))
+                .allMatch(n -> n.sourceEventId().equals(eventId));
     }
 
     @Test
@@ -142,10 +143,11 @@ class NotificationEventConsumerTest {
         List<CreateNotification> created = captor.getAllValues();
         assertThat(created).extracting(CreateNotification::title)
                 .containsExactlyInAnyOrder("New report available", "Report uploaded");
-        assertThat(created).allMatch(n -> n.type() == NotificationType.REPORT_UPLOADED);
-        assertThat(created).allMatch(n -> n.referenceType().equals("REPORT"));
-        assertThat(created).allMatch(n -> n.referenceId().equals(reportId));
-        assertThat(created).allMatch(n -> n.sourceEventId().equals(eventId));
+        assertThat(created)
+                .allMatch(n -> n.type() == NotificationType.REPORT_UPLOADED)
+                .allMatch(n -> "REPORT".equals(n.referenceType()))
+                .allMatch(n -> n.referenceId().equals(reportId))
+                .allMatch(n -> n.sourceEventId().equals(eventId));
     }
 
     @Test
