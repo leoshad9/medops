@@ -33,14 +33,14 @@ export function LoginBrandPanel({ className = '' }) {
       <div className="relative flex items-center gap-3">
         <MedOpsLogo className="h-10 w-10 shrink-0 text-white" />
         <div>
-          <span className="text-xl sm:text-2xl font-bold tracking-tight">MEDOPS</span>
+          <span className="text-xl sm:text-2xl font-bold tracking-tight text-white">MEDOPS</span>
           <p className="text-xs sm:text-sm text-brand-primary-tint/90">Healthcare Management System</p>
         </div>
       </div>
 
       <div className="relative mt-6 sm:mt-10 h-1 w-10 sm:w-12 rounded-full bg-brand-primary-tint" />
 
-      <h1 className="relative mt-4 sm:mt-6 text-2xl sm:text-3xl lg:text-4xl leading-tight font-bold">
+      <h1 className="relative mt-4 sm:mt-6 text-2xl sm:text-3xl lg:text-4xl leading-tight font-bold text-white">
         Simplifying Healthcare,
         <br />
         Empowering Better Care
@@ -58,7 +58,7 @@ export function LoginBrandPanel({ className = '' }) {
               <Icon className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-semibold text-sm sm:text-base">{title}</p>
+              <p className="font-semibold text-sm sm:text-base text-white">{title}</p>
               <p className="text-xs sm:text-sm text-brand-primary-tint/85">{description}</p>
             </div>
           </div>
