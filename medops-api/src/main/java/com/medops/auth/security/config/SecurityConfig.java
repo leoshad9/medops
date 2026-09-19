@@ -15,9 +15,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 import com.medops.auth.security.handlers.RestAccessDeniedHandler;
@@ -71,6 +71,9 @@ public class SecurityConfig {
         return new ProviderManager(authenticationProvider);
     }
 
+    // Kept for CsrfController (/api/auth/csrf), which the UI still calls during bootstrap.
+    // With CSRF protection disabled below this endpoint is inert, but removing it would
+    // break the UI's startup sequence.
     @Bean
     public CookieCsrfTokenRepository csrfTokenRepository() {
         CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
@@ -82,14 +85,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http, CookieCsrfTokenRepository csrfTokenRepository) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/auth/**")
-                        .csrfTokenRepository(csrfTokenRepository)
-                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
+                // CSRF protection is disabled: the API authenticates via HttpOnly JWT cookies
+                // that are scoped with SameSite=Strict, which blocks cross-site requests from
+                // carrying them. Re-enable (with CookieCsrfTokenRepository) if the cookie
+                // SameSite policy is ever relaxed.
+                .csrf(AbstractHttpConfigurer::disable)
                 .logout(logout -> logout.disable())
                 .headers(headers -> {
                     headers.contentTypeOptions(Customizer.withDefaults());
