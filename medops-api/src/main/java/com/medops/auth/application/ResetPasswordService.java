@@ -15,16 +15,13 @@ import com.medops.auth.domain.PasswordResetToken;
 import com.medops.auth.domain.User;
 import com.medops.auth.dto.passwordreset.ResetPasswordRequest;
 import com.medops.auth.dto.passwordreset.ResetPasswordResponse;
-import com.medops.auth.infrastructure.email.EmailSendingException;
-import com.medops.auth.infrastructure.email.EmailService;
-import com.medops.auth.infrastructure.email.MailDeliveryExecutor;
+import com.medops.auth.infrastructure.email.PasswordResetConfirmationSender;
 import com.medops.auth.infrastructure.repository.RefreshTokenRepository;
 import com.medops.auth.infrastructure.repository.UserRepository;
 import com.medops.auth.security.PasswordResetKeys;
 import com.medops.auth.security.codec.PasswordResetCodec;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
-import com.medops.shared.util.LogMasking;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,8 +44,7 @@ public class ResetPasswordService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
-    private final MailDeliveryExecutor mailDeliveryExecutor;
+    private final PasswordResetConfirmationSender passwordResetConfirmationSender;
     private final AuditService auditService;
     private final PasswordResetCodec codec;
 
@@ -103,23 +99,9 @@ public class ResetPasswordService {
         auditService.recordEventBestEffort(AuditEventType.PASSWORD_RESET_SUCCESS, user.getId(), user.getEmail());
         log.info("Password reset successful for user: {}", user.getId());
 
-        sendConfirmationEmail(user.getEmail());
+        // Fire-and-forget: the reset has committed, delivery runs on the mail pool via
+        // @Async and its failure handling is log-only.
+        passwordResetConfirmationSender.send(user.getEmail());
         return new ResetPasswordResponse("Password reset successfully. Please log in again.");
-    }
-
-    /**
-     * Sends the post-reset confirmation email off the request thread.
-     *
-     * @param email the recipient address (never logged in the clear)
-     */
-    private void sendConfirmationEmail(String email) {
-        mailDeliveryExecutor.execute(() -> {
-            try {
-                emailService.sendPasswordResetConfirmationEmail(email);
-            } catch (EmailSendingException e) {
-                log.error("Password reset succeeded for {} but the confirmation email could not be sent",
-                        LogMasking.maskEmail(email), e);
-            }
-        });
     }
 }

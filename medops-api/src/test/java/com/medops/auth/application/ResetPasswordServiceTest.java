@@ -20,7 +20,7 @@ import com.medops.auth.dto.passwordreset.ResetPasswordResponse;
 import com.medops.auth.domain.User;
 import com.medops.auth.domain.UserStatus;
 import com.medops.auth.infrastructure.email.EmailService;
-import com.medops.auth.infrastructure.email.MailDeliveryExecutor;
+import com.medops.auth.infrastructure.email.PasswordResetConfirmationSender;
 import com.medops.auth.infrastructure.repository.RefreshTokenRepository;
 import com.medops.auth.infrastructure.repository.UserRepository;
 import com.medops.auth.security.codec.PasswordResetCodec;
@@ -70,9 +70,11 @@ class ResetPasswordServiceTest {
     @BeforeEach
     void setUp() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        // The sender is exercised synchronously here (no Spring proxy in a unit test),
+        // so delegating email-service interactions remain directly verifiable.
         service = new ResetPasswordService(redisTemplate, objectMapper, userRepository,
-                refreshTokenRepository, passwordEncoder, emailService,
-                new MailDeliveryExecutor(Runnable::run), auditService, codec);
+                refreshTokenRepository, passwordEncoder,
+                new PasswordResetConfirmationSender(emailService), auditService, codec);
     }
 
     /** Verifies that reset password updates password revokes tokens audits and confirms by email. */
