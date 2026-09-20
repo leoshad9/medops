@@ -29,13 +29,11 @@ jobs:
         working-directory: medops-api
         run: bash ./mvnw -B test
 
-      # TODO: re-enable after npm registry maintenance window (Sep 19, 17:00-19:00 UTC) ends.
-      # Temporarily disabled because the npm audit endpoint returns 503 during maintenance.
-      # - name: npm audit (medops-ui, fails on high/critical)
-      #   working-directory: medops-ui
-      #   run: |
-      #     npm ci
-      #     npm audit --audit-level=high
+      - name: npm audit (medops-ui, fails on high/critical)
+        working-directory: medops-ui
+        run: |
+          npm ci
+          npm audit --audit-level=high
 
   deploy:
     needs: test
