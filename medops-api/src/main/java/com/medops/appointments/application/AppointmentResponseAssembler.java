@@ -28,6 +28,8 @@ public class AppointmentResponseAssembler {
                 appointment,
                 patient.getFullName(),
                 patient.getMrn(),
+                patient.getDateOfBirth(),
+                patient.getGender(),
                 doctor.getFullName(),
                 doctor.getSpecialty());
     }

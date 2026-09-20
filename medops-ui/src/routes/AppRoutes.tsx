@@ -30,7 +30,14 @@ import { ProtectedRoute } from "./ProtectedRoute";
 
 /** Defines the public, authenticated, and password-recovery routes. */
 export function AppRoutes() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
+
+  // While the session is still resolving, render nothing. Without this gate the
+  // login page flashes briefly before an authenticated redirect completes.
+  if (isLoading) {
+    return null;
+  }
+
   const homePath = isAuthenticated && user ? roleDashboardPath(user.role) : "/login";
 
   return (

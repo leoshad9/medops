@@ -1,4 +1,11 @@
-const CLINIC_ZONE = "Asia/Kolkata";
+/**
+ * IANA zone used for all clinical date presentation and "today" bucketing.
+ * Configurable per deployment via VITE_CLINIC_TIMEZONE so clinicians in other
+ * regions do not see hardcoded IST times; defaults to the original clinic zone.
+ */
+const CLINIC_ZONE = import.meta.env.VITE_CLINIC_TIMEZONE || "Asia/Kolkata";
+
+export const CLINIC_TIMEZONE = CLINIC_ZONE;
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-IN", {
   timeZone: CLINIC_ZONE,
@@ -56,6 +63,49 @@ export function displayGender(value: string): string {
     return value;
   }
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+/**
+ * Whole-year age computed from an ISO date-of-birth ("yyyy-MM-dd") against a
+ * clinic "today" (defaults to the clinic zone's today). Returns null when the
+ * DOB is absent or malformed so callers can render "Not recorded" instead of a
+ * misleading zero.
+ */
+export function calcAge(
+  dateOfBirth: string | null | undefined,
+  todayYmd: string = clinicTodayYmd(),
+): number | null {
+  if (!dateOfBirth || !ISO_YMD.test(dateOfBirth) || !ISO_YMD.test(todayYmd)) {
+    return null;
+  }
+  const [birthY, birthM, birthD] = dateOfBirth.split("-").map(Number);
+  const [todayY, todayM, todayD] = todayYmd.split("-").map(Number);
+  if (!birthY || birthM < 1 || birthM > 12 || birthD < 1 || birthD > 31) {
+    return null;
+  }
+  let age = todayY - birthY;
+  if (todayM < birthM || (todayM === birthM && todayD < birthD)) {
+    age -= 1;
+  }
+  return age >= 0 && age < 130 ? age : null;
+}
+
+/**
+ * Renders the demographics cell value ("41 yrs · Female"). Missing data is
+ * surfaced explicitly rather than as a default-looking "0 yrs · —".
+ */
+export function formatDemographics(
+  age: number | null,
+  gender: string | null | undefined,
+): string {
+  if (age === null && !gender) {
+    return "Not recorded";
+  }
+  const parts = [age === null ? "Age not recorded" : `${age} yrs`];
+  if (gender) {
+    parts.push(displayGender(gender));
+  }
+  return parts.join(" · ");
 }
 
 const upcomingParts = new Intl.DateTimeFormat("en-GB", {

@@ -19,6 +19,8 @@ export interface AppointmentDto {
   doctorId: string;
   patientName: string;
   patientMrn: string;
+  patientDateOfBirth: string | null;
+  patientGender: string | null;
   doctorName: string;
   specialty: string;
   startsAt: string;

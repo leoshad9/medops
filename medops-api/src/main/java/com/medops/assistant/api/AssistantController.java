@@ -29,14 +29,16 @@ public class AssistantController {
      * Forwards an authenticated user's chat message to the AI assistant.
      *
      * <p>The user's identity is derived from the authenticated principal only;
-     * no user/patient/doctor identifiers are accepted from the client.
+     * no user/patient/doctor identifiers are accepted from the client. The optional
+     * browser time zone is used solely to render the caller's own appointment times.
      */
     @PostMapping("/assistant/chat")
     @PreAuthorize("hasAnyRole('PATIENT','DOCTOR')")
     public ResponseEntity<ApiResponse<AssistantChatResponse>> chat(
             Authentication authentication,
             @Valid @RequestBody AssistantChatRequest request) {
-        AssistantChatResponse response = assistantService.chat(authentication.getName(), request.message());
+        AssistantChatResponse response =
+                assistantService.chat(authentication.getName(), request.message(), request.timeZone());
         return ResponseEntity.ok(ApiResponse.success(response, "Assistant reply"));
     }
 }

@@ -1,6 +1,9 @@
 package com.medops.assistant.api;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -66,7 +69,7 @@ class AssistantControllerTest {
     void chatReturnsAssistantReplyForPatient() throws Exception {
         when(actorResolver.requireActiveUser(PATIENT_EMAIL))
                 .thenReturn(User.builder().id(userId).email(PATIENT_EMAIL).build());
-        when(assistantService.chat(PATIENT_EMAIL, "How do I reschedule an appointment?"))
+        when(assistantService.chat(eq(PATIENT_EMAIL), eq("How do I reschedule an appointment?"), isNull()))
                 .thenReturn(new AssistantChatResponse("Open the Appointments section to reschedule."));
 
         mockMvc.perform(post(CHAT_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(CHAT_BODY))
@@ -79,7 +82,7 @@ class AssistantControllerTest {
     @Test
     @WithMockUser(username = "doctor@medops.dev", roles = "DOCTOR")
     void chatReturnsAssistantReplyForDoctor() throws Exception {
-        when(assistantService.chat(anyString(), anyString()))
+        when(assistantService.chat(anyString(), anyString(), any()))
                 .thenReturn(new AssistantChatResponse("Reply"));
 
         mockMvc.perform(post(CHAT_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(CHAT_BODY))
@@ -93,7 +96,7 @@ class AssistantControllerTest {
         mockMvc.perform(post(CHAT_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(CHAT_BODY))
                 .andExpect(status().isUnauthorized());
 
-        verify(assistantService, never()).chat(anyString(), anyString());
+        verify(assistantService, never()).chat(anyString(), anyString(), any());
     }
 
     // NOTE: @PreAuthorize role denial (PATIENT/DOCTOR only) is enforced by method security
@@ -109,7 +112,7 @@ class AssistantControllerTest {
                         .content("{\"message\":\"   \"}"))
                 .andExpect(status().isBadRequest());
 
-        verify(assistantService, never()).chat(anyString(), anyString());
+        verify(assistantService, never()).chat(anyString(), anyString(), any());
     }
 
     /** Verifies that request validation rejects a message over the size limit. */
@@ -122,7 +125,36 @@ class AssistantControllerTest {
                         .content("{\"message\":\"" + oversized + "\"}"))
                 .andExpect(status().isBadRequest());
 
-        verify(assistantService, never()).chat(anyString(), anyString());
+        verify(assistantService, never()).chat(anyString(), anyString(), any());
+    }
+
+    /** Verifies that the browser time zone is forwarded for server-side rendering. */
+    @Test
+    @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
+    void chatForwardsBrowserTimeZoneToService() throws Exception {
+        when(assistantService.chat(
+                        eq(PATIENT_EMAIL), eq("How do I reschedule an appointment?"), eq("Asia/Kolkata")))
+                .thenReturn(new AssistantChatResponse("Reply"));
+
+        mockMvc.perform(post(CHAT_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"How do I reschedule an appointment?\","
+                                + "\"timeZone\":\"Asia/Kolkata\"}"))
+                .andExpect(status().isOk());
+
+        verify(assistantService).chat(PATIENT_EMAIL, "How do I reschedule an appointment?", "Asia/Kolkata");
+    }
+
+    /** Verifies that request validation rejects an oversized time zone. */
+    @Test
+    @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
+    void chatRejectedForOversizedTimeZone() throws Exception {
+        String oversized = "x".repeat(65);
+
+        mockMvc.perform(post(CHAT_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"Hello\",\"timeZone\":\"" + oversized + "\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(assistantService, never()).chat(anyString(), anyString(), any());
     }
 
     /** Verifies that assistant rate-limit exhaustion is mapped to HTTP 429. */
@@ -131,7 +163,7 @@ class AssistantControllerTest {
     void rateLimitExhaustionMapsTo429() throws Exception {
         when(actorResolver.requireActiveUser(PATIENT_EMAIL))
                 .thenReturn(User.builder().id(userId).email(PATIENT_EMAIL).build());
-        when(assistantService.chat(anyString(), anyString()))
+        when(assistantService.chat(anyString(), anyString(), any()))
                 .thenThrow(new AssistantRateLimitException());
 
         mockMvc.perform(post(CHAT_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(CHAT_BODY))

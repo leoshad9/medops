@@ -1,5 +1,5 @@
 import { Bot, X } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AIChatInput } from "./AIChatInput";
 import { AIMessageList } from "./AIMessageList";
@@ -17,6 +17,10 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Resolved once per mount: the browser's IANA zone, sent server-side so
+  // appointment times render in the caller's local zone instead of UTC.
+  const timeZone = useMemo<string>(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
   if (!isOpen) return null;
 
@@ -41,7 +45,7 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
     setIsLoading(true);
 
     try {
-      const response = await getAIResponse(query);
+      const response = await getAIResponse(query, timeZone);
       setMessages((prev) => [...prev, response.message]);
     } catch {
       // Network/API failure — user-facing message shown below; backend logs the error

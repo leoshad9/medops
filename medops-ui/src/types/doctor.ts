@@ -15,42 +15,16 @@ export interface DoctorDashboardStat {
   trendPositive?: boolean;
 }
 
-export type ClinicalAppointmentStatus = "IN_PROGRESS" | "WAITING" | "CONFIRMED" | "COMPLETED";
+export type ClinicalAppointmentStatus = "CONFIRMED" | "COMPLETED";
 
 export interface TodayAppointment {
   id: string;
   time: string;
   patientName: string;
   patientMrn: string;
-  age: number;
-  gender: string;
+  age: number | null;
+  gender: string | null;
   reason: string;
   type: string;
   status: ClinicalAppointmentStatus;
-}
-
-export interface PatientQueueItem {
-  id: string;
-  patientName: string;
-  roomNumber: string;
-  checkInTime: string;
-  chiefComplaint: string;
-  priority: "NORMAL" | "HIGH" | "URGENT";
-}
-
-export interface PendingLabReview {
-  id: string;
-  patientName: string;
-  testName: string;
-  orderedDate: string;
-  status: "CRITICAL" | "ABNORMAL" | "NORMAL";
-}
-
-export interface DoctorDashboardData {
-  profile: DoctorProfile;
-  unreadAlertsCount: number;
-  stats: DoctorDashboardStat[];
-  todayAppointments: TodayAppointment[];
-  patientQueue: PatientQueueItem[];
-  pendingLabReviews: PendingLabReview[];
 }

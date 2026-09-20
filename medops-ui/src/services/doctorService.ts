@@ -1,5 +1,7 @@
 import type { ApiResponse } from "../types/api";
 import type { DoctorProfile } from "../types/doctor";
+import type { AppointmentDto } from "./appointmentService";
+import type { ClinicalReportDto } from "./clinicalService";
 import { messageFromApiError } from "../lib/apiError";
 import { api } from "./api";
 
@@ -9,6 +11,18 @@ interface DoctorProfileResponse {
   specialty: string;
   licenseNumber: string;
   phoneNumber: string;
+}
+
+/** Aggregated dashboard payload from GET /v1/doctors/me/dashboard. */
+export interface DoctorDashboard {
+  todayScheduleCount: number;
+  completedTodayCount: number;
+  awaitingTodayCount: number;
+  pendingLabReportsCount: number;
+  todayAppointments: AppointmentDto[];
+  upcomingAppointments: AppointmentDto[];
+  pendingLabReports: ClinicalReportDto[];
+  generatedAt: string;
 }
 
 export async function getMyDoctorProfile(): Promise<DoctorProfile> {
@@ -24,5 +38,14 @@ export async function getMyDoctorProfile(): Promise<DoctorProfile> {
     };
   } catch (error) {
     throw new Error(messageFromApiError(error, "Unable to load your profile. Please try again."));
+  }
+}
+
+export async function getMyDashboard(): Promise<DoctorDashboard> {
+  try {
+    const response = await api.get<ApiResponse<DoctorDashboard>>("/v1/doctors/me/dashboard");
+    return response.data.data;
+  } catch (error) {
+    throw new Error(messageFromApiError(error, "Unable to load your dashboard. Please try again."));
   }
 }

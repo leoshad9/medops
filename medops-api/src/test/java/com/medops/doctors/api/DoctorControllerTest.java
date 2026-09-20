@@ -18,6 +18,7 @@ import com.medops.auth.dto.session.AuthResponse;
 import com.medops.auth.security.filters.AuthRateLimitFilter;
 import com.medops.auth.security.jwt.JwtAuthenticationFilter;
 import com.medops.doctors.api.dto.RegisterDoctorRequest;
+import com.medops.doctors.application.DoctorDashboardService;
 import com.medops.doctors.application.DoctorPatientRosterService;
 import com.medops.doctors.application.DoctorProfileService;
 import com.medops.doctors.application.DoctorRegistrationService;
@@ -63,6 +64,9 @@ class DoctorControllerTest {
 
     @MockitoBean
     private DoctorPatientRosterService doctorPatientRosterService;
+
+    @MockitoBean
+    private DoctorDashboardService doctorDashboardService;
 
     private @NonNull String json(Object value) throws Exception {
         return Objects.requireNonNull(objectMapper.writeValueAsString(value));

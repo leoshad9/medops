@@ -74,7 +74,6 @@ class VerifyOtpServiceTest {
      * injection. The IDE flags this as "never used" - it is invoked by JUnit's
      * {@code @BeforeEach}, which static analysis does not always trace.
      */
-    @SuppressWarnings("unused")
     @BeforeEach
     void setUp() {
         service = new VerifyOtpService(redisTemplate, objectMapper, auditService,

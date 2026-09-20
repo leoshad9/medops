@@ -13,6 +13,9 @@ public interface ClinicalReportRepository extends JpaRepository<ClinicalReport, 
 
     List<ClinicalReport> findByDoctorProfileIdOrderByCreatedAtDesc(UUID doctorProfileId);
 
+    List<ClinicalReport> findByDoctorProfileIdAndStatusOrderByCreatedAtDesc(
+            UUID doctorProfileId, ReportStatus status);
+
     List<ClinicalReport> findByDoctorProfileIdAndPatientProfileIdOrderByCreatedAtDesc(
             UUID doctorProfileId, UUID patientProfileId);
 

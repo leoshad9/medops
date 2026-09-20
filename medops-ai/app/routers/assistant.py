@@ -1,18 +1,24 @@
 """Assistant chat endpoints.
 
-Spring Boot owns authentication and business data; this service only turns a
-validated message into a bounded, safety-checked LLM reply. No patient context
-is accepted or returned in this phase.
+Spring Boot owns authentication and business data. The API attaches only a
+bounded, read-only snapshot of the signed-in user's OWN upcoming appointments;
+this service turns that into a safety-checked LLM reply. No patient identifiers
+are accepted or returned.
 """
 
 from __future__ import annotations
 
 import logging
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.services.assistant_service import AssistantService
+from app.services.assistant_service import (
+    MAX_CONTEXT_APPOINTMENTS,
+    AssistantAppointmentContext,
+    AssistantService,
+)
 from app.services.llm_types import (
     LlmError,
     LlmRateLimitError,
@@ -33,6 +39,9 @@ class AssistantChatRequest(BaseModel):
     """Request payload for the MedOps AI assistant chat.
 
     :param message: the user's chat message (1–2000 characters).
+    :param time_zone: optional IANA time zone of the user's browser session.
+    :param appointments: bounded, read-only snapshot of the signed-in user's
+        own upcoming appointments, assembled server-side by the Spring Boot API.
     """
 
     message: str = Field(
@@ -40,6 +49,16 @@ class AssistantChatRequest(BaseModel):
         min_length=1,
         max_length=MAX_MESSAGE_CHARS,
         description="User chat message",
+    )
+    time_zone: Optional[str] = Field(
+        default=None,
+        max_length=64,
+        description="IANA time zone the appointment times were rendered in",
+    )
+    appointments: List[AssistantAppointmentContext] = Field(
+        default_factory=list,
+        max_length=MAX_CONTEXT_APPOINTMENTS,
+        description="Read-only snapshot of the user's own upcoming appointments",
     )
 
 
@@ -70,7 +89,11 @@ async def assistant_chat(body: AssistantChatRequest):
     logger.info("assistant_chat accepted chars=%s", len(body.message))
 
     try:
-        raw = await assistant_service.chat(body.message)
+        raw = await assistant_service.chat(
+            body.message,
+            appointments=body.appointments,
+            time_zone=body.time_zone,
+        )
         reply = assistant_service.validate_reply(raw)
     except ValueError as exc:
         raise HTTPException(status_code=502, detail="Assistant returned an unusable result") from exc

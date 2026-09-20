@@ -2,6 +2,9 @@ package com.medops.assistant.infrastructure;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -9,6 +12,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import com.medops.assistant.domain.AssistantAppointment;
 import com.medops.assistant.domain.AssistantClient;
 import com.medops.assistant.domain.AssistantReply;
 import com.medops.reports.infrastructure.AiClientProperties;
@@ -105,18 +109,23 @@ public class AssistantClientConfiguration {
         }
 
         /**
-         * Posts a chat message to the AI sidecar and maps provider failures.
+         * Posts a chat message plus the caller's own appointment snapshot to the AI
+         * sidecar and maps provider failures. The message, the snapshot, and the reply
+         * are never logged.
          *
          * @param userMessage the validated user message
+         * @param appointments LLM-safe snapshot of the caller's own upcoming appointments
+         * @param timeZone IANA zone the appointment times were rendered in, may be null
          * @return the non-blank assistant reply
          */
         @Override
-        public AssistantReply chat(String userMessage) {
+        public AssistantReply chat(
+                String userMessage, List<AssistantAppointment> appointments, String timeZone) {
             try {
                 AssistantChatMessageResponse response = restClient.post()
                         .uri(CHAT_URI)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .body(java.util.Map.of("message", userMessage))
+                        .body(requestBody(userMessage, appointments, timeZone))
                         .retrieve()
                         .body(AssistantChatMessageResponse.class);
 
@@ -136,6 +145,43 @@ public class AssistantClientConfiguration {
                     message = "AI assistant timed out. Please try again.";
                 }
                 throw new ServiceUnavailableException(message, ex);
+            }
+        }
+
+        /**
+         * Builds the sidecar request body. The sidecar's schema uses snake_case keys,
+         * and optional values are omitted rather than sent as {@code null}.
+         *
+         * @param userMessage the validated user message
+         * @param appointments LLM-safe appointment snapshot, never null
+         * @param timeZone IANA zone the snapshot times were rendered in, may be null
+         * @return the JSON payload to post
+         */
+        private static Map<String, Object> requestBody(
+                String userMessage, List<AssistantAppointment> appointments, String timeZone) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("message", userMessage);
+            putIfPresent(body, "time_zone", timeZone);
+            body.put("appointments",
+                    appointments.stream().map(HttpAssistantClient::contextPayload).toList());
+            return body;
+        }
+
+        /** Maps one appointment to the sidecar's appointment-context shape. */
+        private static Map<String, Object> contextPayload(AssistantAppointment appointment) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("starts_at_local", appointment.startsAtLocal());
+            item.put("status", appointment.status());
+            putIfPresent(item, "practitioner_name", appointment.practitionerName());
+            putIfPresent(item, "specialty", appointment.specialty());
+            putIfPresent(item, "location", appointment.location());
+            return item;
+        }
+
+        /** Adds an optional key only when it carries a value. */
+        private static void putIfPresent(Map<String, Object> target, String key, String value) {
+            if (value != null) {
+                target.put(key, value);
             }
         }
 

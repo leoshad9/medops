@@ -1,11 +1,13 @@
 package com.medops.assistant.infrastructure;
 
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
+import com.medops.assistant.domain.AssistantAppointment;
 import com.medops.assistant.domain.AssistantClient;
 import com.medops.assistant.domain.AssistantReply;
 
@@ -50,11 +52,14 @@ public class ResilientAssistantClient implements AssistantClient {
      * Executes a chat call through the circuit breaker, retry, and time limiter.
      *
      * @param userMessage the validated user message
+     * @param appointments LLM-safe upcoming appointments for the same user
+     * @param timeZone IANA zone the appointment times were rendered in
      * @return the assistant reply
      */
     @Override
-    public AssistantReply chat(String userMessage) {
-        Supplier<AssistantReply> supplier = () -> delegate.chat(userMessage);
+    public AssistantReply chat(
+            String userMessage, List<AssistantAppointment> appointments, String timeZone) {
+        Supplier<AssistantReply> supplier = () -> delegate.chat(userMessage, appointments, timeZone);
         Supplier<AssistantReply> withCb = CircuitBreaker.decorateSupplier(circuitBreaker, supplier);
         Supplier<AssistantReply> withRetry = Retry.decorateSupplier(retry, withCb);
         Callable<AssistantReply> withTimeout = TimeLimiter.decorateFutureSupplier(

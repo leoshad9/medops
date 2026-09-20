@@ -25,6 +25,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.medops.appointments.api.dto.AppointmentResponse;
+import com.medops.patients.domain.Gender;
 import com.medops.appointments.api.dto.BookAppointmentRequest;
 import com.medops.appointments.domain.AppointmentStatus;
 import com.medops.appointments.infrastructure.Appointment;
@@ -107,7 +108,8 @@ class BookAppointmentServiceTest {
         when(appointmentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         AppointmentResponse mapped = new AppointmentResponse(
                 UUID.randomUUID(), patient.getId(), doctor.getId(),
-                patient.getFullName(), patient.getMrn(), doctor.getFullName(), doctor.getSpecialty(),
+                patient.getFullName(), patient.getMrn(), patient.getDateOfBirth(), patient.getGender(),
+                doctor.getFullName(), doctor.getSpecialty(),
                 start, start.plusSeconds(1800), AppointmentStatus.BOOKED, "chest pain", null);
         when(assembler.toResponse(any())).thenReturn(mapped);
 

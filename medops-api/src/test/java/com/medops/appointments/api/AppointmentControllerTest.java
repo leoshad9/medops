@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -28,6 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medops.appointments.api.dto.AppointmentResponse;
+import com.medops.patients.domain.Gender;
 import com.medops.appointments.api.dto.BookAppointmentRequest;
 import com.medops.appointments.application.AppointmentQueryReadService;
 import com.medops.appointments.application.AppointmentQueryService;
@@ -81,7 +83,8 @@ class AppointmentControllerTest {
         Instant start = Instant.parse("2026-08-31T04:30:00Z");
         AppointmentResponse response = new AppointmentResponse(
                 UUID.randomUUID(), UUID.randomUUID(), doctorId,
-                "Test Patient", "MRN-1", "Dr. Khan", "Cardiology",
+                "Test Patient", "MRN-1", LocalDate.of(1990, 1, 1), Gender.FEMALE,
+                "Dr. Khan", "Cardiology",
                 start, start.plusSeconds(1800), AppointmentStatus.BOOKED, "review", null);
         when(bookAppointmentService.book(eq("patient@medops.dev"), any())).thenReturn(response);
 

@@ -1,65 +1,103 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { DoctorStatCards } from "../../components/doctor/DoctorStatCards";
-import { PatientQueuePanel } from "../../components/doctor/PatientQueuePanel";
+import { UpcomingConsultationsPanel } from "../../components/doctor/UpcomingConsultationsPanel";
 import { PendingLabsPanel } from "../../components/doctor/PendingLabsPanel";
 import { TodayScheduleTable } from "../../components/doctor/TodayScheduleTable";
-import { clinicDayBoundsIso, clinicTodayYmd, formatClinicTime } from "../../lib/clinicTime";
+import { calcAge, formatClinicTime } from "../../lib/clinicTime";
 import {
   completeAppointment,
-  listDoctorAppointments,
   type AppointmentDto,
 } from "../../services/appointmentService";
-import type { ClinicalAppointmentStatus, TodayAppointment } from "../../types/doctor";
-import { mockDoctorDashboard } from "./mockDoctorData";
+import {
+  getMyDashboard,
+  type DoctorDashboard,
+} from "../../services/doctorService";
+import type {
+  ClinicalAppointmentStatus,
+  DoctorDashboardStat,
+  TodayAppointment,
+} from "../../types/doctor";
 
 function toTodayRow(dto: AppointmentDto): TodayAppointment {
-  const status: ClinicalAppointmentStatus = dto.status === "COMPLETED" ? "COMPLETED" : "CONFIRMED";
+  const status: ClinicalAppointmentStatus =
+    dto.status === "COMPLETED" ? "COMPLETED" : "CONFIRMED";
   return {
     id: dto.id,
     time: formatClinicTime(dto.startsAt),
     patientName: dto.patientName,
     patientMrn: dto.patientMrn,
-    age: 0,
-    gender: "—",
+    age: calcAge(dto.patientDateOfBirth),
+    gender: dto.patientGender,
     reason: dto.reason ?? "—",
     type: "Clinic / In-Person",
     status,
   };
 }
 
+/**
+ * KPI cards are derived from the same aggregate payload that feeds the
+ * schedule, upcoming, and labs panels below, so the numbers always reconcile
+ * with what the clinician sees when they open the detailed pages.
+ */
+function buildStats(dashboard: DoctorDashboard): DoctorDashboardStat[] {
+  return [
+    {
+      id: "today-patients",
+      label: "Today's Schedule",
+      value: `${dashboard.todayScheduleCount} Patients`,
+      sublabel: `${dashboard.completedTodayCount} completed · ${dashboard.awaitingTodayCount} awaiting`,
+    },
+    {
+      id: "awaiting-consultation",
+      label: "Awaiting Consultation",
+      value: `${dashboard.awaitingTodayCount} Patients`,
+      sublabel: "Booked visits remaining today",
+    },
+    {
+      id: "lab-results",
+      label: "Pending Lab Reviews",
+      value: `${dashboard.pendingLabReportsCount} Reports`,
+      sublabel: "New reports not yet reviewed",
+      trend: dashboard.pendingLabReportsCount > 0 ? "Action needed" : "All clear",
+      trendPositive: dashboard.pendingLabReportsCount === 0,
+    },
+  ];
+}
+
 export function DoctorDashboard() {
-  const data = mockDoctorDashboard;
-  const [todayAppointments, setTodayAppointments] = useState<TodayAppointment[]>([]);
-  const [scheduleFromApi, setScheduleFromApi] = useState(false);
+  const [dashboard, setDashboard] = useState<DoctorDashboard | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const loadToday = useCallback(async () => {
-    const bounds = clinicDayBoundsIso(clinicTodayYmd());
-    const items = await listDoctorAppointments({ from: bounds.from, to: bounds.to });
-    setTodayAppointments(items.filter((item) => item.status !== "CANCELLED").map(toTodayRow));
-    setScheduleFromApi(true);
+  const loadDashboard = useCallback(async () => {
+    const data = await getMyDashboard();
+    setDashboard(data);
     setScheduleError(null);
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    loadToday().catch((err: unknown) => { // oxlint-disable-line react/set-state-in-effect
+    loadDashboard().catch((err: unknown) => { // oxlint-disable-line react/set-state-in-effect
       if (!cancelled) {
         setScheduleError(err instanceof Error ? err.message : "Unable to load today's schedule.");
+      }
+    }).finally(() => {
+      if (!cancelled) {
+        setIsLoading(false);
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [loadToday]);
+  }, [loadDashboard]);
 
   const handleComplete = async (appointmentId: string) => {
     setCompletingId(appointmentId);
     try {
       await completeAppointment(appointmentId);
-      await loadToday();
+      await loadDashboard();
     } catch (err: unknown) {
       setScheduleError(err instanceof Error ? err.message : "Unable to complete that visit.");
     } finally {
@@ -69,27 +107,37 @@ export function DoctorDashboard() {
 
   return (
     <div className="space-y-6">
-      <DoctorStatCards stats={data.stats} />
+      {dashboard && <DoctorStatCards stats={buildStats(dashboard)} />}
 
-        {scheduleError && (
-          <div className="rounded-xl border border-brand-rust/30 bg-brand-rust-tint px-4 py-3 text-sm text-brand-rust">
-            {scheduleError}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <div className="xl:col-span-2 space-y-6">
-            <TodayScheduleTable
-              appointments={todayAppointments}
-              completingId={completingId}
-              onComplete={scheduleFromApi ? handleComplete : undefined}
-            />
-          </div>
-          <div className="space-y-6">
-            <PatientQueuePanel queue={data.patientQueue} />
-            <PendingLabsPanel labs={data.pendingLabReviews} />
-          </div>
+      {scheduleError && (
+        <div className="rounded-xl border border-brand-rust/30 bg-brand-rust-tint px-4 py-3 text-sm text-brand-rust">
+          {scheduleError}
         </div>
+      )}
+
+      {isLoading && (
+        <div className="rounded-xl border border-brand-line bg-white p-6 text-sm text-brand-muted">
+          Loading today&apos;s schedule…
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2 space-y-6">
+          {dashboard && (
+            <TodayScheduleTable
+              appointments={dashboard.todayAppointments.map(toTodayRow)}
+              completingId={completingId}
+              onComplete={handleComplete}
+            />
+          )}
+        </div>
+        <div className="space-y-6">
+          {dashboard && (
+            <UpcomingConsultationsPanel appointments={dashboard.upcomingAppointments} />
+          )}
+          {dashboard && <PendingLabsPanel labs={dashboard.pendingLabReports} />}
+        </div>
+      </div>
     </div>
   );
 }

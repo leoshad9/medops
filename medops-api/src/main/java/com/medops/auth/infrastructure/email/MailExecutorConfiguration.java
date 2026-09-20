@@ -32,6 +32,7 @@ public class MailExecutorConfiguration implements AsyncConfigurer {
     private static final int CORE_POOL_SIZE = 2;
     private static final int MAX_POOL_SIZE = 4;
     private static final int QUEUE_CAPACITY = 100;
+    private static final int AWAIT_TERMINATION_SECONDS = 30;
 
     private final ThreadPoolTaskExecutor mailExecutor = buildExecutor();
 
@@ -46,7 +47,7 @@ public class MailExecutorConfiguration implements AsyncConfigurer {
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         // Drain queued sends on graceful shutdown instead of discarding them.
         executor.setWaitForTasksToCompleteOnShutdown(true);
-        executor.setAwaitTerminationSeconds(30);
+        executor.setAwaitTerminationSeconds(AWAIT_TERMINATION_SECONDS);
         executor.initialize();
         return executor;
     }

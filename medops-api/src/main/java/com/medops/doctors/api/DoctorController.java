@@ -15,9 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.medops.auth.dto.session.AuthResponse;
 import com.medops.doctors.api.dto.DoctorPatientSummaryResponse;
+import com.medops.doctors.api.dto.DoctorDashboardResponse;
 import com.medops.doctors.api.dto.DoctorProfileResponse;
 import com.medops.doctors.api.dto.DoctorSummaryResponse;
 import com.medops.doctors.api.dto.RegisterDoctorRequest;
+import com.medops.doctors.application.DoctorDashboardService;
 import com.medops.doctors.application.DoctorPatientRosterService;
 import com.medops.doctors.application.DoctorProfileService;
 import com.medops.doctors.application.DoctorRegistrationService;
@@ -34,6 +36,7 @@ public class DoctorController {
     private final DoctorRegistrationService doctorRegistrationService;
     private final DoctorProfileService doctorProfileService;
     private final DoctorPatientRosterService doctorPatientRosterService;
+    private final DoctorDashboardService doctorDashboardService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterDoctorRequest request) {
@@ -54,6 +57,14 @@ public class DoctorController {
     public ResponseEntity<ApiResponse<DoctorProfileResponse>> getMyProfile(Authentication authentication) {
         DoctorProfileResponse response = doctorProfileService.getMyProfile(authentication.getName());
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/me/dashboard")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<ApiResponse<DoctorDashboardResponse>> getMyDashboard(
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(
+                doctorDashboardService.getMyDashboard(authentication.getName())));
     }
 
     @GetMapping("/me/patients")
