@@ -1,4 +1,5 @@
 import { Bot, Calendar, CreditCard, FlaskConical, HelpCircle, Pill } from "lucide-react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import type { ComponentType } from "react";
 
 import type { AIMessage } from "../../services/aiAssistantService";
@@ -23,6 +24,30 @@ const QUICK_ACTIONS: QuickActionItem[] = [
   { id: "help", label: "Using MedOps", icon: HelpCircle, query: "How do I use the MedOps patient portal? What features are available?" },
 ];
 
+const markdownComponents: Components = {
+  p: ({ node: _node, ...props }) => (
+    <p {...props} className="mb-1 last:mb-0 whitespace-pre-wrap leading-relaxed" />
+  ),
+  ul: ({ node: _node, ...props }) => (
+    <ul {...props} className="mb-1 pl-5 last:mb-0" />
+  ),
+  ol: ({ node: _node, ...props }) => (
+    <ol {...props} className="mb-1 pl-5 last:mb-0" />
+  ),
+  li: ({ node: _node, ...props }) => (
+    <li {...props} className="mb-0.5 whitespace-pre-wrap leading-relaxed" />
+  ),
+  strong: ({ node: _node, ...props }) => (
+    <strong {...props} className="font-semibold" />
+  ),
+  em: ({ node: _node, ...props }) => (
+    <em {...props} className="italic" />
+  ),
+  code: ({ node: _node, ...props }) => (
+    <code {...props} className="rounded bg-black/5 px-1 py-0.5 font-mono text-xs" />
+  ),
+};
+
 /** Renders the conversation and shows quick actions until a patient message is present. */
 export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageListProps>) {
   const showQuickActions = messages.length <= 1 && !messages.some((m) => m.role === "user");
@@ -44,7 +69,7 @@ export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageLis
             {message.role === "assistant" && messages.indexOf(message) === 0 ? (
               <Bot className="mb-1 h-4 w-4 text-brand-primary" />
             ) : null}
-            <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+            <ReactMarkdown components={markdownComponents}>{message.content}</ReactMarkdown>
           </div>
         </div>
       ))}
