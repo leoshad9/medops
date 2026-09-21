@@ -10,6 +10,37 @@ import {
   type InvoiceStatus,
 } from "../../../services/billingService";
 
+/** Lifecycle wording for the insurance coverage card. */
+type InsuranceLifecycle =
+  | "not provided"
+  | "pending verification"
+  | "verified"
+  | "coverage inactive";
+
+/**
+ * Derives the patient-facing insurance lifecycle from the profile fields.
+ * The profile is the single source of truth; this view no longer hardcodes
+ * "Not on file" and instead reflects what is actually stored.
+ */
+function insuranceLifecycle(
+  provider: string | undefined,
+  policyNumber: string | undefined,
+): { status: InsuranceLifecycle; detail: string } {
+  if (!provider && !policyNumber) {
+    return { status: "not provided", detail: "Insurance details are not connected yet" };
+  }
+  if (!policyNumber) {
+    return {
+      status: "pending verification",
+      detail: `${provider} on file — policy number missing, verification pending`,
+    };
+  }
+  return {
+    status: "verified",
+    detail: `${provider} · Policy ${policyNumber}`,
+  };
+}
+
 const STATUS_MAP: Record<InvoiceStatus, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-brand-paper text-brand-muted" },
   ISSUED: { label: "Due", className: "bg-brand-rust-tint text-brand-rust" },
@@ -40,7 +71,7 @@ function shortInvoiceNumber(id: string): string {
 
 /** Renders the selected patient's invoices and payment controls. */
 export function BillingView() {
-  const { patientId } = usePatientPortal();
+  const { patientId, profile } = usePatientPortal();
   const [patientQuery, setPatientQuery] = useState<{
     patientId: string;
     invoices: InvoiceDto[];
@@ -96,8 +127,9 @@ export function BillingView() {
       dueInvoiceCount: dueCount,
       paidThisYear: formatCents(paidCents),
       paidInvoiceCount: paidThisYear.length,
+      insurance: insuranceLifecycle(profile?.insuranceProvider, profile?.insurancePolicyNumber),
     };
-  }, [invoices]);
+  }, [invoices, profile?.insuranceProvider, profile?.insurancePolicyNumber]);
 
   const handlePay = (invoice: InvoiceDto) => {
     alert(
@@ -155,8 +187,8 @@ export function BillingView() {
               <ShieldCheck className="h-4 w-4" />
             </span>
           </div>
-          <div className="mt-3 text-lg font-bold text-brand-ink">Not on file</div>
-          <p className="mt-0.5 text-xs text-brand-muted">Insurance details are not connected yet</p>
+          <div className="mt-3 text-lg font-bold text-brand-ink">{summary.insurance.status}</div>
+          <p className="mt-0.5 text-xs text-brand-muted">{summary.insurance.detail}</p>
         </div>
       </div>
 

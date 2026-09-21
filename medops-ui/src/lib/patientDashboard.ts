@@ -61,8 +61,8 @@ export function buildPatientDashboardLiveData(
       {
         id: "medical-records",
         label: "Medical Records",
-        value: "—",
-        sublabel: "Coming soon",
+        value: String(reports.length),
+        sublabel: reports.length === 1 ? "Document on file" : "Documents on file",
         linkLabel: "View all",
       },
     ],

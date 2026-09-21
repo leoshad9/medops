@@ -3,6 +3,9 @@ import { Bot, Clock, Mail, Phone } from "lucide-react";
 
 import { usePatientPortal } from "../../../components/patient/usePatientPortal";
 
+/** Support address is configured per deployment via VITE_SUPPORT_EMAIL. */
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL as string | undefined;
+
 /** Displays patient support options, FAQs, and the AI assistant launcher. */
 export function HelpSupportView() {
   const { data } = usePatientPortal();
@@ -78,7 +81,16 @@ export function HelpSupportView() {
               </span>
               <div>
                 <p className="font-semibold text-brand-ink">Email Support</p>
-                <p className="text-brand-muted mt-0.5">support@medops.example</p>
+                {SUPPORT_EMAIL ? (
+                  <a
+                    href={`mailto:${SUPPORT_EMAIL}`}
+                    className="text-brand-muted mt-0.5 text-xs hover:text-brand-primary-dark hover:underline"
+                  >
+                    {SUPPORT_EMAIL}
+                  </a>
+                ) : (
+                  <p className="text-brand-muted mt-0.5 text-xs">Email support not configured</p>
+                )}
               </div>
             </div>
 
