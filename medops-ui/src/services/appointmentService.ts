@@ -37,11 +37,20 @@ interface AppointmentPageDto {
   total: number;
 }
 
-function toUiStatus(status: ApiAppointmentStatus): AppointmentStatus {
-  if (status === "BOOKED") {
-    return "UPCOMING";
+/**
+ * Derives the patient-facing status from the persisted API status with a
+ * timezone-aware time check: a BOOKED visit is only "Upcoming" while it lies in
+ * the future; once it has ended it is surfaced as Completed. This is the
+ * display-side complement to the server-side reconciliation job — together they
+ * guarantee a past appointment is never labelled Upcoming nor offered
+ * Reschedule/Cancel actions.
+ */
+export function deriveUiStatus(dto: AppointmentDto, nowMs: number = Date.now()): AppointmentStatus {
+  if (dto.status === "COMPLETED" || dto.status === "CANCELLED") {
+    return dto.status;
   }
-  return status;
+  // status === "BOOKED"
+  return new Date(dto.endsAt).getTime() <= nowMs ? "COMPLETED" : "UPCOMING";
 }
 
 export function toAppointmentRecord(dto: AppointmentDto): AppointmentRecord {
@@ -52,7 +61,7 @@ export function toAppointmentRecord(dto: AppointmentDto): AppointmentRecord {
     dateTime: formatClinicDateTime(dto.startsAt),
     doctorName: dto.doctorName,
     department: dto.specialty,
-    status: toUiStatus(dto.status),
+    status: deriveUiStatus(dto),
     location: dto.location ?? undefined,
     reason: dto.reason ?? undefined,
   };
