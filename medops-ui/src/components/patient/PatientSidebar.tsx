@@ -62,7 +62,7 @@ export function PatientSidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans transition-all duration-200 lg:static lg:translate-x-0 xl:w-72 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans transition-all duration-200 lg:sticky lg:top-0 lg:translate-x-0 xl:w-72 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

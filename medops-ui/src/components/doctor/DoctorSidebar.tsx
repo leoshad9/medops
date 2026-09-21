@@ -25,7 +25,7 @@ export function DoctorSidebar() {
   const { logout } = useAuth();
 
   return (
-    <aside className="flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans lg:w-72">
+    <aside className="flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans lg:w-72 lg:sticky lg:top-0">
       <div className="flex items-center gap-2 border-b border-brand-line px-2 pb-6">
         <MedOpsLogo className="h-10 w-10 text-brand-primary" />
         <div>
