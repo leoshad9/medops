@@ -3,8 +3,6 @@ import {
   Bell,
   Calendar,
   CalendarPlus,
-  ChevronsLeft,
-  ChevronsRight,
   CreditCard,
   FlaskConical,
   Folder,
@@ -44,22 +42,13 @@ const NAV_ITEMS: NavItem[] = [
 interface PatientSidebarProps {
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
-  /** Desktop-only rail collapse; the mobile drawer stays full width. */
-  collapsed?: boolean;
-  onToggleCollapse?: () => void;
 }
 
 export function PatientSidebar({
   mobileOpen = false,
   onCloseMobile,
-  collapsed = false,
-  onToggleCollapse,
 }: Readonly<PatientSidebarProps>) {
   const { logout } = useAuth();
-
-  // Collapse only affects desktop viewports (lg+), so the mobile drawer and
-  // its width are untouched. w-64 is the always-on base width.
-  const widthClasses = collapsed ? "lg:w-[76px] xl:w-[76px]" : "xl:w-72";
 
   return (
     <>
@@ -73,18 +62,14 @@ export function PatientSidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans transition-all duration-200 lg:static lg:translate-x-0 ${widthClasses} ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6 font-brand-sans transition-all duration-200 lg:static lg:translate-x-0 xl:w-72 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div
-          className={`flex items-center border-b border-brand-line px-2 pb-5 ${
-            collapsed ? "justify-between lg:justify-center" : "justify-between"
-          }`}
-        >
+        <div className="flex items-center justify-between border-b border-brand-line px-2 pb-5">
           <div className="flex items-center gap-2.5">
             <MedOpsLogo className="h-10 w-10 shrink-0 text-brand-primary" />
-            <div className={collapsed ? "lg:hidden" : ""}>
+            <div>
               <span className="text-lg font-bold tracking-tight text-brand-primary-dark">MEDOPS</span>
               <p className="text-[11px] font-medium text-brand-muted">Patient Portal</p>
             </div>
@@ -107,11 +92,8 @@ export function PatientSidebar({
               key={id}
               to={PATIENT_PATHS[id]}
               onClick={onCloseMobile}
-              title={collapsed ? label : undefined}
               className={({ isActive }) =>
                 `relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition cursor-pointer touch-target focus-visible-ring ${
-                  collapsed ? "lg:justify-center lg:px-0" : ""
-                } ${
                   isActive
                     ? "bg-brand-primary-tint text-brand-primary-dark font-semibold shadow-2xs before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-brand-primary"
                     : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
@@ -125,7 +107,7 @@ export function PatientSidebar({
                       isActive ? "opacity-100 text-brand-primary" : "opacity-75"
                     }`}
                   />
-                  <span className={`truncate ${collapsed ? "lg:hidden" : ""}`}>{label}</span>
+                  <span className="truncate">{label}</span>
                 </>
               )}
             </NavLink>
@@ -133,37 +115,13 @@ export function PatientSidebar({
         </nav>
 
         <div className="mt-auto shrink-0 border-t border-brand-line pt-3">
-          {/* Explicit desktop collapse/expand toggle. */}
-          {onToggleCollapse && (
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-expanded={!collapsed}
-              className={`mb-1 hidden w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition cursor-pointer focus-visible-ring lg:flex ${
-                collapsed ? "lg:justify-center lg:px-0" : ""
-              }`}
-            >
-              {collapsed ? (
-                <ChevronsRight className="h-4 w-4" />
-              ) : (
-                <>
-                  <ChevronsLeft className="h-4 w-4 shrink-0" />
-                  <span className="truncate">Collapse</span>
-                </>
-              )}
-            </button>
-          )}
           <button
             type="button"
             onClick={() => void logout()}
-            title={collapsed ? "Sign Out" : undefined}
-            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-700 transition cursor-pointer touch-target focus-visible-ring ${
-              collapsed ? "lg:justify-center lg:px-0" : ""
-            }`}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-700 transition cursor-pointer touch-target focus-visible-ring"
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            <span className={`truncate ${collapsed ? "lg:hidden" : ""}`}>Sign Out</span>
+            <span className="truncate">Sign Out</span>
           </button>
         </div>
       </aside>

@@ -34,7 +34,6 @@ export function PatientLayout() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PatientProfile | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const {
@@ -82,8 +81,6 @@ export function PatientLayout() {
       <PatientSidebar
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((value) => !value)}
       />
 
       <main
