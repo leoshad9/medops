@@ -18,6 +18,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 import com.medops.auth.security.handlers.RestAccessDeniedHandler;
@@ -72,8 +73,9 @@ public class SecurityConfig {
     }
 
     // Kept for CsrfController (/api/auth/csrf), which the UI still calls during bootstrap.
-    // With CSRF protection disabled below this endpoint is inert, but removing it would
-    // break the UI's startup sequence.
+    // CSRF is excluded on /api/auth/** since auth endpoints are called before a session
+    // exists — they rely on SameSite=Strict JWT cookies for cross-site request protection.
+    // All other state-changing endpoints remain CSRF-protected.
     @Bean
     public CookieCsrfTokenRepository csrfTokenRepository() {
         CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
@@ -88,7 +90,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository()))
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/api/auth/**")
+                        .csrfTokenRepository(csrfTokenRepository())
+                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
                 .logout(logout -> logout.disable())
                 .headers(headers -> {
                     headers.contentTypeOptions(Customizer.withDefaults());
