@@ -18,10 +18,8 @@ import com.medops.appointments.infrastructure.AppointmentRepository;
 import com.medops.doctors.api.dto.DoctorDashboardResponse;
 import com.medops.doctors.infrastructure.DoctorProfile;
 import com.medops.reports.api.dto.ClinicalReportResponse;
-import com.medops.reports.application.ClinicalReportAssembler;
+import com.medops.reports.application.ReportQueryService;
 import com.medops.reports.domain.ReportStatus;
-import com.medops.reports.infrastructure.ClinicalReport;
-import com.medops.reports.infrastructure.ClinicalReportRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -41,8 +39,7 @@ public class DoctorDashboardService {
     private final AppointmentActorResolver actorResolver;
     private final AppointmentRepository appointmentRepository;
     private final AppointmentResponseAssembler appointmentAssembler;
-    private final ClinicalReportRepository reportRepository;
-    private final ClinicalReportAssembler reportAssembler;
+    private final ReportQueryService reportQueryService;
     private final java.time.Clock clock;
     private final ZoneId clinicTimeZone;
 
@@ -70,17 +67,16 @@ public class DoctorDashboardService {
                 .map(appointmentAssembler::toResponse)
                 .toList();
 
-        List<ClinicalReportResponse> pendingLabs = reportRepository
-                .findByDoctorProfileIdAndStatusOrderByCreatedAtDesc(doctor.getId(), ReportStatus.NEW)
-                .stream()
-                .map(reportAssembler::toResponse)
+        List<ClinicalReportResponse> pendingLabs = reportQueryService
+                .listForDoctor(doctorEmail, null).stream()
+                .filter(report -> report.status() == ReportStatus.NEW)
                 .toList();
 
         return new DoctorDashboardResponse(
-                todays.size(),
+                (long) todays.size(),
                 todays.stream().filter(a -> a.getStatus() == AppointmentStatus.COMPLETED).count(),
-                upcoming.size(),
-                pendingLabs.size(),
+                (long) upcoming.size(),
+                (long) pendingLabs.size(),
                 todaysResponses,
                 upcoming,
                 pendingLabs,

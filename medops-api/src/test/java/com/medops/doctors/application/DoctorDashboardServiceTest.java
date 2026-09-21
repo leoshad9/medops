@@ -30,10 +30,8 @@ import com.medops.doctors.api.dto.DoctorDashboardResponse;
 import com.medops.doctors.infrastructure.DoctorProfile;
 import com.medops.patients.domain.Gender;
 import com.medops.reports.api.dto.ClinicalReportResponse;
-import com.medops.reports.application.ClinicalReportAssembler;
+import com.medops.reports.application.ReportQueryService;
 import com.medops.reports.domain.ReportStatus;
-import com.medops.reports.infrastructure.ClinicalReport;
-import com.medops.reports.infrastructure.ClinicalReportRepository;
 
 /**
  * Unit tests for {@link DoctorDashboardService}: verifies the day window is
@@ -48,8 +46,8 @@ class DoctorDashboardServiceTest {
 
     /** Fixed "now": 2026-09-20 05:00 UTC == 10:30 Asia/Kolkata, so the clinic day is 2026-09-20. */
     private static final Instant NOW = Instant.parse("2026-09-20T05:00:00Z");
-    private static final Instant DAY_START = Instant.parse("2026-09-19T18:30:00Z"); // 2026-09-20T00:00+05:30
-    private static final Instant DAY_END = Instant.parse("2026-09-20T18:30:00Z"); // 2026-09-21T00:00+05:30
+    private static final Instant DAY_START = Instant.parse("2026-09-19T18:30:00Z");
+    private static final Instant DAY_END = Instant.parse("2026-09-20T18:30:00Z");
 
     @Mock
     private AppointmentActorResolver actorResolver;
@@ -61,10 +59,7 @@ class DoctorDashboardServiceTest {
     private AppointmentResponseAssembler appointmentAssembler;
 
     @Mock
-    private ClinicalReportRepository reportRepository;
-
-    @Mock
-    private ClinicalReportAssembler reportAssembler;
+    private ReportQueryService reportQueryService;
 
     @Mock
     private Clock clock;
@@ -77,14 +72,14 @@ class DoctorDashboardServiceTest {
                 actorResolver,
                 appointmentRepository,
                 appointmentAssembler,
-                reportRepository,
-                reportAssembler,
+                reportQueryService,
                 clock,
                 ZoneId.of("Asia/Kolkata"));
 
         DoctorProfile doctor = DoctorProfile.builder().id(DOCTOR_ID).build();
         when(actorResolver.requireDoctor(DOCTOR_EMAIL)).thenReturn(doctor);
-        when(clock.withZone(ZoneId.of("Asia/Kolkata"))).thenReturn(Clock.fixed(NOW, ZoneId.of("Asia/Kolkata")));
+        when(clock.withZone(ZoneId.of("Asia/Kolkata")))
+                .thenReturn(Clock.fixed(NOW, ZoneId.of("Asia/Kolkata")));
         when(clock.instant()).thenReturn(NOW);
     }
 
@@ -100,6 +95,7 @@ class DoctorDashboardServiceTest {
                         eq(DOCTOR_ID), eq(DAY_START), eq(DAY_END), anyPageable()))
                 .thenReturn(new org.springframework.data.domain.PageImpl<>(
                         List.of(bookedMorning, completed, bookedAfternoon, cancelled)));
+        when(reportQueryService.listForDoctor(DOCTOR_EMAIL, null)).thenReturn(List.of());
         when(appointmentAssembler.toResponse(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment source = invocation.getArgument(0);
             return response("Patient " + source.getStatus(), source.getStatus());
@@ -125,31 +121,17 @@ class DoctorDashboardServiceTest {
                 .findByDoctorProfileIdAndStartsAtGreaterThanEqualAndStartsAtLessThanOrderByStartsAtAsc(
                         eq(DOCTOR_ID), eq(DAY_START), eq(DAY_END), anyPageable()))
                 .thenReturn(org.springframework.data.domain.Page.empty());
-        ClinicalReport report = ClinicalReport.builder()
-                .id(UUID.randomUUID())
-                .patientProfileId(UUID.randomUUID())
-                .doctorProfileId(DOCTOR_ID)
-                .title("CBC Panel")
-                .status(ReportStatus.NEW)
-                .storageKey("reports/cbc.pdf")
-                .originalFilename("cbc.pdf")
-                .contentType("application/pdf")
-                .sizeBytes(1024)
-                .createdAt(NOW)
-                .build();
-        when(reportRepository.findByDoctorProfileIdAndStatusOrderByCreatedAtDesc(DOCTOR_ID, ReportStatus.NEW))
-                .thenReturn(List.of(report));
         ClinicalReportResponse reportResponse = new ClinicalReportResponse(
-                report.getId(), report.getPatientProfileId(), DOCTOR_ID, "Test Patient", "MRN-1",
+                UUID.randomUUID(), UUID.randomUUID(), DOCTOR_ID, "Test Patient", "MRN-1",
                 "Dr. Test", "CBC Panel", null, ReportStatus.NEW, "cbc.pdf", 1024, true,
                 NOW, null, null, null);
-        when(reportAssembler.toResponse(report)).thenReturn(reportResponse);
+        when(reportQueryService.listForDoctor(DOCTOR_EMAIL, null)).thenReturn(List.of(reportResponse));
 
         DoctorDashboardResponse result = service.getMyDashboard(DOCTOR_EMAIL);
 
         assertThat(result.pendingLabReportsCount()).isEqualTo(1);
         assertThat(result.pendingLabReports()).containsExactly(reportResponse);
-        verify(reportRepository).findByDoctorProfileIdAndStatusOrderByCreatedAtDesc(DOCTOR_ID, ReportStatus.NEW);
+        verify(reportQueryService).listForDoctor(DOCTOR_EMAIL, null);
     }
 
     @Test
@@ -158,8 +140,7 @@ class DoctorDashboardServiceTest {
                 .findByDoctorProfileIdAndStartsAtGreaterThanEqualAndStartsAtLessThanOrderByStartsAtAsc(
                         eq(DOCTOR_ID), eq(DAY_START), eq(DAY_END), anyPageable()))
                 .thenReturn(org.springframework.data.domain.Page.empty());
-        when(reportRepository.findByDoctorProfileIdAndStatusOrderByCreatedAtDesc(DOCTOR_ID, ReportStatus.NEW))
-                .thenReturn(List.of());
+        when(reportQueryService.listForDoctor(DOCTOR_EMAIL, null)).thenReturn(List.of());
 
         DoctorDashboardResponse result = service.getMyDashboard(DOCTOR_EMAIL);
 
