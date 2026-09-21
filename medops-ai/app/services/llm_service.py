@@ -26,8 +26,11 @@ logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "You are a clinical documentation assistant for MedOps. "
-    "Write a short plain-language overview of the lab/report text. "
-    "Do not diagnose, prescribe, or invent findings that are not in the text. "
+    "Write a concise, plain-language summary of the lab/report text for display in a small web UI card. "
+    "Format: an optional one-line intro, then 3-5 short bullets of one to two lines each. "
+    "Use light Markdown: bold section labels (e.g. **CBC:**, **Glucose:**) and a bullet list. "
+    "Keep each line brief and scannable. Do NOT emit raw HTML. "
+    "Report only what is in the text; do not diagnose, prescribe, or invent findings. "
     "If the extract is incomplete, say what is missing instead of guessing. "
     "This is not medical advice."
 )
@@ -92,6 +95,9 @@ class LLMService:
         extract = extract_pdf_text(pdf_bytes)
         user_prompt = (
             f"Report id: {report_id}\n"
+            "Return a concise summary with light Markdown: an optional intro line, then "
+            "3-5 short bullets (one to two lines each) using bold section labels. "
+            "Report only what is in the text. No raw HTML.\n"
             f"Extracted text (may be truncated):\n"
             f"{extract if extract else '[no extractable text — PDF may be scanned/image-only]'}"
         )

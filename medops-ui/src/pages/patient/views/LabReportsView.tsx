@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronRight, Download, FileText, FlaskConical, Sparkles } from "lucide-react";
 
 import { formatClinicDateTime } from "../../../lib/clinicTime";
+import { ReportSummary } from "../../../components/common/ReportSummary";
 import {
   downloadClinicalFile,
   listReports,
@@ -192,7 +193,7 @@ export function LabReportsView() {
                 <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
                   Plain-language summary
                 </p>
-                <p className="mt-2 text-sm text-brand-ink whitespace-pre-wrap">{selectedReport.summary}</p>
+                <ReportSummary summary={selectedReport.summary} className="mt-2 text-sm text-brand-ink" />
                 <p className="mt-3 text-xs text-brand-muted">
                   This summary is not a diagnosis or medical advice. Always review the PDF with your care
                   team.

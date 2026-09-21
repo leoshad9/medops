@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { doctorPatientChartPath } from "../../lib/doctorRoutes";
 import { formatClinicDateTime } from "../../lib/clinicTime";
 import { downloadClinicalFile, listReports, type ClinicalReportDto } from "../../services/clinicalService";
+import { ReportSummary } from "../../components/common/ReportSummary";
 
 export function DoctorLabsView() {
   const [items, setItems] = useState<ClinicalReportDto[]>([]);
@@ -46,7 +47,10 @@ export function DoctorLabsView() {
                   {report.patientName} ({report.patientMrn}) · {formatClinicDateTime(report.createdAt)} · {report.status}
                 </p>
                 {report.summary && (
-                  <p className="mt-1 text-sm text-brand-ink whitespace-pre-wrap line-clamp-3">{report.summary}</p>
+                  <ReportSummary
+                    summary={report.summary}
+                    className="mt-1 text-sm text-brand-ink line-clamp-3"
+                  />
                 )}
               </div>
               <div className="flex items-center gap-3">
