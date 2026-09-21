@@ -88,11 +88,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // CSRF protection is disabled: the API authenticates via HttpOnly JWT cookies
-                // that are scoped with SameSite=Strict, which blocks cross-site requests from
-                // carrying them. Re-enable (with CookieCsrfTokenRepository) if the cookie
-                // SameSite policy is ever relaxed.
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository()))
                 .logout(logout -> logout.disable())
                 .headers(headers -> {
                     headers.contentTypeOptions(Customizer.withDefaults());
