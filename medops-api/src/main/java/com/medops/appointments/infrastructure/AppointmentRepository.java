@@ -71,6 +71,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
               AND a.status IN :statuses
             """)
     List<UUID> findDistinctPatientProfileIdsByDoctorProfileIdAndStatusIn(
-            @Param("doctorId") UUID doctorId,
+            @Param("doctorId") UUID doctorProfileId,
             @Param("statuses") Collection<AppointmentStatus> statuses);
+
+    /** Finds BOOKED appointments that have already ended (ends_at &lt; now), oldest first. */
+    List<Appointment> findByStatusAndEndsAtBeforeOrderByStartsAtAsc(
+            AppointmentStatus status, Instant endsAtBefore, Pageable pageable);
 }

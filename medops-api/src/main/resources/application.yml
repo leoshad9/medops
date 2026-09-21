@@ -53,8 +53,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 8MB
-      max-request-size: 8MB
+      max-file-size: 10MB
+      max-request-size: 10MB
 
   data:
     redis:
@@ -77,9 +77,9 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
   tomcat:
-    # Must be >= spring.servlet.multipart.max-request-size (default form/swallow caps are lower).
-    max-http-form-post-size: 8MB
-    max-swallow-size: 8MB
+    # Must be >= spring.servlet.multipart.max-file-size (default form/swallow caps are lower).
+    max-http-form-post-size: 10MB
+    max-swallow-size: 10MB
 
 springdoc:
   api-docs:
@@ -253,6 +253,9 @@ medops:
     enabled: false
   ai:
     service-enabled: false
+  appointments:
+    reconciliation:
+      enabled: false
 
 management:
   endpoints:

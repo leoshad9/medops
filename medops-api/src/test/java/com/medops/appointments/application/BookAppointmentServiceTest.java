@@ -25,7 +25,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.medops.appointments.api.dto.AppointmentResponse;
-import com.medops.patients.domain.Gender;
 import com.medops.appointments.api.dto.BookAppointmentRequest;
 import com.medops.appointments.domain.AppointmentStatus;
 import com.medops.appointments.infrastructure.Appointment;
