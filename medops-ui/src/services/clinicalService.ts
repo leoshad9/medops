@@ -1,5 +1,6 @@
 import type { ApiResponse } from "../types/api";
 import { messageFromApiError } from "../lib/apiError";
+import { asPdfUploadFile, pdfEndStructureProblem, pdfFileProblem, pdfHeaderProblem } from "../lib/pdfUpload";
 import { api } from "./api";
 
 export interface DoctorPatientSummary {
@@ -68,12 +69,18 @@ export async function listReports(patientId?: string): Promise<ClinicalReportDto
 }
 
 export async function uploadReport(patientId: string, title: string, notes: string, file: File): Promise<ClinicalReportDto> {
+  // Reject locally what the API would reject with 400 INVALID_ARGUMENT, so an
+  // invalid file never costs the user a full upload round trip.
+  const problem = pdfFileProblem(file) ?? (await pdfHeaderProblem(file)) ?? (await pdfEndStructureProblem(file));
+  if (problem) {
+    throw new Error(problem);
+  }
   const form = new FormData();
   form.append("title", title);
   if (notes.trim()) {
     form.append("notes", notes.trim());
   }
-  form.append("file", file);
+  form.append("file", asPdfUploadFile(file));
   try {
     const response = await api.post<ApiResponse<ClinicalReportDto>>(`/v1/patients/${patientId}/reports`, form, {
       headers: { "Idempotency-Key": crypto.randomUUID() },

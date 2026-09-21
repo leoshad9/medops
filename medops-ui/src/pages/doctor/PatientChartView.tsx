@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { DOCTOR_PATHS } from "../../lib/doctorRoutes";
 import { formatClinicDateTime } from "../../lib/clinicTime";
+import { MAX_PDF_BYTES, pdfFileProblem } from "../../lib/pdfUpload";
 import {
   createPrescription,
   downloadClinicalFile,
@@ -153,15 +154,16 @@ export function DoctorPatientChartView() {
               className="w-full rounded-lg border border-brand-line px-3 py-2 text-sm"
             />
             <label className="block text-xs font-semibold text-brand-ink">
-              PDF file only
+              PDF file only (max {MAX_PDF_BYTES / (1024 * 1024)} MB)
               <input
                 required
                 type="file"
                 accept="application/pdf,.pdf"
                 onChange={(e) => {
                   const next = e.target.files?.[0] ?? null;
-                  if (next && next.type !== "application/pdf" && !next.name.toLowerCase().endsWith(".pdf")) {
-                    setError("Only PDF files can be uploaded.");
+                  const problem = next ? pdfFileProblem(next) : null;
+                  if (problem) {
+                    setError(problem);
                     e.target.value = "";
                     setReportFile(null);
                     return;
