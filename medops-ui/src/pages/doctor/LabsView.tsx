@@ -46,7 +46,7 @@ export function DoctorLabsView() {
                   {report.patientName} ({report.patientMrn}) · {formatClinicDateTime(report.createdAt)} · {report.status}
                 </p>
                 {report.summary && (
-                  <p className="mt-1 text-xs text-brand-ink line-clamp-2">{report.summary}</p>
+                  <p className="mt-1 text-sm text-brand-ink whitespace-pre-wrap line-clamp-3">{report.summary}</p>
                 )}
               </div>
               <div className="flex items-center gap-3">

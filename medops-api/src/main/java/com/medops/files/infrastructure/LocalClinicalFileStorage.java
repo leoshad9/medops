@@ -50,6 +50,19 @@ public class LocalClinicalFileStorage implements ClinicalFileStorage {
         return new FileSystemResource(path);
     }
 
+    @Override
+    public void delete(String storageKey) {
+        Path path = root().resolve(storageKey).normalize();
+        if (!path.startsWith(root())) {
+            throw new IllegalStateException("Refusing to delete outside the clinical files directory");
+        }
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Unable to delete clinical file", ex);
+        }
+    }
+
     private Path root() {
         return Path.of(properties.root()).toAbsolutePath().normalize();
     }

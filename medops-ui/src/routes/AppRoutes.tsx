@@ -13,9 +13,11 @@ import { PasswordResetSuccess } from "../pages/auth/PasswordResetSuccess";
 import { DoctorAppointmentsView } from "../pages/doctor/AppointmentsView";
 import { DoctorDashboard } from "../pages/doctor/Dashboard";
 import { DoctorLabsView } from "../pages/doctor/LabsView";
+import { DoctorNotificationsView } from "../pages/doctor/NotificationsView";
 import { DoctorPatientChartView } from "../pages/doctor/PatientChartView";
 import { DoctorPatientsView } from "../pages/doctor/PatientsView";
 import { DoctorPrescriptionsView } from "../pages/doctor/PrescriptionsView";
+import { DoctorProfileView } from "../pages/doctor/ProfileView";
 import { PatientDashboard } from "../pages/patient/Dashboard";
 import { AppointmentsView } from "../pages/patient/views/AppointmentsView";
 import { BillingView } from "../pages/patient/views/BillingView";
@@ -76,6 +78,8 @@ export function AppRoutes() {
           <Route path="patients/:patientId" element={<DoctorPatientChartView />} />
           <Route path="prescriptions" element={<DoctorPrescriptionsView />} />
           <Route path="labs" element={<DoctorLabsView />} />
+          <Route path="notifications" element={<DoctorNotificationsView />} />
+          <Route path="profile" element={<DoctorProfileView />} />
         </Route>
       </Route>
       <Route element={<ProtectedRoute allowedRoles={["PATIENT"]} />}>

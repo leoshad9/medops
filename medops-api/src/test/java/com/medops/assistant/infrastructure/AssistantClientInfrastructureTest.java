@@ -17,6 +17,11 @@ import org.springframework.web.client.RestClient;
 
 import com.medops.assistant.domain.AssistantAppointment;
 import com.medops.assistant.domain.AssistantClient;
+import com.medops.assistant.domain.AssistantContext;
+import com.medops.assistant.domain.AssistantInvoice;
+import com.medops.assistant.domain.AssistantLabReport;
+import com.medops.assistant.domain.AssistantMedicalRecord;
+import com.medops.assistant.domain.AssistantPrescription;
 import com.medops.assistant.domain.AssistantReply;
 import com.medops.shared.exception.ServiceUnavailableException;
 
@@ -59,12 +64,14 @@ class AssistantClientInfrastructureTest {
                         .json("{\"message\":\"Hello\",\"time_zone\":\"Asia/Kolkata\",\"appointments\":["
                                 + "{\"starts_at_local\":\"Wed, 23 Sep 2026 10:30\",\"status\":\"BOOKED\","
                                 + "\"practitioner_name\":\"Dr. Rao\",\"specialty\":\"Cardiology\","
-                                + "\"location\":\"Room 3\"}]}", true))
+                                + "\"location\":\"Room 3\"}],\"lab_reports\":[],\"prescriptions\":[],"
+                                + "\"invoices\":[],\"medical_records\":[]}", true))
                 .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess()
                         .contentType(MediaType.APPLICATION_JSON)
                         .body("{\"message\":\"Hi! How can I help?\"}"));
 
-        AssistantReply reply = client.chat("Hello", List.of(context), "Asia/Kolkata");
+        AssistantReply reply = client.chat("Hello",
+                AssistantContext.of(List.of(context), List.of(), List.of(), List.of(), List.of()), "Asia/Kolkata");
 
         assertThat(reply.text()).isEqualTo("Hi! How can I help?");
         server.verify();
@@ -78,7 +85,7 @@ class AssistantClientInfrastructureTest {
                 .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
                         .withStatus(HttpStatus.TOO_MANY_REQUESTS).body("{\"detail\":\"rate limited\"}"));
 
-        assertThatThrownBy(() -> client.chat("Hello", List.of(), null))
+        assertThatThrownBy(() -> client.chat("Hello", AssistantContext.empty(), null))
                 .isInstanceOf(ServiceUnavailableException.class)
                 .hasMessageContaining("rate limit");
     }
@@ -91,7 +98,7 @@ class AssistantClientInfrastructureTest {
                 .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
                         .withStatus(HttpStatus.GATEWAY_TIMEOUT).body("{}"));
 
-        assertThatThrownBy(() -> client.chat("Hello", List.of(), null))
+        assertThatThrownBy(() -> client.chat("Hello", AssistantContext.empty(), null))
                 .isInstanceOf(ServiceUnavailableException.class)
                 .hasMessageContaining("timed out");
     }
@@ -104,7 +111,7 @@ class AssistantClientInfrastructureTest {
                 .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
                         .withStatus(HttpStatus.BAD_GATEWAY).body("{}"));
 
-        assertThatThrownBy(() -> client.chat("Hello", List.of(), null))
+        assertThatThrownBy(() -> client.chat("Hello", AssistantContext.empty(), null))
                 .isInstanceOf(ServiceUnavailableException.class)
                 .hasMessageContaining("unavailable");
     }
@@ -112,7 +119,7 @@ class AssistantClientInfrastructureTest {
     /** Verifies that the disabled-service stub returns its deterministic reply. */
     @Test
     void stubReturnsDeterministicReplyWithoutAiService() {
-        assertThat(new StubAssistantClient().chat("anything", List.of(), null).text())
+        assertThat(new StubAssistantClient().chat("anything", AssistantContext.empty(), null).text())
                 .contains("MedOps AI Assistant")
                 .contains("appointments");
     }
@@ -126,7 +133,7 @@ class AssistantClientInfrastructureTest {
             /** Simulates one transient failure followed by a successful reply. */
             @Override
             public AssistantReply chat(
-                    String userMessage, List<AssistantAppointment> appointments, String timeZone) {
+                    String userMessage, AssistantContext context, String timeZone) {
                 calls++;
                 if (calls == 1) {
                     throw new ServiceUnavailableException("transient", new IOException("boom"));
@@ -148,13 +155,13 @@ class AssistantClientInfrastructureTest {
                 retry,
                 TimeLimiter.of(TimeLimiterConfig.custom().timeoutDuration(Duration.ofSeconds(5)).build()));
 
-        assertThat(resilient.chat("Hello", List.of(), null).text()).isEqualTo("recovered");
+        assertThat(resilient.chat("Hello", AssistantContext.empty(), null).text()).isEqualTo("recovered");
     }
 
     /** Verifies that the resilience wrapper times out a slow delegate. */
     @Test
     void resilienceWrapperTimesOutSlowDelegate() {
-        AssistantClient slow = (userMessage, appointments, timeZone) -> {
+        AssistantClient slow = (userMessage, context, timeZone) -> {
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
@@ -168,6 +175,49 @@ class AssistantClientInfrastructureTest {
                 Retry.of("assistant-timeout-test", RetryConfig.custom().maxAttempts(1).build()),
                 TimeLimiter.of(TimeLimiterConfig.custom().timeoutDuration(Duration.ofMillis(50)).build()));
 
-        assertThatThrownBy(() -> resilient.chat("Hello", List.of(), null)).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> resilient.chat("Hello", AssistantContext.empty(), null))
+                .isInstanceOf(Exception.class);
+    }
+
+    /** Verifies the snake_case wire shape of the clinical, billing, and record context. */
+    @Test
+    void chatPostsClinicalBillingAndRecordContextInSnakeCase() {
+        AssistantContext context = AssistantContext.of(
+                List.of(),
+                List.of(new AssistantLabReport(
+                        "Wed, 23 Sep 2026 10:30", "Lab Panel: Lipid Profile", "NEW", "Dr. Rao", null, true,
+                        "Cholesterol is slightly high.")),
+                List.of(new AssistantPrescription(
+                        "Tue, 22 Sep 2026 09:00", "Atorvastatin", "10 mg nightly", "ACTIVE", "Dr. Rao", null, 2)),
+                List.of(new AssistantInvoice(
+                        "Mon, 21 Sep 2026 08:00", "ISSUED", 12_000L, 2_000L, 10_000L, "2026-10-05", null)),
+                List.of(new AssistantMedicalRecord(
+                        "Mon, 21 Sep 2026 08:15", "Discharge Summary", "CLINICAL_DOCUMENT", "Dr. Rao", null, false,
+                        null)));
+        server.expect(org.springframework.test.web.client.ExpectedCount.once(),
+                        org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo(CHAT_URL))
+                .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.method(HttpMethod.POST))
+                .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.content()
+                        .json("{\"message\":\"Hello\",\"time_zone\":\"Asia/Kolkata\",\"appointments\":[],"
+                                + "\"lab_reports\":[{\"created_at_local\":\"Wed, 23 Sep 2026 10:30\","
+                                + "\"title\":\"Lab Panel: Lipid Profile\",\"status\":\"NEW\","
+                                + "\"doctor_name\":\"Dr. Rao\",\"has_summary\":true,"
+                                + "\"summary\":\"Cholesterol is slightly high.\"}],"
+                                + "\"prescriptions\":[{\"created_at_local\":\"Tue, 22 Sep 2026 09:00\","
+                                + "\"medication_name\":\"Atorvastatin\",\"dosage\":\"10 mg nightly\","
+                                + "\"status\":\"ACTIVE\",\"doctor_name\":\"Dr. Rao\",\"refills_remaining\":2}],"
+                                + "\"invoices\":[{\"created_at_local\":\"Mon, 21 Sep 2026 08:00\","
+                                + "\"status\":\"ISSUED\",\"total_cents\":12000,\"paid_cents\":2000,"
+                                + "\"balance_cents\":10000,\"due_date_local\":\"2026-10-05\"}],"
+                                + "\"medical_records\":[{\"created_at_local\":\"Mon, 21 Sep 2026 08:15\","
+                                + "\"title\":\"Discharge Summary\",\"type\":\"CLINICAL_DOCUMENT\","
+                                + "\"doctor_name\":\"Dr. Rao\",\"has_summary\":false}]}", true))
+                .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"message\":\"Hi!\"}"));
+
+        client.chat("Hello", context, "Asia/Kolkata");
+
+        server.verify();
     }
 }

@@ -8,6 +8,7 @@ interface DoctorHeaderProps {
   unreadAlertsCount: number;
   title?: string;
   subtitle?: string;
+  onToggleNotifications: () => void;
 }
 
 function initialsOf(name: string): string {
@@ -23,6 +24,7 @@ export function DoctorHeader({
   unreadAlertsCount,
   title,
   subtitle,
+  onToggleNotifications,
 }: Readonly<DoctorHeaderProps>) {
   const heading = title ?? `${getTimeOfDayGreeting()}, ${profile.name}`;
   const sub = subtitle ?? `Clinical Command Center · ${profile.specialty} Division`;
@@ -30,7 +32,7 @@ export function DoctorHeader({
   return (
     <div className="relative flex flex-col gap-4 border-b border-brand-line pb-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 fluid-text-xs font-semibold text-emerald-700 whitespace-nowrap">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {"Duty Active"}
@@ -47,8 +49,9 @@ export function DoctorHeader({
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <button
           type="button"
-          className="relative grid h-10 w-10 place-items-center rounded-lg border border-brand-line bg-white text-brand-muted transition hover:text-brand-ink touch-target"
-          aria-label="Clinical Alerts"
+          onClick={onToggleNotifications}
+          className="relative grid h-10 w-10 place-items-center rounded-lg border border-brand-line bg-white text-brand-muted transition hover:text-brand-ink hover:border-brand-primary cursor-pointer touch-target focus-visible-ring"
+          aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />
           {unreadAlertsCount > 0 && (

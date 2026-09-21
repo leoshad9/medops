@@ -7,5 +7,15 @@ import jakarta.validation.constraints.NotBlank;
 
 @Validated
 @ConfigurationProperties(prefix = "medops.files")
-public record ClinicalFileProperties(@NotBlank String root) {
+public record ClinicalFileProperties(
+        @NotBlank String root,
+        long storageQuotaBytes
+) {
+
+    public ClinicalFileProperties {
+        if (storageQuotaBytes <= 0) {
+            throw new IllegalArgumentException(
+                    "storageQuotaBytes must be positive, got: " + storageQuotaBytes);
+        }
+    }
 }

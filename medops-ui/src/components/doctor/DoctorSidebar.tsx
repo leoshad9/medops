@@ -4,8 +4,10 @@ import {
   FlaskConical,
   Headset,
   LayoutDashboard,
+  Bell,
   LogOut,
   Pill,
+  User,
   Users,
 } from "lucide-react";
 
@@ -19,6 +21,8 @@ const NAV_ITEMS: { id: DoctorViewKey; label: string; icon: typeof LayoutDashboar
   { id: "patients", label: "Patient Roster", icon: Users },
   { id: "prescriptions", label: "E-Prescriptions", icon: Pill },
   { id: "labs", label: "Diagnostic & Labs", icon: FlaskConical },
+  { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "profile", label: "My Profile", icon: User },
 ];
 
 export function DoctorSidebar() {

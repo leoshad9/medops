@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
 import { useNotifications } from "../../hooks/useNotifications";
-import { PATIENT_PATHS, PATIENT_VIEW_METADATA, patientViewFromPath } from "../../lib/patientRoutes";
+import { PATIENT_VIEW_METADATA, patientViewFromPath } from "../../lib/patientRoutes";
 import { mockPatientDashboard } from "../../pages/patient/mockDashboardData";
 import { getMyProfile } from "../../services/patientService";
 import type {
@@ -31,7 +31,6 @@ export interface PatientPortalContext {
 export function PatientLayout() {
   const data = mockPatientDashboard;
   const location = useLocation();
-  const navigate = useNavigate();
   const [profile, setProfile] = useState<PatientProfile | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
@@ -93,7 +92,10 @@ export function PatientLayout() {
           title={meta.title}
           subtitle={meta.subtitle}
           onOpenMobileMenu={() => setMobileSidebarOpen(true)}
-          onViewNotifications={() => void navigate(PATIENT_PATHS.notifications)}
+          notifications={notifications}
+          notificationsLoading={notificationsLoading}
+          onMarkRead={markNotificationRead}
+          onMarkAllRead={markAllNotificationsRead}
         />
 
         <div className="animate-in fade-in duration-150">

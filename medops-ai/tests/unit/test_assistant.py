@@ -5,7 +5,12 @@ from __future__ import annotations
 import pytest
 
 from app.config import settings
-from app.services.assistant_service import AssistantService
+from app.services.assistant_service import (
+    AssistantContext,
+    AssistantInvoiceContext,
+    AssistantPrescriptionContext,
+    AssistantService,
+)
 from app.services.llm_types import ChatResult
 
 
@@ -32,7 +37,7 @@ async def test_chat_delegates_to_client() -> None:
     fake = FakeChatClient("Here is how to reschedule.")
     service = AssistantService(client=fake)
 
-    reply = await service.chat("How do I reschedule an appointment?")
+    reply = await service.chat("How do I reschedule an appointment?", AssistantContext())
 
     assert reply == "Here is how to reschedule."
     assert fake.last_user == "How do I reschedule an appointment?"
@@ -44,7 +49,7 @@ async def test_chat_system_prompt_forbids_medical_advice() -> None:
     fake = FakeChatClient("ok")
     service = AssistantService(client=fake)
 
-    await service.chat("Hello")
+    await service.chat("Hello", AssistantContext())
 
     prompt = (fake.last_system or "").lower()
     assert "not a doctor" in prompt
@@ -57,7 +62,7 @@ async def test_chat_returns_stub_when_no_provider_configured(monkeypatch: pytest
     """With no API key configured, a deterministic stub reply is returned."""
     monkeypatch.setattr(settings, "llm_api_key", "")
     monkeypatch.setattr(settings, "llm_provider", "")
-    reply = await AssistantService().chat("What is my next appointment?")
+    reply = await AssistantService().chat("What is my next appointment?", AssistantContext())
     assert "stub" in reply.lower()
 
 
@@ -95,3 +100,54 @@ def test_validate_reply_allows_navigation_help_mentioning_prescriptions() -> Non
     service = AssistantService(client=None)
     text = "You can request a refill in the Prescriptions section of MedOps."
     assert service.validate_reply(text) == text
+
+
+@pytest.mark.asyncio
+async def test_chat_renders_prescription_and_billing_context() -> None:
+    """The API-provided prescriptions and invoices are rendered into the prompt."""
+    fake = FakeChatClient("ok")
+    service = AssistantService(client=fake)
+
+    await service.chat(
+        "What do I owe?",
+        AssistantContext(
+            prescriptions=[
+                AssistantPrescriptionContext(
+                    created_at_local="Tue, 22 Sep 2026 09:00",
+                    medication_name="Atorvastatin",
+                    dosage="10 mg nightly",
+                    status="ACTIVE",
+                    doctor_name="Dr. Rao",
+                    refills_remaining=2,
+                )
+            ],
+            invoices=[
+                AssistantInvoiceContext(
+                    created_at_local="Mon, 21 Sep 2026 08:00",
+                    status="ISSUED",
+                    total_cents=12000,
+                    paid_cents=2000,
+                    balance_cents=10000,
+                    due_date_local="2026-10-05",
+                )
+            ],
+        ),
+    )
+
+    prompt = fake.last_user or ""
+    assert "SERVER-PROVIDED CONTEXT" in prompt
+    assert "Atorvastatin" in prompt
+    assert "refills remaining: 2" in prompt
+    assert "balance 10000 cents" in prompt
+    assert prompt.endswith("User question: What do I owe?")
+
+
+@pytest.mark.asyncio
+async def test_chat_without_context_sends_the_bare_message() -> None:
+    """No snapshot means the user message is forwarded unchanged."""
+    fake = FakeChatClient("ok")
+    service = AssistantService(client=fake)
+
+    await service.chat("Hello", AssistantContext())
+
+    assert fake.last_user == "Hello"

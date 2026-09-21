@@ -77,6 +77,7 @@ medops:
     api-docs-public: false
   files:
     root: ${MEDOPS_FILES_ROOT:/data/clinical-files}
+    storage-quota-bytes: ${MEDOPS_FILES_STORAGE_QUOTA_BYTES:52428800}
   redis:
     enabled: ${MEDOPS_REDIS_ENABLED:true}
   messaging:

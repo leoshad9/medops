@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers import assistant as assistant_router
+from app.services.assistant_service import (
+    AssistantContext,
+    AssistantAppointmentContext,
+    AssistantInvoiceContext,
+    AssistantLabReportContext,
+    AssistantMedicalRecordContext,
+    AssistantPrescriptionContext,
+)
 from app.services.llm_types import LlmUnavailableError
 
 
@@ -18,9 +28,16 @@ class StubService:
         self._reply = reply
         self.raise_chat: Exception | None = None
         self.raise_validate: Exception | None = None
+        self.last_message: str | None = None
 
-    async def chat(self, message: str) -> str:
-        """Return the configured reply or raise the configured chat error."""
+    async def chat(
+        self,
+        message: str,
+        context: AssistantContext,
+        time_zone: str | None = None,
+    ) -> str:
+        """Mirror the production signature, recording the call for assertions."""
+        self.last_message = message
         if self.raise_chat:
             raise self.raise_chat
         return self._reply

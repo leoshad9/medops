@@ -1,5 +1,8 @@
 import { Bot, Calendar, CreditCard, FlaskConical, HelpCircle, Pill } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import type { ComponentType } from "react";
 
 import type { AIMessage } from "../../services/aiAssistantService";
@@ -43,8 +46,17 @@ const markdownComponents: Components = {
   em: ({ node: _node, ...props }) => (
     <em {...props} className="italic" />
   ),
+  del: ({ node: _node, ...props }) => (
+    <del {...props} className="line-through" />
+  ),
   code: ({ node: _node, ...props }) => (
     <code {...props} className="rounded bg-black/5 px-1 py-0.5 font-mono text-xs" />
+  ),
+  pre: ({ node: _node, ...props }) => (
+    <pre {...props} className="overflow-x-auto rounded-lg bg-black/5 p-3 text-xs" />
+  ),
+  blockquote: ({ node: _node, ...props }) => (
+    <blockquote {...props} className="border-l-2 border-brand-primary pl-3 italic" />
   ),
 };
 
@@ -69,7 +81,13 @@ export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageLis
             {message.role === "assistant" && messages.indexOf(message) === 0 ? (
               <Bot className="mb-1 h-4 w-4 text-brand-primary" />
             ) : null}
-            <ReactMarkdown components={markdownComponents}>{message.content}</ReactMarkdown>
+            <ReactMarkdown
+              components={markdownComponents}
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw, rehypeSanitize]}
+            >
+              {message.content}
+            </ReactMarkdown>
           </div>
         </div>
       ))}

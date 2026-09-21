@@ -3,7 +3,6 @@ package com.medops.assistant.infrastructure;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -14,6 +13,11 @@ import org.springframework.web.client.RestClientResponseException;
 
 import com.medops.assistant.domain.AssistantAppointment;
 import com.medops.assistant.domain.AssistantClient;
+import com.medops.assistant.domain.AssistantContext;
+import com.medops.assistant.domain.AssistantInvoice;
+import com.medops.assistant.domain.AssistantLabReport;
+import com.medops.assistant.domain.AssistantMedicalRecord;
+import com.medops.assistant.domain.AssistantPrescription;
 import com.medops.assistant.domain.AssistantReply;
 import com.medops.reports.infrastructure.AiClientProperties;
 import com.medops.shared.exception.ServiceUnavailableException;
@@ -109,23 +113,23 @@ public class AssistantClientConfiguration {
         }
 
         /**
-         * Posts a chat message plus the caller's own appointment snapshot to the AI
-         * sidecar and maps provider failures. The message, the snapshot, and the reply
+         * Posts a chat message plus the caller's own read-only context snapshot to the
+         * AI sidecar and maps provider failures. The message, the snapshot, and the reply
          * are never logged.
          *
          * @param userMessage the validated user message
-         * @param appointments LLM-safe snapshot of the caller's own upcoming appointments
-         * @param timeZone IANA zone the appointment times were rendered in, may be null
+         * @param context LLM-safe context snapshot of the caller's own records
+         * @param timeZone IANA zone the snapshot times were rendered in, may be null
          * @return the non-blank assistant reply
          */
         @Override
         public AssistantReply chat(
-                String userMessage, List<AssistantAppointment> appointments, String timeZone) {
+                String userMessage, AssistantContext context, String timeZone) {
             try {
                 AssistantChatMessageResponse response = restClient.post()
                         .uri(CHAT_URI)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .body(requestBody(userMessage, appointments, timeZone))
+                        .body(requestBody(userMessage, context, timeZone))
                         .retrieve()
                         .body(AssistantChatMessageResponse.class);
 
@@ -158,17 +162,25 @@ public class AssistantClientConfiguration {
          * @return the JSON payload to post
          */
         private static Map<String, Object> requestBody(
-                String userMessage, List<AssistantAppointment> appointments, String timeZone) {
+                String userMessage, AssistantContext context, String timeZone) {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("message", userMessage);
             putIfPresent(body, "time_zone", timeZone);
             body.put("appointments",
-                    appointments.stream().map(HttpAssistantClient::contextPayload).toList());
+                    context.appointments().stream().map(HttpAssistantClient::appointmentPayload).toList());
+            body.put("lab_reports",
+                    context.labReports().stream().map(HttpAssistantClient::labReportPayload).toList());
+            body.put("prescriptions",
+                    context.prescriptions().stream().map(HttpAssistantClient::prescriptionPayload).toList());
+            body.put("invoices",
+                    context.invoices().stream().map(HttpAssistantClient::invoicePayload).toList());
+            body.put("medical_records",
+                    context.medicalRecords().stream().map(HttpAssistantClient::medicalRecordPayload).toList());
             return body;
         }
 
         /** Maps one appointment to the sidecar's appointment-context shape. */
-        private static Map<String, Object> contextPayload(AssistantAppointment appointment) {
+        private static Map<String, Object> appointmentPayload(AssistantAppointment appointment) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("starts_at_local", appointment.startsAtLocal());
             item.put("status", appointment.status());
@@ -178,8 +190,60 @@ public class AssistantClientConfiguration {
             return item;
         }
 
+        /** Maps one lab report to the sidecar's lab-report-context shape. */
+        private static Map<String, Object> labReportPayload(AssistantLabReport report) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            putIfPresent(item, "created_at_local", report.createdAtLocal());
+            putIfPresent(item, "title", report.title());
+            putIfPresent(item, "status", report.status());
+            putIfPresent(item, "doctor_name", report.doctorName());
+            putIfPresent(item, "specialty", report.specialty());
+            item.put("has_summary", report.hasSummary());
+            putIfPresent(item, "summary", report.summary());
+            return item;
+        }
+
+        /** Maps one prescription to the sidecar's prescription-context shape. */
+        private static Map<String, Object> prescriptionPayload(AssistantPrescription prescription) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            putIfPresent(item, "created_at_local", prescription.createdAtLocal());
+            putIfPresent(item, "medication_name", prescription.medicationName());
+            putIfPresent(item, "dosage", prescription.dosage());
+            putIfPresent(item, "status", prescription.status());
+            putIfPresent(item, "doctor_name", prescription.doctorName());
+            putIfPresent(item, "specialty", prescription.specialty());
+            putIfPresent(item, "refills_remaining", prescription.refillsRemaining());
+            return item;
+        }
+
+        /** Maps one invoice to the sidecar's invoice-context shape. */
+        private static Map<String, Object> invoicePayload(AssistantInvoice invoice) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            putIfPresent(item, "created_at_local", invoice.createdAtLocal());
+            putIfPresent(item, "status", invoice.status());
+            item.put("total_cents", invoice.totalCents());
+            item.put("paid_cents", invoice.paidCents());
+            item.put("balance_cents", invoice.balanceCents());
+            putIfPresent(item, "due_date_local", invoice.dueDateLocal());
+            putIfPresent(item, "appointment_type", invoice.appointmentType());
+            return item;
+        }
+
+        /** Maps one medical record to the sidecar's medical-record-context shape. */
+        private static Map<String, Object> medicalRecordPayload(AssistantMedicalRecord record) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            putIfPresent(item, "created_at_local", record.createdAtLocal());
+            putIfPresent(item, "title", record.title());
+            putIfPresent(item, "type", record.type());
+            putIfPresent(item, "doctor_name", record.doctorName());
+            putIfPresent(item, "specialty", record.specialty());
+            item.put("has_summary", record.hasSummary());
+            putIfPresent(item, "summary", record.summary());
+            return item;
+        }
+
         /** Adds an optional key only when it carries a value. */
-        private static void putIfPresent(Map<String, Object> target, String key, String value) {
+        private static void putIfPresent(Map<String, Object> target, String key, Object value) {
             if (value != null) {
                 target.put(key, value);
             }

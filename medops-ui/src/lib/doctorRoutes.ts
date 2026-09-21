@@ -1,4 +1,11 @@
-export type DoctorViewKey = "dashboard" | "appointments" | "patients" | "prescriptions" | "labs";
+export type DoctorViewKey =
+  | "dashboard"
+  | "appointments"
+  | "patients"
+  | "prescriptions"
+  | "labs"
+  | "notifications"
+  | "profile";
 
 export const DOCTOR_PATHS: Record<DoctorViewKey, string> = {
   dashboard: "/doctor/dashboard",
@@ -6,6 +13,8 @@ export const DOCTOR_PATHS: Record<DoctorViewKey, string> = {
   patients: "/doctor/patients",
   prescriptions: "/doctor/prescriptions",
   labs: "/doctor/labs",
+  notifications: "/doctor/notifications",
+  profile: "/doctor/profile",
 };
 
 export const DOCTOR_VIEW_METADATA: Record<DoctorViewKey, { title?: string; subtitle?: string }> = {
@@ -15,7 +24,7 @@ export const DOCTOR_VIEW_METADATA: Record<DoctorViewKey, { title?: string; subti
     subtitle: "Today's roster and upcoming booked visits.",
   },
   patients: {
-    title: "Patient roster",
+    title: "Patient Roster",
     subtitle: "Patients you have booked or completed visits with.",
   },
   prescriptions: {
@@ -25,6 +34,14 @@ export const DOCTOR_VIEW_METADATA: Record<DoctorViewKey, { title?: string; subti
   labs: {
     title: "Diagnostic & Labs",
     subtitle: "Reports you have uploaded for your patients.",
+  },
+  notifications: {
+    title: "Notifications",
+    subtitle: "Everything we've sent you — read and unread.",
+  },
+  profile: {
+    title: "My Profile",
+    subtitle: "Your verified clinical identity on file with MedOps.",
   },
 };
 
@@ -40,6 +57,12 @@ export function doctorViewFromPath(pathname: string): DoctorViewKey {
   }
   if (pathname.startsWith("/doctor/labs")) {
     return "labs";
+  }
+  if (pathname.startsWith("/doctor/notifications")) {
+    return "notifications";
+  }
+  if (pathname.startsWith("/doctor/profile")) {
+    return "profile";
   }
   return "dashboard";
 }

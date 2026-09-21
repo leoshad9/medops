@@ -28,13 +28,13 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "notifications", label: "Notifications", icon: Bell },
   { id: "appointments", label: "Appointments", icon: Calendar },
   { id: "book", label: "Book Appointment", icon: CalendarPlus },
   { id: "prescriptions", label: "Prescriptions", icon: Pill },
   { id: "labs", label: "Lab Reports", icon: FlaskConical },
   { id: "records", label: "Medical Records", icon: Folder },
   { id: "billing", label: "Billing & Payments", icon: CreditCard },
+  { id: "notifications", label: "Notifications", icon: Bell },
   { id: "profile", label: "My Profile", icon: User },
   { id: "help", label: "Help & Support", icon: HelpCircle },
 ];

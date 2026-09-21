@@ -15,7 +15,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
@@ -115,8 +114,9 @@ public class SecurityConfig {
                     if (securityProperties.apiDocsPublic()) {
                         auth.requestMatchers(DOCS_PUBLIC).permitAll();
                     }
-                    // Deny all other actuator endpoints by default; health is exposed via ALWAYS_PUBLIC above.
                     auth.requestMatchers("/actuator/**").denyAll();
+                    auth.requestMatchers(HttpMethod.GET, "/api/v1/notifications/stream")
+                            .hasAnyRole("PATIENT", "DOCTOR");
                     auth.anyRequest().authenticated();
                 })
                 .exceptionHandling(exceptions -> exceptions

@@ -19,7 +19,10 @@ import org.springframework.security.access.AccessDeniedException;
 import com.medops.clinical.ClinicalAccessService;
 import com.medops.files.domain.ClinicalFileStorage;
 import com.medops.files.domain.UploadedPdf;
+import com.medops.files.infrastructure.ClinicalFileProperties;
+import com.medops.files.infrastructure.UserStorageRepository;
 import com.medops.messaging.domain.DomainEventPublisher;
+import com.medops.patients.infrastructure.PatientProfileRepository;
 import com.medops.reports.infrastructure.ClinicalReportRepository;
 import com.medops.shared.audit.AuditService;
 
@@ -27,6 +30,7 @@ import com.medops.shared.audit.AuditService;
 class UploadReportServiceAuthorizationTest {
 
     private static final String DOCTOR_EMAIL = "doctor.a@medops.dev";
+    private static final long QUOTA_BYTES = 50L * 1024 * 1024;
 
     @Mock
     private ClinicalReportRepository reportRepository;
@@ -40,6 +44,13 @@ class UploadReportServiceAuthorizationTest {
     private AuditService auditService;
     @Mock
     private DomainEventPublisher domainEventPublisher;
+    @Mock
+    private PatientProfileRepository patientProfileRepository;
+    @Mock
+    private UserStorageRepository userStorageRepository;
+
+    private final ClinicalFileProperties fileProperties =
+            new ClinicalFileProperties("./data/clinical-files", QUOTA_BYTES);
 
     private UUID foreignPatientId;
 
@@ -51,7 +62,8 @@ class UploadReportServiceAuthorizationTest {
     @Test
     void uploadDeniesDoctorWhenNoCareRelationship() {
         UploadReportService service = new UploadReportService(
-                reportRepository, fileStorage, clinicalAccess, assembler, auditService, domainEventPublisher);
+                reportRepository, fileStorage, clinicalAccess, assembler, auditService,
+                domainEventPublisher, patientProfileRepository, userStorageRepository, fileProperties);
         when(clinicalAccess.requireTreatingDoctor(DOCTOR_EMAIL, foreignPatientId))
                 .thenThrow(new AccessDeniedException("denied"));
         byte[] pdf = (

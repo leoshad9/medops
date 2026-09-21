@@ -1,16 +1,17 @@
-"""Assistant chat orchestration: user message + appointment snapshot → LLM → validated reply.
+"""Assistant chat orchestration: user message + read-only context snapshot → LLM → validated reply.
 
 The Spring Boot API may attach a bounded, read-only snapshot of the signed-in
-user's OWN upcoming appointments. The assistant must answer scheduling
-questions only from that snapshot and must never invent appointments, reports,
-prescriptions, bills, or clinical findings.
+user's OWN appointments, lab reports, prescriptions, invoices, and medical
+records. The assistant must answer questions about those records only from that
+snapshot and must never invent appointments, reports, prescriptions, bills, or
+clinical findings.
 """
 
 from __future__ import annotations
 
 import logging
 import re
-from typing import Optional, Sequence
+from typing import Any, Callable, List, Optional, Sequence
 
 from pydantic import BaseModel, Field
 
@@ -26,9 +27,10 @@ SYSTEM_PROMPT = (
     "prescriptions, lab reports, billing, and using the portal. "
     "You are not a doctor and must not diagnose conditions, prescribe treatment, "
     "or give medical advice. "
-    "When a read-only snapshot of the signed-in user's own upcoming appointments "
-    "is provided, treat it as authoritative and answer scheduling questions only "
-    "from it. Never invent appointments, reports, prescriptions, bills, or "
+    "When a read-only snapshot of the signed-in user's own appointments, lab "
+    "reports, prescriptions, invoices, or medical records is provided, treat it as "
+    "authoritative and answer questions about those records only from it. Never invent "
+    "appointments, reports, prescriptions, bills, or "
     "clinical findings beyond that snapshot. "
     "When asked for personal information that is not in the snapshot, or that is "
     "not provided at all, say you cannot see it and point the user to the "
@@ -52,6 +54,7 @@ STUB_REPLY = (
 )
 
 MAX_CONTEXT_APPOINTMENTS = 10
+MAX_CONTEXT_ITEMS = 10
 _MAX_CONTEXT_FIELD_CHARS = 200
 
 
@@ -75,6 +78,116 @@ class AssistantAppointmentContext(BaseModel):
     location: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
 
 
+class AssistantLabReportContext(BaseModel):
+    """LLM-safe projection of one of the user's own lab reports.
+
+    Populated exclusively by the Spring Boot API from the authenticated user's
+    records; identifiers, MRNs, and free-text clinical notes are never included.
+
+    :param created_at_local: upload time already rendered in the user's zone.
+    :param title: report title such as ``CBC``.
+    :param status: report status such as ``NEW``.
+    :param doctor_name: ordering doctor's display name, if known.
+    :param specialty: ordering doctor's specialty, if known.
+    :param has_summary: whether a stored plain-language summary exists.
+    :param summary: the stored summary text, if any.
+    """
+
+    created_at_local: str = Field(..., max_length=64)
+    title: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    status: Optional[str] = Field(default=None, max_length=32)
+    doctor_name: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    specialty: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    has_summary: bool = False
+    summary: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+
+
+class AssistantPrescriptionContext(BaseModel):
+    """LLM-safe projection of one of the user's own prescriptions.
+
+    Populated exclusively by the Spring Boot API from the authenticated user's
+    records; identifiers, MRNs, and free-text notes are never included.
+
+    :param created_at_local: creation time already rendered in the user's zone.
+    :param medication_name: medication name.
+    :param dosage: dosage instructions.
+    :param status: prescription status such as ``ACTIVE``.
+    :param doctor_name: prescribing doctor's display name, if known.
+    :param specialty: prescribing doctor's specialty, if known.
+    :param refills_remaining: refills left, if known.
+    """
+
+    created_at_local: str = Field(..., max_length=64)
+    medication_name: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    dosage: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    status: Optional[str] = Field(default=None, max_length=32)
+    doctor_name: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    specialty: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    refills_remaining: Optional[int] = Field(default=None, ge=0)
+
+
+class AssistantInvoiceContext(BaseModel):
+    """LLM-safe projection of one of the user's own invoices.
+
+    Populated exclusively by the Spring Boot API from the authenticated user's
+    records; identifiers and detailed line items are never included.
+
+    :param created_at_local: creation time already rendered in the user's zone.
+    :param status: invoice status such as ``ISSUED``.
+    :param total_cents: total amount in cents.
+    :param paid_cents: amount paid in cents.
+    :param balance_cents: remaining balance in cents.
+    :param due_date_local: due date as a calendar date, if set.
+    :param appointment_type: related appointment type, if known.
+    """
+
+    created_at_local: str = Field(..., max_length=64)
+    status: Optional[str] = Field(default=None, max_length=32)
+    total_cents: Optional[int] = Field(default=None, ge=0)
+    paid_cents: Optional[int] = Field(default=None, ge=0)
+    balance_cents: Optional[int] = Field(default=None, ge=0)
+    due_date_local: Optional[str] = Field(default=None, max_length=32)
+    appointment_type: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+
+
+class AssistantMedicalRecordContext(BaseModel):
+    """LLM-safe projection of one of the user's own medical records.
+
+    Populated exclusively by the Spring Boot API from the authenticated user's
+    records; identifiers, MRNs, and free-text clinical notes are never included.
+
+    :param created_at_local: upload time already rendered in the user's zone.
+    :param title: record title such as ``Discharge Summary``.
+    :param type: record kind such as ``CLINICAL_DOCUMENT``.
+    :param doctor_name: authoring doctor's display name, if known.
+    :param specialty: authoring doctor's specialty, if known.
+    :param has_summary: whether a stored plain-language summary exists.
+    :param summary: the stored summary text, if any.
+    """
+
+    created_at_local: str = Field(..., max_length=64)
+    title: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    type: Optional[str] = Field(default=None, max_length=64)
+    doctor_name: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    specialty: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    has_summary: bool = False
+    summary: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+
+
+class AssistantContext(BaseModel):
+    """Bounded, LLM-safe snapshot of the signed-in user's own records.
+
+    Mirrors the Java ``AssistantContext`` record: a single aggregate
+    containing the five context types, with null-safe defaults.
+    """
+
+    appointments: List[AssistantAppointmentContext] = Field(default_factory=list)
+    lab_reports: List[AssistantLabReportContext] = Field(default_factory=list)
+    prescriptions: List[AssistantPrescriptionContext] = Field(default_factory=list)
+    invoices: List[AssistantInvoiceContext] = Field(default_factory=list)
+    medical_records: List[AssistantMedicalRecordContext] = Field(default_factory=list)
+
+
 def _sanitize_field(value: Optional[str]) -> Optional[str]:
     """Collapse whitespace so record text cannot smuggle prompt instructions."""
     if value is None:
@@ -83,13 +196,29 @@ def _sanitize_field(value: Optional[str]) -> Optional[str]:
     return collapsed[:_MAX_CONTEXT_FIELD_CHARS] or None
 
 
+def _render_snapshot(
+    header: str,
+    items: Sequence[Any],
+    item_renderer: Callable[[Any], str],
+    limit: int = MAX_CONTEXT_ITEMS,
+) -> str:
+    lines = [item_renderer(item) for item in items[:limit]]
+    return header + "\n".join(lines)
+
+
 def _appointment_snapshot(
     appointments: Sequence[AssistantAppointmentContext], time_zone: Optional[str]
 ) -> str:
     """Render the API-provided appointment snapshot as a prompt section."""
     zone = _sanitize_field(time_zone) or "the user's local time zone"
-    lines = []
-    for item in appointments[:MAX_CONTEXT_APPOINTMENTS]:
+    header = (
+        "SERVER-PROVIDED CONTEXT — the signed-in user's own upcoming appointments "
+        f"(read-only, already shown in the user's local time zone: {zone}). "
+        "Answer appointment questions using only these entries; if a requested "
+        "detail is not listed, say you cannot see it.\n"
+    )
+
+    def render(item: AssistantAppointmentContext) -> str:
         parts = [f"- {_sanitize_field(item.starts_at_local)}"]
         practitioner = _sanitize_field(item.practitioner_name)
         specialty = _sanitize_field(item.specialty)
@@ -101,13 +230,108 @@ def _appointment_snapshot(
         if location:
             parts.append(f"at {location}")
         parts.append(f"[{_sanitize_field(item.status)}]")
-        lines.append(" ".join(parts))
-    return (
-        "SERVER-PROVIDED CONTEXT — the signed-in user's own upcoming appointments "
-        f"(read-only, already shown in the user's local time zone: {zone}). "
-        "Answer appointment questions using only these entries; if a requested "
-        "detail is not listed, say you cannot see it.\n" + "\n".join(lines)
+        return " ".join(parts)
+
+    return _render_snapshot(header, appointments, render, MAX_CONTEXT_APPOINTMENTS)
+
+
+def _lab_report_snapshot(reports: Sequence[AssistantLabReportContext]) -> str:
+    """Render the API-provided lab-report snapshot as a prompt section."""
+    header = (
+        "SERVER-PROVIDED CONTEXT — the signed-in user's own lab reports "
+        "(read-only; times already in the user's local time zone). Answer "
+        "lab-report questions using only these entries; if a requested detail is "
+        "not listed, say you cannot see it.\n"
     )
+
+    def render(item: AssistantLabReportContext) -> str:
+        parts = [
+            f"- {_sanitize_field(item.created_at_local)}: {_sanitize_field(item.title)}"
+            f" [{_sanitize_field(item.status)}]"
+        ]
+        doctor = _sanitize_field(item.doctor_name)
+        if doctor:
+            parts.append(f"ordered by {doctor}")
+        if item.has_summary and item.summary:
+            parts.append(f"stored summary: {_sanitize_field(item.summary)}")
+        return " ".join(parts)
+
+    return _render_snapshot(header, reports, render)
+
+
+def _prescription_snapshot(prescriptions: Sequence[AssistantPrescriptionContext]) -> str:
+    """Render the API-provided prescription snapshot as a prompt section."""
+    header = (
+        "SERVER-PROVIDED CONTEXT — the signed-in user's own prescriptions "
+        "(read-only). Answer prescription questions using only these entries; if a "
+        "requested detail is not listed, say you cannot see it.\n"
+    )
+
+    def render(item: AssistantPrescriptionContext) -> str:
+        parts = [f"- {_sanitize_field(item.created_at_local)}: {_sanitize_field(item.medication_name)}"]
+        dosage = _sanitize_field(item.dosage)
+        if dosage:
+            parts.append(f"({dosage})")
+        status = _sanitize_field(item.status)
+        if status:
+            parts.append(f"[{status}]")
+        doctor = _sanitize_field(item.doctor_name)
+        if doctor:
+            parts.append(f"prescribed by {doctor}")
+        if item.refills_remaining is not None:
+            parts.append(f"refills remaining: {item.refills_remaining}")
+        return " ".join(parts)
+
+    return _render_snapshot(header, prescriptions, render)
+
+
+def _invoice_snapshot(invoices: Sequence[AssistantInvoiceContext]) -> str:
+    """Render the API-provided billing snapshot as a prompt section."""
+    header = (
+        "SERVER-PROVIDED CONTEXT — the signed-in user's own invoices (read-only). "
+        "Amounts are in cents. Answer billing questions using only these entries; "
+        "never invent charges and if a requested detail is not listed, say you "
+        "cannot see it.\n"
+    )
+
+    def render(item: AssistantInvoiceContext) -> str:
+        parts = [f"- {_sanitize_field(item.created_at_local)}: [{_sanitize_field(item.status)}]"]
+        if item.total_cents is not None:
+            parts.append(f"total {item.total_cents} cents")
+        if item.paid_cents is not None:
+            parts.append(f"paid {item.paid_cents} cents")
+        if item.balance_cents is not None:
+            parts.append(f"balance {item.balance_cents} cents")
+        due_date = _sanitize_field(item.due_date_local)
+        if due_date:
+            parts.append(f"due {due_date}")
+        return " ".join(parts)
+
+    return _render_snapshot(header, invoices, render)
+
+
+def _medical_record_snapshot(records: Sequence[AssistantMedicalRecordContext]) -> str:
+    """Render the API-provided medical-record snapshot as a prompt section."""
+    header = (
+        "SERVER-PROVIDED CONTEXT — the signed-in user's own medical records "
+        "(read-only; times already in the user's local time zone). Answer "
+        "record questions using only these entries; if a requested detail is not "
+        "listed, say you cannot see it.\n"
+    )
+
+    def render(item: AssistantMedicalRecordContext) -> str:
+        parts = [
+            f"- {_sanitize_field(item.created_at_local)}: {_sanitize_field(item.title)}"
+            f" ({_sanitize_field(item.type)})"
+        ]
+        doctor = _sanitize_field(item.doctor_name)
+        if doctor:
+            parts.append(f"added by {doctor}")
+        if item.has_summary and item.summary:
+            parts.append(f"stored summary: {_sanitize_field(item.summary)}")
+        return " ".join(parts)
+
+    return _render_snapshot(header, records, render)
 
 
 class AssistantService:
@@ -120,7 +344,7 @@ class AssistantService:
     async def chat(
         self,
         message: str,
-        appointments: Optional[Sequence[AssistantAppointmentContext]] = None,
+        context: AssistantContext,
         time_zone: Optional[str] = None,
     ) -> str:
         """Produce an assistant reply for a user's chat message.
@@ -129,18 +353,30 @@ class AssistantService:
         the endpoint remains usable for smoke tests.
 
         :param message: the validated, non-blank user message
-        :param appointments: optional read-only snapshot of the user's own
-            upcoming appointments, assembled by the API for this user only
+        :param context: bounded, read-only snapshot of the user's own
+            appointments, lab reports, prescriptions, invoices, and
+            medical records, assembled by the API for this user only
         :param time_zone: optional IANA zone the snapshot times were rendered in
         :returns: raw reply text (never ``None``)
         """
         if self._client is None:
             return STUB_REPLY
 
+        sections = []
+        if context.appointments:
+            sections.append(_appointment_snapshot(context.appointments, time_zone))
+        if context.lab_reports:
+            sections.append(_lab_report_snapshot(context.lab_reports))
+        if context.prescriptions:
+            sections.append(_prescription_snapshot(context.prescriptions))
+        if context.invoices:
+            sections.append(_invoice_snapshot(context.invoices))
+        if context.medical_records:
+            sections.append(_medical_record_snapshot(context.medical_records))
+
         user_prompt = message
-        if appointments:
-            snapshot = _appointment_snapshot(appointments, time_zone)
-            user_prompt = f"{snapshot}\n\nUser question: {message}"
+        if sections:
+            user_prompt = "\n\n".join(sections) + f"\n\nUser question: {message}"
 
         result: ChatResult = await self._client.chat(
             system=SYSTEM_PROMPT,

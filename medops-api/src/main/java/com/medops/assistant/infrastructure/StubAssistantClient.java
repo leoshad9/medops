@@ -1,9 +1,7 @@
 package com.medops.assistant.infrastructure;
 
-import java.util.List;
-
-import com.medops.assistant.domain.AssistantAppointment;
 import com.medops.assistant.domain.AssistantClient;
+import com.medops.assistant.domain.AssistantContext;
 import com.medops.assistant.domain.AssistantReply;
 
 /**
@@ -20,13 +18,13 @@ public class StubAssistantClient implements AssistantClient {
      * Returns the deterministic reply without making a network request.
      *
      * @param userMessage the validated user message
-     * @param appointments ignored by the stub
+     * @param context ignored by the stub
      * @param timeZone ignored by the stub
      * @return the configured stub reply
      */
     @Override
     public AssistantReply chat(
-            String userMessage, List<AssistantAppointment> appointments, String timeZone) {
+            String userMessage, AssistantContext context, String timeZone) {
         return new AssistantReply(STUB_REPLY);
     }
 }

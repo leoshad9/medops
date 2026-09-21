@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Bell, Menu } from "lucide-react";
 
 import { getTimeOfDayGreeting } from "../../lib/greeting";
-import type { PatientProfile } from "../../types/patient";
+import { PATIENT_PATHS } from "../../lib/patientRoutes";
+import type { PatientProfile, NotificationItem } from "../../types/patient";
+import { NotificationDropdown } from "./NotificationDropdown";
 
 interface PatientHeaderProps {
   profile: PatientProfile;
@@ -9,7 +12,10 @@ interface PatientHeaderProps {
   title?: string;
   subtitle?: string;
   onOpenMobileMenu?: () => void;
-  onViewNotifications?: () => void;
+  notifications: NotificationItem[];
+  notificationsLoading: boolean;
+  onMarkRead: (notificationId: string) => Promise<void>;
+  onMarkAllRead: () => Promise<void>;
 }
 
 function initialsOf(name: string): string {
@@ -25,13 +31,21 @@ export function PatientHeader({
   title,
   subtitle,
   onOpenMobileMenu,
-  onViewNotifications,
+  notifications,
+  notificationsLoading,
+  onMarkRead,
+  onMarkAllRead,
 }: Readonly<PatientHeaderProps>) {
   const firstName = profile.name.split(" ")[0];
   const greeting = getTimeOfDayGreeting();
 
   const displayTitle = title ?? `${greeting}, ${firstName}`;
   const displaySubtitle = subtitle ?? "Here's your health overview and upcoming appointments.";
+
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const toggleNotifications = () => setShowNotifications((prev) => !prev);
+  const closeNotifications = () => setShowNotifications(false);
 
   return (
     <header className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 border-b border-brand-line pb-4 sm:pb-5">
@@ -58,18 +72,32 @@ export function PatientHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 relative">
         <button
           type="button"
-          onClick={onViewNotifications}
+          onClick={toggleNotifications}
           className="relative grid h-9 w-9 place-items-center rounded-lg border border-brand-line bg-white text-brand-muted transition hover:text-brand-ink hover:border-brand-primary cursor-pointer touch-target focus-visible-ring"
           aria-label="Notifications"
+          aria-expanded={showNotifications}
+          aria-haspopup="true"
         >
           <Bell className="h-4 w-4" />
           {unreadNotificationCount > 0 && (
             <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-brand-rust" />
           )}
         </button>
+
+        {showNotifications && (
+          <NotificationDropdown
+            notifications={notifications}
+            unreadCount={unreadNotificationCount}
+            loading={notificationsLoading}
+            viewAllPath={PATIENT_PATHS.notifications}
+            onMarkRead={onMarkRead}
+            onMarkAllRead={onMarkAllRead}
+            onClose={closeNotifications}
+          />
+        )}
 
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-full bg-brand-primary text-sm font-bold text-white shadow-sm">

@@ -1,9 +1,9 @@
 """Assistant chat endpoints.
 
 Spring Boot owns authentication and business data. The API attaches only a
-bounded, read-only snapshot of the signed-in user's OWN upcoming appointments;
-this service turns that into a safety-checked LLM reply. No patient identifiers
-are accepted or returned.
+bounded, read-only snapshot of the signed-in user's OWN appointments, lab
+reports, prescriptions, invoices, and medical records; this service turns that
+into a safety-checked LLM reply. No patient identifiers are accepted or returned.
 """
 
 from __future__ import annotations
@@ -16,7 +16,13 @@ from pydantic import BaseModel, Field
 
 from app.services.assistant_service import (
     MAX_CONTEXT_APPOINTMENTS,
+    MAX_CONTEXT_ITEMS,
+    AssistantContext,
     AssistantAppointmentContext,
+    AssistantInvoiceContext,
+    AssistantLabReportContext,
+    AssistantMedicalRecordContext,
+    AssistantPrescriptionContext,
     AssistantService,
 )
 from app.services.llm_types import (
@@ -42,6 +48,11 @@ class AssistantChatRequest(BaseModel):
     :param time_zone: optional IANA time zone of the user's browser session.
     :param appointments: bounded, read-only snapshot of the signed-in user's
         own upcoming appointments, assembled server-side by the Spring Boot API.
+    :param lab_reports: bounded, read-only snapshot of the user's own lab reports.
+    :param prescriptions: bounded, read-only snapshot of the user's own prescriptions.
+    :param invoices: bounded, read-only snapshot of the user's own invoices.
+    :param medical_records: bounded, read-only snapshot of the user's own
+        uploaded medical records.
     """
 
     message: str = Field(
@@ -53,12 +64,32 @@ class AssistantChatRequest(BaseModel):
     time_zone: Optional[str] = Field(
         default=None,
         max_length=64,
-        description="IANA time zone the appointment times were rendered in",
+        description="IANA time zone the record times were rendered in",
     )
     appointments: List[AssistantAppointmentContext] = Field(
         default_factory=list,
         max_length=MAX_CONTEXT_APPOINTMENTS,
         description="Read-only snapshot of the user's own upcoming appointments",
+    )
+    lab_reports: List[AssistantLabReportContext] = Field(
+        default_factory=list,
+        max_length=MAX_CONTEXT_ITEMS,
+        description="Read-only snapshot of the user's own lab reports",
+    )
+    prescriptions: List[AssistantPrescriptionContext] = Field(
+        default_factory=list,
+        max_length=MAX_CONTEXT_ITEMS,
+        description="Read-only snapshot of the user's own prescriptions",
+    )
+    invoices: List[AssistantInvoiceContext] = Field(
+        default_factory=list,
+        max_length=MAX_CONTEXT_ITEMS,
+        description="Read-only snapshot of the user's own invoices",
+    )
+    medical_records: List[AssistantMedicalRecordContext] = Field(
+        default_factory=list,
+        max_length=MAX_CONTEXT_ITEMS,
+        description="Read-only snapshot of the user's own medical records",
     )
 
 
@@ -89,11 +120,14 @@ async def assistant_chat(body: AssistantChatRequest):
     logger.info("assistant_chat accepted chars=%s", len(body.message))
 
     try:
-        raw = await assistant_service.chat(
-            body.message,
+        context = AssistantContext(
             appointments=body.appointments,
-            time_zone=body.time_zone,
+            lab_reports=body.lab_reports,
+            prescriptions=body.prescriptions,
+            invoices=body.invoices,
+            medical_records=body.medical_records,
         )
+        raw = await assistant_service.chat(body.message, context, body.time_zone)
         reply = assistant_service.validate_reply(raw)
     except ValueError as exc:
         raise HTTPException(status_code=502, detail="Assistant returned an unusable result") from exc
