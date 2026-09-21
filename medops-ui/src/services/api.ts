@@ -17,9 +17,37 @@ function isAuthEndpoint(url: string | undefined): boolean {
   return url?.startsWith("/auth/") ?? false;
 }
 
-api.interceptors.request.use((config) => {
+// Shared promise to avoid multiple concurrent CSRF fetches when several
+// state-changing requests fire before the XSRF-TOKEN cookie is established.
+let csrfInitPromise: Promise<void> | null = null;
+
+async function ensureCsrfToken(): Promise<void> {
+  if (getCookie("XSRF-TOKEN")) {
+    return;
+  }
+  if (!csrfInitPromise) {
+    csrfInitPromise = api
+      .get("/auth/csrf")
+      .then(() => undefined)
+      .catch(() => undefined)
+      .finally(() => {
+        csrfInitPromise = null;
+      });
+  }
+  await csrfInitPromise;
+}
+
+function isStateChanging(method: string | undefined): boolean {
+  return ["post", "put", "delete", "patch"].includes((method ?? "").toLowerCase());
+}
+
+api.interceptors.request.use(async (config) => {
   if (typeof FormData !== "undefined" && config.data instanceof FormData) {
     config.headers.delete("Content-Type");
+  }
+
+  if (isStateChanging(config.method)) {
+    await ensureCsrfToken();
   }
 
   const csrfToken = getCookie("XSRF-TOKEN");
