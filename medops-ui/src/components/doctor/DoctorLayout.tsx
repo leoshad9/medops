@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
+import { useAuth } from "../../context/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { DoctorHeader } from "./DoctorHeader";
 import { DoctorNotificationDropdown } from "./DoctorNotificationDropdown";
@@ -22,7 +23,11 @@ export interface DoctorLayoutContext {
 
 export function DoctorLayout() {
   const location = useLocation();
-  const [profile, setProfile] = useState<DoctorProfile | null>(null);
+  // A page-load restore receives the profile with the session from GET /v1/me, so the
+  // header can render immediately; sessions established by login/registration still
+  // fetch it below.
+  const { doctorProfile: bootstrapProfile } = useAuth();
+  const [profile, setProfile] = useState<DoctorProfile | null>(bootstrapProfile);
   const [profileError, setProfileError] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const view = doctorViewFromPath(location.pathname);
@@ -48,8 +53,11 @@ export function DoctorLayout() {
   }, []);
 
   useEffect(() => {
+    if (bootstrapProfile) {
+      return;
+    }
     loadProfile(); // oxlint-disable-line react/set-state-in-effect
-  }, [loadProfile]);
+  }, [loadProfile, bootstrapProfile]);
 
   return (
     <div className="flex min-h-dvh bg-brand-paper font-brand-sans text-brand-ink">

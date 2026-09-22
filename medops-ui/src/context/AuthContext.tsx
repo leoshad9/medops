@@ -7,16 +7,20 @@ import {
   registerDoctor as registerDoctorRequest,
   registerPatient as registerPatientRequest,
 } from "../services/authService";
-import { api } from "../services/api";
+import { getSessionBootstrap } from "../services/sessionService";
 import { refreshSession } from "../services/sessionRefresh";
-import type { ApiResponse } from "../types/api";
 import type { AuthUser, RegisterDoctorRequest, RegisterPatientRequest } from "../types/auth";
+import type { DoctorProfile } from "../types/doctor";
+import type { PatientProfile } from "../types/patient";
 
 export interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isSessionDead: boolean;
+  /** Profile delivered by the single-request /v1/me bootstrap; null after login/registration. */
+  patientProfile: PatientProfile | null;
+  doctorProfile: DoctorProfile | null;
   login: (email: string, password: string) => Promise<AuthUser>;
   registerPatient: (request: RegisterPatientRequest) => Promise<AuthUser>;
   registerDoctor: (request: RegisterDoctorRequest) => Promise<AuthUser>;
@@ -29,55 +33,71 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSessionDead, setIsSessionDead] = useState(false);
+  const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
+  const [doctorProfile, setDoctorProfile] = useState<DoctorProfile | null>(null);
 
-  // On mount, ensure the CSRF cookie is present, then restore the session from the
-  // HttpOnly access-token cookie by asking the backend who is signed in. The cookie
-  // is not readable by JavaScript, so there is no local token to parse — /auth/me is
-  // the only way to know.
+  // Restore the session from the HttpOnly access-token cookie. The cookie is not
+  // readable by JavaScript, so the server is the only source of truth for who is
+  // signed in. /v1/me returns the identity and the role-specific profile in a single
+  // request, so portal headers render without a second, serialized round trip.
   useEffect(() => {
     let cancelled = false;
-    void api.get<ApiResponse<AuthUser>>("/auth/csrf")
-      .then(() => {
+    getSessionBootstrap()
+      .then((session) => {
         if (!cancelled) {
-          return api.get<ApiResponse<AuthUser>>("/auth/me");
+          setUser({ email: session.email, role: session.role });
+          setPatientProfile(session.patientProfile);
+          setDoctorProfile(session.doctorProfile);
         }
       })
-      .then((response) => {
-        if (!cancelled) setUser(response?.data.data ?? null);
-      })
       .catch(() => {
-        if (!cancelled) setUser(null);
+        if (!cancelled) {
+          setUser(null);
+          setPatientProfile(null);
+          setDoctorProfile(null);
+        }
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // Login/registration/refresh responses carry identity only — the /v1/me bootstrap is
+  // the sole source of profiles — so accepting a new identity drops any profile
+  // captured for a previously signed-in user.
+  const adoptIdentity = useCallback((nextUser: AuthUser | null) => {
+    setPatientProfile(null);
+    setDoctorProfile(null);
+    setUser(nextUser);
+  }, []);
+
   const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
     const loggedInUser = await loginRequest({ email, password });
-    setUser(loggedInUser);
+    adoptIdentity(loggedInUser);
     return loggedInUser;
-  }, []);
+  }, [adoptIdentity]);
 
   const registerPatient = useCallback(
     async (request: RegisterPatientRequest): Promise<AuthUser> => {
       const registeredUser = await registerPatientRequest(request);
-      setUser(registeredUser);
+      adoptIdentity(registeredUser);
       return registeredUser;
     },
-    [],
+    [adoptIdentity],
   );
 
   const registerDoctor = useCallback(
     async (request: RegisterDoctorRequest): Promise<AuthUser> => {
       const registeredUser = await registerDoctorRequest(request);
-      setUser(registeredUser);
+      adoptIdentity(registeredUser);
       return registeredUser;
     },
-    [],
+    [adoptIdentity],
   );
 
   const logout = useCallback(async () => {
@@ -86,8 +106,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     } catch {
       // ignored — local session is cleared below regardless
     }
-    setUser(null);
-  }, []);
+    adoptIdentity(null);
+  }, [adoptIdentity]);
 
   // When the axios interceptor refreshes a 401, the new access token arrives as a
   // cookie, but the user identity may have changed (e.g. role update). Re-fetch
@@ -97,21 +117,32 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     const handler = () => {
       void refreshSession().then((refreshed) => {
         if (refreshed) {
-          setUser(refreshed);
+          adoptIdentity(refreshed);
           setIsSessionDead(false);
         } else {
-          setUser(null);
+          adoptIdentity(null);
           setIsSessionDead(true);
         }
       });
     };
     window.addEventListener("medops:session-refreshed", handler);
     return () => window.removeEventListener("medops:session-refreshed", handler);
-  }, []);
+  }, [adoptIdentity]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isAuthenticated: user !== null, isLoading, isSessionDead, login, registerPatient, registerDoctor, logout }),
-    [user, isLoading, isSessionDead, login, registerPatient, registerDoctor, logout],
+    () => ({
+      user,
+      isAuthenticated: user !== null,
+      isLoading,
+      isSessionDead,
+      patientProfile,
+      doctorProfile,
+      login,
+      registerPatient,
+      registerDoctor,
+      logout,
+    }),
+    [user, isLoading, isSessionDead, patientProfile, doctorProfile, login, registerPatient, registerDoctor, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

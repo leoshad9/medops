@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
+import { useAuth } from "../../context/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { PATIENT_VIEW_METADATA, patientViewFromPath } from "../../lib/patientRoutes";
 import { getMyProfile } from "../../services/patientService";
@@ -27,7 +28,11 @@ export interface PatientPortalContext {
 /** Provides the patient portal shell and opens its AI assistant from UI or window events. */
 export function PatientLayout() {
   const location = useLocation();
-  const [profile, setProfile] = useState<PatientProfile | null>(null);
+  // A page-load restore receives the profile with the session from GET /v1/me, so the
+  // header can render immediately; sessions established by login/registration still
+  // fetch it below.
+  const { patientProfile: bootstrapProfile } = useAuth();
+  const [profile, setProfile] = useState<PatientProfile | null>(bootstrapProfile);
   const [profileError, setProfileError] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
@@ -49,8 +54,11 @@ export function PatientLayout() {
   }, []);
 
   useEffect(() => {
+    if (bootstrapProfile) {
+      return;
+    }
     loadProfile(); // oxlint-disable-line react/set-state-in-effect
-  }, [loadProfile]);
+  }, [loadProfile, bootstrapProfile]);
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });

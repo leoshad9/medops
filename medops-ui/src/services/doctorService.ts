@@ -5,12 +5,23 @@ import type { ClinicalReportDto } from "./clinicalService";
 import { messageFromApiError } from "../lib/apiError";
 import { api } from "./api";
 
-interface DoctorProfileResponse {
+export interface DoctorProfileResponse {
   email: string;
   fullName: string;
   specialty: string;
   licenseNumber: string;
   phoneNumber: string;
+}
+
+/** Maps the API profile payload onto the UI shape; shared with the /v1/me bootstrap. */
+export function mapDoctorProfile(data: DoctorProfileResponse): DoctorProfile {
+  return {
+    name: data.fullName,
+    specialty: data.specialty,
+    licenseNumber: data.licenseNumber,
+    email: data.email,
+    phoneNumber: data.phoneNumber,
+  };
 }
 
 /** Aggregated dashboard payload from GET /v1/doctors/me/dashboard. */
@@ -28,14 +39,7 @@ export interface DoctorDashboard {
 export async function getMyDoctorProfile(): Promise<DoctorProfile> {
   try {
     const response = await api.get<ApiResponse<DoctorProfileResponse>>("/v1/doctors/me");
-    const data = response.data.data;
-    return {
-      name: data.fullName,
-      specialty: data.specialty,
-      licenseNumber: data.licenseNumber,
-      email: data.email,
-      phoneNumber: data.phoneNumber,
-    };
+    return mapDoctorProfile(response.data.data);
   } catch (error) {
     throw new Error(messageFromApiError(error, "Unable to load your profile. Please try again."));
   }

@@ -3,7 +3,7 @@ import type { PatientProfile } from "../types/patient";
 import { messageFromApiError } from "../lib/apiError";
 import { api } from "./api";
 
-interface PatientProfileResponse {
+export interface PatientProfileResponse {
   id: string;
   email: string;
   fullName: string;
@@ -28,7 +28,8 @@ export interface UpdatePatientProfilePayload {
   insurancePolicyNumber: string;
 }
 
-function mapProfile(d: PatientProfileResponse): PatientProfile {
+/** Maps the API profile payload onto the UI shape; shared with the /v1/me bootstrap. */
+export function mapPatientProfile(d: PatientProfileResponse): PatientProfile {
   return {
     id: d.id,
     name: d.fullName,
@@ -48,7 +49,7 @@ function mapProfile(d: PatientProfileResponse): PatientProfile {
 export async function getMyProfile(): Promise<PatientProfile> {
   try {
     const response = await api.get<ApiResponse<PatientProfileResponse>>("/v1/patients/me");
-    return mapProfile(response.data.data);
+    return mapPatientProfile(response.data.data);
   } catch (error) {
     throw new Error(messageFromApiError(error, "Unable to load your profile. Please try again."));
   }
@@ -57,7 +58,7 @@ export async function getMyProfile(): Promise<PatientProfile> {
 export async function updateMyProfile(payload: UpdatePatientProfilePayload): Promise<PatientProfile> {
   try {
     const response = await api.put<ApiResponse<PatientProfileResponse>>("/v1/patients/me", payload);
-    return mapProfile(response.data.data);
+    return mapPatientProfile(response.data.data);
   } catch (error) {
     throw new Error(messageFromApiError(error, "Unable to save your profile. Please try again."));
   }
