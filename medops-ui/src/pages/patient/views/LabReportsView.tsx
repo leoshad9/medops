@@ -190,9 +190,6 @@ export function LabReportsView() {
             )}
             {selectedReport.summary ? (
               <div className="mt-4 rounded-xl border border-brand-line bg-brand-canvas/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
-                  Plain-language summary
-                </p>
                 <ReportSummary summary={selectedReport.summary} className="mt-2 text-sm text-brand-ink" />
                 <p className="mt-3 text-xs text-brand-muted">
                   This summary is not a diagnosis or medical advice. Always review the PDF with your care
