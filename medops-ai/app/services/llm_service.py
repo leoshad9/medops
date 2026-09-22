@@ -27,9 +27,11 @@ logger = logging.getLogger(__name__)
 SYSTEM_PROMPT = (
     "You are a clinical documentation assistant for MedOps. "
     "Write a concise, plain-language summary of the lab/report text for display in a small web UI card. "
-    "Format: an optional one-line intro, then 3-5 short bullets of one to two lines each. "
+    "Begin the summary with the exact label 'Summary:' on its own line, then a blank line, "
+    "then 3-5 short bullets of one to two lines each. "
     "Use light Markdown: bold section labels (e.g. **CBC:**, **Glucose:**) and a bullet list. "
-    "Keep each line brief and scannable. Do NOT emit raw HTML. "
+    "Do NOT write sentence introductions like 'Here is a summary of ...'. "
+    "Do NOT emit raw HTML. Do NOT use # markdown headers. "
     "Report only what is in the text; do not diagnose, prescribe, or invent findings. "
     "If the extract is incomplete, say what is missing instead of guessing. "
     "This is not medical advice."
@@ -39,6 +41,44 @@ _BLOCKED_CLAIM = re.compile(
     r"\b(you (have|are diagnosed with)|i diagnose|prescribe|start taking)\b",
     re.IGNORECASE,
 )
+
+_SUMMARY_LABEL = "Summary:"
+
+
+def _strip_markdown_markers(text: str) -> str:
+    """Strip leading heading/list markers and surrounding bold markers for label comparison."""
+    stripped = text.strip().lstrip("#").strip()
+    if stripped.startswith(("- ", "* ", "+ ")):
+        stripped = stripped[2:]
+    stripped = re.sub(r"^\*+|\*+$", "", stripped).strip()
+    return stripped
+
+
+def normalize_summary_intro(summary: str) -> str:
+    """Ensure the summary begins with the canonical ``Summary:`` label.
+
+    Drops verbose leading headings (e.g. ``Here is a summary of ...:``) and
+    guarantees a plain-text ``Summary:`` label on the first line, since the
+    web UI renders this text directly rather than as Markdown.
+    """
+    text = summary.strip()
+    if not text:
+        return ""
+    lines = text.splitlines()
+    first = lines[0].strip()
+    body = "\n".join(lines[1:]).strip()
+
+    bare = _strip_markdown_markers(first).lower()
+    if bare in ("summary:", "summary"):
+        return f"{_SUMMARY_LABEL}\n\n{body}" if body else _SUMMARY_LABEL
+
+    # A plain-text introductory heading ending with ':' that mentions "summary".
+    if not first.startswith(("**", "-", "#", "* ", "+ ")):
+        if bare.endswith(":") and "summary" in bare:
+            return f"{_SUMMARY_LABEL}\n\n{body}" if body else _SUMMARY_LABEL
+
+    # No recognisable heading: prepend the canonical label before the content.
+    return f"{_SUMMARY_LABEL}\n\n{text}"
 
 
 class ChatClient(Protocol):
@@ -95,9 +135,9 @@ class LLMService:
         extract = extract_pdf_text(pdf_bytes)
         user_prompt = (
             f"Report id: {report_id}\n"
-            "Return a concise summary with light Markdown: an optional intro line, then "
+            "Begin with the label 'Summary:' on its own line, then a blank line, then "
             "3-5 short bullets (one to two lines each) using bold section labels. "
-            "Report only what is in the text. No raw HTML.\n"
+            "No sentence introductions. No raw HTML. Report only what is in the text.\n"
             f"Extracted text (may be truncated):\n"
             f"{extract if extract else '[no extractable text — PDF may be scanned/image-only]'}"
         )
@@ -114,7 +154,7 @@ class LLMService:
             raise ValueError("Summary exceeds length limit")
         if _BLOCKED_CLAIM.search(text):
             raise ValueError("Summary contains disallowed diagnostic/prescriptive claims")
-        return text
+        return normalize_summary_intro(text)
 
 
 def extract_pdf_text(pdf_bytes: bytes) -> str:

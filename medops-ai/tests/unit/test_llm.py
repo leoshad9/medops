@@ -9,7 +9,7 @@ import respx
 from app.config import settings
 from app.services.chat_completions_client import ChatCompletionsClient
 from app.services.generate_content_client import GenerateContentClient
-from app.services.llm_service import LLMService
+from app.services.llm_service import LLMService, normalize_summary_intro
 from app.services.llm_types import LlmTimeoutError
 
 
@@ -124,3 +124,53 @@ async def test_stub_when_no_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "llm_provider", "")
     text = await LLMService(client=None).summarize("r1", b"%PDF-1.4 x")
     assert "stub" in text.lower()
+
+
+def test_normalize_summary_intro_replaces_verbose_heading() -> None:
+    """A verbose leading heading is replaced with the canonical 'Summary:' label."""
+    raw = (
+        "Here is a summary of the diagnostic lab results:\n"
+        "CBC: low hemoglobin (10.7 gm/dL)\n"
+        "Glucose: 114 mg/dL, HbA1c 6.2%"
+    )
+    result = normalize_summary_intro(raw)
+    assert result.splitlines()[0] == "Summary:"
+    assert "Here is a summary" not in result
+    assert "CBC: low hemoglobin (10.7 gm/dL)" in result
+
+
+def test_normalize_summary_intro_keeps_existing_label() -> None:
+    """An already-canonical 'Summary:' label is preserved (aside from spacing)."""
+    raw = "Summary:\n**CBC:** low hemoglobin\n**Glucose:** 114 mg/dL"
+    result = normalize_summary_intro(raw)
+    assert result.splitlines()[0] == "Summary:"
+    assert result.lstrip().startswith("Summary:\n")
+
+
+def test_normalize_summary_intro_prepends_label_when_missing() -> None:
+    """When the model jumps straight to content, the label is prepended."""
+    raw = "**CBC:** low hemoglobin\n**Glucose:** 114 mg/dL"
+    result = normalize_summary_intro(raw)
+    assert result.splitlines()[0] == "Summary:"
+    assert "**CBC:** low hemoglobin" in result
+
+
+def test_validate_summary_normalizes_intro_label() -> None:
+    """The validated summary always starts with the 'Summary:' label."""
+    service = LLMService(client=None)
+    raw = (
+        "Here is a summary of the diagnostic lab results:\n"
+        "CBC: low hemoglobin (10.7 gm/dL)\n"
+        "Glucose: 114 mg/dL, HbA1c 6.2%"
+    )
+    result = service.validate_summary(raw)
+    assert result.splitlines()[0] == "Summary:"
+    assert "Here is a summary" not in result
+
+
+def test_validate_summary_rejects_claim_after_intro_normalization() -> None:
+    """Blocked-claim checks run on the raw text before any normalization."""
+    service = LLMService(client=None)
+    raw = "Here is a summary of the lab results:\nstart taking lisinopril daily."
+    with pytest.raises(ValueError):
+        service.validate_summary(raw)
