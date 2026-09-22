@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 
+import { DashboardGreeting } from "../../components/common/DashboardGreeting";
 import { DoctorStatCards } from "../../components/doctor/DoctorStatCards";
 import { UpcomingConsultationsPanel } from "../../components/doctor/UpcomingConsultationsPanel";
 import { PendingLabsPanel } from "../../components/doctor/PendingLabsPanel";
@@ -13,6 +15,7 @@ import {
   getMyDashboard,
   type DoctorDashboard,
 } from "../../services/doctorService";
+import type { DoctorLayoutContext } from "../../components/doctor/DoctorLayout";
 import type {
   ClinicalAppointmentStatus,
   DoctorDashboardStat,
@@ -66,6 +69,7 @@ function buildStats(dashboard: DoctorDashboard): DoctorDashboardStat[] {
 }
 
 export function DoctorDashboard() {
+  const { profile } = useOutletContext<DoctorLayoutContext>();
   const [dashboard, setDashboard] = useState<DoctorDashboard | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
@@ -107,6 +111,10 @@ export function DoctorDashboard() {
 
   return (
     <div className="space-y-6">
+      <DashboardGreeting
+        name={profile?.name ?? "there"}
+        message="Your clinical command center is ready."
+      />
       {dashboard && <DoctorStatCards stats={buildStats(dashboard)} />}
 
       {scheduleError && (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { DashboardGreeting } from "../../components/common/DashboardGreeting";
 import { HealthSummaryPanel } from "../../components/patient/HealthSummaryPanel";
 import { NotificationsPanel } from "../../components/patient/NotificationsPanel";
 import { QuickActionsGrid } from "../../components/patient/QuickActionsGrid";
@@ -12,7 +13,7 @@ import { listMyAppointments } from "../../services/appointmentService";
 import { listPrescriptions, listReports } from "../../services/clinicalService";
 
 export function PatientDashboard() {
-  const { notifications, notificationsLoading, notificationsError, markNotificationRead } =
+  const { profile, notifications, notificationsLoading, notificationsError, markNotificationRead } =
     usePatientPortal();
   const [live, setLive] = useState(buildPatientDashboardLiveData([], [], []));
   const [error, setError] = useState<string | null>(null);
@@ -47,8 +48,14 @@ export function PatientDashboard() {
   const activity =
     notifications.length > 0 || notificationsError === null ? notifications : live.activity;
 
+  const firstName = profile?.name.split(" ")[0];
+
   return (
     <div className="space-y-6">
+      <DashboardGreeting
+        name={firstName}
+        message="Here's your health overview and upcoming appointments."
+      />
       {error && (
         <p className="rounded-xl border border-brand-rust/30 bg-brand-rust-tint px-4 py-3 text-sm text-brand-rust">
           {error}

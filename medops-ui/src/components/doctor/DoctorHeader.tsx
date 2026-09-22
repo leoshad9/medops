@@ -1,6 +1,6 @@
 import { Bell, ShieldCheck, Stethoscope } from "lucide-react";
 
-import { getTimeOfDayGreeting } from "../../lib/greeting";
+import { getTimeOfDayGreeting, getUserTimeZone } from "../../lib/greeting";
 import type { DoctorProfile } from "../../types/doctor";
 
 interface DoctorHeaderProps {
@@ -26,7 +26,8 @@ export function DoctorHeader({
   subtitle,
   onToggleNotifications,
 }: Readonly<DoctorHeaderProps>) {
-  const heading = title ?? `${getTimeOfDayGreeting()}, ${profile.name}`;
+  const timeZone = getUserTimeZone();
+  const heading = title ?? `${getTimeOfDayGreeting(new Date(), timeZone)}, ${profile.name}`;
   const sub = subtitle ?? `Clinical Command Center · ${profile.specialty} Division`;
 
   return (

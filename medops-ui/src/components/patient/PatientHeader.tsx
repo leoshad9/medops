@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Bell, Menu } from "lucide-react";
 
-import { getTimeOfDayGreeting } from "../../lib/greeting";
+import { getTimeOfDayGreeting, getUserTimeZone } from "../../lib/greeting";
 import { PATIENT_PATHS } from "../../lib/patientRoutes";
 import type { PatientProfile, NotificationItem } from "../../types/patient";
 import { NotificationDropdown } from "./NotificationDropdown";
@@ -37,7 +37,8 @@ export function PatientHeader({
   onMarkAllRead,
 }: Readonly<PatientHeaderProps>) {
   const firstName = profile.name.split(" ")[0];
-  const greeting = getTimeOfDayGreeting();
+  const timeZone = getUserTimeZone();
+  const greeting = getTimeOfDayGreeting(new Date(), timeZone);
 
   const displayTitle = title ?? `${greeting}, ${firstName}`;
   const displaySubtitle = subtitle ?? "Here's your health overview and upcoming appointments.";
