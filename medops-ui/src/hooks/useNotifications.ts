@@ -14,6 +14,11 @@ import type { NotificationItem } from "../types/patient";
 
 const PAGE_SIZE = 20;
 
+// Notification work is not needed for first paint, so it is scheduled after the
+// initial render instead of racing the dashboard's own requests for connections.
+const IDLE_START_TIMEOUT_MS = 1000;
+const FALLBACK_START_DELAY_MS = 200;
+
 export interface UseNotificationsResult {
   notifications: NotificationItem[];
   unreadCount: number;
@@ -55,6 +60,21 @@ function toItemFromPayload(payload: NotificationStreamPayload): NotificationItem
 function mergeById(current: NotificationItem[], incoming: NotificationItem[]): NotificationItem[] {
   const incomingIds = new Set(incoming.map((item) => item.id));
   return [...incoming, ...current.filter((item) => !incomingIds.has(item.id))].slice(0, PAGE_SIZE);
+}
+
+/**
+ * Runs `start` once the browser is idle after the initial render, so the notification
+ * fetches and the SSE connection do not compete with the dashboard's own requests for
+ * connections during boot. Browsers without requestIdleCallback (Safari, jsdom) fall
+ * back to a short delay. Returns a cancel function for effect cleanup.
+ */
+function scheduleAfterIdle(start: () => void): () => void {
+  if (typeof window.requestIdleCallback === "function") {
+    const handle = window.requestIdleCallback(start, { timeout: IDLE_START_TIMEOUT_MS });
+    return () => window.cancelIdleCallback(handle);
+  }
+  const handle = window.setTimeout(start, FALLBACK_START_DELAY_MS);
+  return () => window.clearTimeout(handle);
 }
 
 /**
@@ -117,8 +137,16 @@ export function useNotifications(): UseNotificationsResult {
   };
 
   useEffect(() => {
-    // One shared loader for mount and stream reconnects; merging (not replacing)
-    // keeps items that arrived through the stream while the request was running.
+    // StrictMode mounts, cleans up, and remounts effects with the same refs; without
+    // this reset the cleanup's flag would suppress every update after the remount,
+    // keeping the feed stuck on its loading state in development.
+    cancelledRef.current = false;
+
+    let unsubscribe: (() => void) | null = null;
+
+    // One shared loader for the initial load and stream reconnects; merging (not
+    // replacing) keeps items that arrived through the stream while the request was
+    // running.
     const fetchAll = async (): Promise<void> => {
       const ok = await refreshState();
       if (!cancelledRef.current) {
@@ -126,48 +154,60 @@ export function useNotifications(): UseNotificationsResult {
       }
     };
 
-    void fetchAll().finally(() => {
-      if (!cancelledRef.current) {
-        setLoading(false);
+    // Deferred until after the first render so the dashboard's critical requests
+    // (profile, appointments, prescriptions, reports) go out first. The stream
+    // replays anything published while it was not yet connected.
+    const start = (): void => {
+      if (cancelledRef.current) {
+        return;
       }
-    });
 
-    const unsubscribe = subscribeToNotificationStream({
-      onNotification: (payload) => {
-        if (cancelledRef.current) {
-          return;
-        }
-        const incoming = toItemFromPayload(payload);
-        setNotifications((current) => mergeById(current, [incoming]));
-        if (incoming.unread) {
-          setUnreadCount((current) => current + 1);
-        }
-      },
-      onOpen: () => {
-        if (cancelledRef.current) {
-          return;
-        }
-        // Clear stale stream errors on a successful (re)connect, then recover
-        // anything published while the connection was down (the backend replays
-        // from PostgreSQL). The duplicate initial request is intentional: the
-        // mount fetch above races the first open.
-        setError(null);
-        void refreshState().then(ok => {
-          if (!ok && !cancelledRef.current) {
-            setError("Unable to load notifications.");
-          }
-        });
-      },
-      onError: (message) => {
+      void fetchAll().finally(() => {
         if (!cancelledRef.current) {
-          setError(message);
+          setLoading(false);
         }
-      },
-    });
+      });
+
+      unsubscribe = subscribeToNotificationStream({
+        onNotification: (payload) => {
+          if (cancelledRef.current) {
+            return;
+          }
+          const incoming = toItemFromPayload(payload);
+          setNotifications((current) => mergeById(current, [incoming]));
+          if (incoming.unread) {
+            setUnreadCount((current) => current + 1);
+          }
+        },
+        onOpen: () => {
+          if (cancelledRef.current) {
+            return;
+          }
+          // Clear stale stream errors on a successful (re)connect, then recover
+          // anything published while the connection was down (the backend replays
+          // from PostgreSQL). The duplicate initial request is intentional: the
+          // mount fetch above races the first open.
+          setError(null);
+          void refreshState().then(ok => {
+            if (!ok && !cancelledRef.current) {
+              setError("Unable to load notifications.");
+            }
+          });
+        },
+        onError: (message) => {
+          if (!cancelledRef.current) {
+            setError(message);
+          }
+        },
+      });
+    };
+
+    const cancelScheduledStart = scheduleAfterIdle(start);
 
     return () => {
       cancelledRef.current = true;
-      unsubscribe();
+      cancelScheduledStart();
+      unsubscribe?.();
     };
   }, []);
 

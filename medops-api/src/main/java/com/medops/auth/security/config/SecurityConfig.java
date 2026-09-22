@@ -71,9 +71,10 @@ public class SecurityConfig {
         return new ProviderManager(authenticationProvider);
     }
 
-    // Kept for CsrfController (/api/auth/csrf), which the UI still calls during bootstrap.
-    // CSRF is excluded on /api/auth/** since auth endpoints are called before a session
-    // exists — they rely on SameSite=Strict JWT cookies for cross-site request protection.
+    // Kept for CsrfController (/api/auth/csrf), which the UI calls lazily before its
+    // first state-changing request outside /api/auth/**. CSRF is excluded on /api/auth/**
+    // since auth endpoints are called before a session exists — they rely on
+    // SameSite=Strict JWT cookies for cross-site request protection.
     // All other state-changing endpoints remain CSRF-protected.
     @Bean
     public CookieCsrfTokenRepository csrfTokenRepository() {

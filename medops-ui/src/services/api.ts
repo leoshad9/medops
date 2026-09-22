@@ -46,7 +46,11 @@ api.interceptors.request.use(async (config) => {
     config.headers.delete("Content-Type");
   }
 
-  if (isStateChanging(config.method)) {
+  // /auth/** is CSRF-exempt server-side (SecurityConfig ignores CSRF there), so
+  // fetching a token before login/refresh/logout would only add a serialized round
+  // trip to a request that does not need it. Registration (POST /v1/patients and
+  // /v1/doctors) is not exempt and still gets the lazy token below.
+  if (isStateChanging(config.method) && !isAuthEndpoint(config.url)) {
     await ensureCsrfToken();
   }
 
