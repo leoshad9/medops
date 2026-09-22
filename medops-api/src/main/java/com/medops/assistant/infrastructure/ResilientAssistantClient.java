@@ -2,21 +2,27 @@ package com.medops.assistant.infrastructure;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 import com.medops.assistant.domain.AssistantClient;
 import com.medops.assistant.domain.AssistantContext;
 import com.medops.assistant.domain.AssistantReply;
+import com.medops.shared.exception.ServiceUnavailableException;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 
 /**
  * Decorates the assistant HTTP client with circuit breaker, retry, and time limiter,
- * mirroring {@code ResilientReportSummarizer}.
+ * mirroring {@code ResilientReportSummarizer}. Time-limiter timeouts, an open circuit
+ * breaker, and the delegate's failures are surfaced as {@link ServiceUnavailableException}
+ * so the API answers 503 with an actionable message instead of an unmapped 500.
  */
 public class ResilientAssistantClient implements AssistantClient {
 
@@ -66,6 +72,31 @@ public class ResilientAssistantClient implements AssistantClient {
                 () -> CompletableFuture.supplyAsync(withRetry, EXECUTOR));
         try {
             return withTimeout.call();
+        } catch (TimeoutException ex) {
+            // Budget exhausted (provider busy / sidecar still retrying) — fail fast
+            // with an actionable 503 instead of hanging the chat panel for 20 s.
+            throw new ServiceUnavailableException(
+                    "AI assistant is taking too long. Please try again.", ex);
+        } catch (CallNotPermittedException ex) {
+            throw new ServiceUnavailableException(
+                    "AI assistant is temporarily unavailable. Please try again in a moment.", ex);
+        } catch (ExecutionException ex) {
+            // The resilience stack runs inside the async future: surface the real
+            // cause (e.g. the HTTP client's ServiceUnavailableException) instead of
+            // wrapping it in IllegalStateException, which the handler reports as 500.
+            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+            if (cause instanceof ServiceUnavailableException unavailable) {
+                throw unavailable;
+            }
+            if (cause instanceof CallNotPermittedException notPermitted) {
+                throw new ServiceUnavailableException(
+                        "AI assistant is temporarily unavailable. Please try again in a moment.",
+                        notPermitted);
+            }
+            if (cause instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new IllegalStateException("Assistant chat failed", cause);
         } catch (Exception ex) {
             if (ex instanceof RuntimeException runtime) {
                 throw runtime;

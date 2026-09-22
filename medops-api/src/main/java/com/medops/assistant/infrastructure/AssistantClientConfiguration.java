@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.ResourceAccessException;
 
 import com.medops.assistant.domain.AssistantAppointment;
 import com.medops.assistant.domain.AssistantClient;
@@ -41,7 +42,10 @@ import io.github.resilience4j.timelimiter.TimeLimiterRegistry;
 public class AssistantClientConfiguration {
 
     private static final String ASSISTANT_CHAT = "assistantChat";
-    private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(20);
+    // User-facing budget for one chat exchange (sidecar retries + LLM provider).
+    // Kept short so a busy provider yields an actionable 503 in ~10 s instead of a
+    // generic 500 after a 20 s hang; see ResilientAssistantClient's mapping.
+    private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(10);
 
     /**
      * Selects the local stub or a resilient HTTP assistant client.
@@ -149,6 +153,11 @@ public class AssistantClientConfiguration {
                     message = "AI assistant timed out. Please try again.";
                 }
                 throw new ServiceUnavailableException(message, ex);
+            } catch (ResourceAccessException ex) {
+                // Sidecar down / refused / per-attempt read timeout — mapped so the
+                // handler answers 503 instead of the generic 500 path.
+                throw new ServiceUnavailableException(
+                        "AI assistant service is not responding. Please try again shortly.", ex);
             }
         }
 

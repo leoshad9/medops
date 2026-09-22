@@ -13,6 +13,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import com.medops.assistant.domain.AssistantAppointment;
@@ -176,7 +177,8 @@ class AssistantClientInfrastructureTest {
                 TimeLimiter.of(TimeLimiterConfig.custom().timeoutDuration(Duration.ofMillis(50)).build()));
 
         assertThatThrownBy(() -> resilient.chat("Hello", AssistantContext.empty(), null))
-                .isInstanceOf(Exception.class);
+                .isInstanceOf(ServiceUnavailableException.class)
+                .hasMessageContaining("taking too long");
     }
 
     /** Verifies the snake_case wire shape of the clinical, billing, and record context. */
@@ -219,5 +221,35 @@ class AssistantClientInfrastructureTest {
         client.chat("Hello", context, "Asia/Kolkata");
 
         server.verify();
+    }
+
+    /** Verifies an open circuit breaker answers with a 503-mapped exception, not a 500. */
+    @Test
+    void chatMapsOpenCircuitBreakerToServiceUnavailable() {
+        CircuitBreaker breaker = CircuitBreaker.ofDefaults("assistant-open-test");
+        breaker.transitionToOpenState();
+        ResilientAssistantClient resilient = new ResilientAssistantClient(
+                (message, context, zone) -> new AssistantReply("never called"),
+                breaker,
+                Retry.of("assistant-open-test", RetryConfig.custom().maxAttempts(1).build()),
+                TimeLimiter.of(TimeLimiterConfig.custom().timeoutDuration(Duration.ofSeconds(1)).build()));
+
+        assertThatThrownBy(() -> resilient.chat("Hello", AssistantContext.empty(), null))
+                .isInstanceOf(ServiceUnavailableException.class)
+                .hasMessageContaining("temporarily unavailable");
+    }
+
+    /** Verifies sidecar connection failures map to an availability error, not a 500. */
+    @Test
+    void chatMapsConnectionFailuresToServiceUnavailable() {
+        server.expect(org.springframework.test.web.client.ExpectedCount.once(),
+                        org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo(CHAT_URL))
+                .andRespond(request -> {
+                    throw new ResourceAccessException("connect", new IOException("Connection refused"));
+                });
+
+        assertThatThrownBy(() -> client.chat("Hello", AssistantContext.empty(), null))
+                .isInstanceOf(ServiceUnavailableException.class)
+                .hasMessageContaining("not responding");
     }
 }

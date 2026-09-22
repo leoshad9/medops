@@ -1,9 +1,11 @@
+import axios from "axios";
 import { Bot, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AIChatInput } from "./AIChatInput";
 import { AIMessageList } from "./AIMessageList";
 import type { AIMessage } from "../../services/aiAssistantService";
+import type { ErrorResponse } from "../../types/api";
 import { getAIResponse } from "../../services/aiAssistantService";
 
 interface MedOpsAIChatPanelProps {
@@ -47,12 +49,17 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
     try {
       const response = await getAIResponse(query, timeZone);
       setMessages((prev) => [...prev, response.message]);
-    } catch {
-      // Network/API failure — user-facing message shown below; backend logs the error
+    } catch (error) {
+      // Prefer the API's curated message (e.g. the assistant client's 503
+      // "AI provider rate limit exceeded..." / "taking too long") over the
+      // generic fallback; fall back when the error carries no response body.
+      const apiMessage = axios.isAxiosError(error)
+        ? (error.response?.data as ErrorResponse | undefined)?.error?.message
+        : undefined;
       const errorMessage: AIMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: "Sorry, I'm having trouble connecting. Please try again later.",
+        content: apiMessage || "Sorry, I'm having trouble connecting. Please try again later.",
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
