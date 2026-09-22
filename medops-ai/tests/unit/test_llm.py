@@ -174,3 +174,10 @@ def test_validate_summary_rejects_claim_after_intro_normalization() -> None:
     raw = "Here is a summary of the lab results:\nstart taking lisinopril daily."
     with pytest.raises(ValueError):
         service.validate_summary(raw)
+
+
+def test_normalize_summary_intro_handles_long_star_run_without_redos() -> None:
+    """A long run of '*' (untrusted LLM output) must not trigger backtracking."""
+    raw = ("*" * 10_000) + "Here is a summary of the lab results:\nCBC: low hemoglobin"
+    result = normalize_summary_intro(raw)
+    assert result.splitlines()[0] == "Summary:"

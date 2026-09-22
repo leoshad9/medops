@@ -50,7 +50,8 @@ def _strip_markdown_markers(text: str) -> str:
     stripped = text.strip().lstrip("#").strip()
     if stripped.startswith(("- ", "* ", "+ ")):
         stripped = stripped[2:]
-    stripped = re.sub(r"^\*+|\*+$", "", stripped).strip()
+    # Use str strip methods (not a regex) to avoid polynomial-redos on untrusted input.
+    stripped = stripped.lstrip("*").rstrip("*").strip()
     return stripped
 
 
