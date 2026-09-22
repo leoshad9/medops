@@ -31,19 +31,26 @@ export function HealthSummaryPanel({ metrics }: Readonly<HealthSummaryPanelProps
       </div>
 
       <div className="mt-3 divide-y divide-brand-line/60">
-        {metrics.map((metric) => {
-          const Icon = ICONS_BY_ID[metric.id] ?? Heart;
+        {metrics.length === 0 ? (
+          <p className="text-xs text-brand-muted">No health metrics available yet.</p>
+        ) : (
+          metrics.map((metric) => {
+            const Icon = ICONS_BY_ID[metric.id] ?? Heart;
 
-          return (
-            <div key={metric.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-              <span className="flex items-center gap-2.5 text-xs font-medium text-slate-700">
-                <Icon className="h-3.5 w-3.5 text-brand-primary" />
-                {metric.label}
-              </span>
-              <span className="font-brand-mono text-xs font-bold text-brand-ink">{metric.value}</span>
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={metric.id}
+                className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
+              >
+                <span className="flex items-center gap-2.5 text-xs font-medium text-slate-700">
+                  <Icon className="h-3.5 w-3.5 text-brand-primary" />
+                  {metric.label}
+                </span>
+                <span className="font-brand-mono text-xs font-bold text-brand-ink">{metric.value}</span>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

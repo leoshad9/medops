@@ -121,41 +121,10 @@ export interface BillingSummary {
   invoices: BillingInvoice[];
 }
 
-export interface PatientDetailedProfile {
-  fullName: string;
-  mrn: string;
-  dateOfBirth: string;
-  gender: string;
-  bloodGroup: string;
-  phone: string;
-  email: string;
-  address: string;
-  emergencyContact: string;
-  insuranceProvider: string;
-  insurancePolicyNumber: string;
-}
-
 export interface FaqItem {
   id: string;
   question: string;
   answer: string;
-}
-
-export interface PatientDashboardData {
-  profile: PatientProfile;
-  detailedProfile: PatientDetailedProfile;
-  unreadNotificationCount: number;
-  stats: DashboardStat[];
-  upcomingAppointment: UpcomingAppointment;
-  allAppointments: AppointmentRecord[];
-  recentAppointments: RecentAppointmentRow[];
-  prescriptions: PrescriptionItem[];
-  labReports: LabReportItem[];
-  medicalDocuments: MedicalDocumentItem[];
-  billing: BillingSummary;
-  faqs: FaqItem[];
-  notifications: NotificationItem[];
-  healthMetrics: HealthMetric[];
 }
 
 

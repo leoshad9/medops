@@ -12,7 +12,7 @@ import { listMyAppointments } from "../../services/appointmentService";
 import { listPrescriptions, listReports } from "../../services/clinicalService";
 
 export function PatientDashboard() {
-  const { data, notifications, notificationsLoading, notificationsError, markNotificationRead } =
+  const { notifications, notificationsLoading, notificationsError, markNotificationRead } =
     usePatientPortal();
   const [live, setLive] = useState(buildPatientDashboardLiveData([], [], []));
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +75,7 @@ export function PatientDashboard() {
             loading={notificationsLoading && activity.length === 0}
             onMarkRead={markNotificationRead}
           />
-          <HealthSummaryPanel metrics={data.healthMetrics} />
+          <HealthSummaryPanel metrics={[]} />
         </div>
       </div>
     </div>

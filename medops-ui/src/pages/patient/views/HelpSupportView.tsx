@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { Bot, Clock, Mail, Phone } from "lucide-react";
 
-import { usePatientPortal } from "../../../components/patient/usePatientPortal";
+import { patientFaqs } from "../../../lib/faqs";
 
 /** Support address is configured per deployment via VITE_SUPPORT_EMAIL. */
 const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL as string | undefined;
 
 /** Displays patient support options, FAQs, and the AI assistant launcher. */
 export function HelpSupportView() {
-  const { data } = usePatientPortal();
-  const faqs = data.faqs;
+  const faqs = patientFaqs;
   const [openFaqId, setOpenFaqId] = useState<string | null>(faqs[0]?.id ?? null);
 
   /** Expands the selected FAQ or collapses it when already open. */

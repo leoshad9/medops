@@ -1,34 +1,32 @@
 import { usePatientPortal } from "../../../components/patient/usePatientPortal";
 import { displayGender, formatClinicDate } from "../../../lib/clinicTime";
-import type { PatientDetailedProfile, PatientProfile } from "../../../types/patient";
 
 export function ProfileView() {
-  const { data, profile } = usePatientPortal();
-  const resolvedProfile = profile ?? data.profile;
+  const { profile } = usePatientPortal();
+
+  if (!profile) {
+    return (
+      <div className="rounded-xl border border-brand-line bg-white p-6 shadow-xs">
+        <p className="text-sm text-brand-muted">Loading your profile…</p>
+      </div>
+    );
+  }
 
   // Read-only display view, derived on every render so it stays in sync with the
   // /patients/me response even when that fetch resolves after this view mounts.
-  const displayed = buildDetailedProfile(resolvedProfile, data.detailedProfile);
-
-  function buildDetailedProfile(loggedIn: PatientProfile, fallback: PatientDetailedProfile): PatientDetailedProfile {
-    return {
-      fullName: valueOf(loggedIn.name, fallback.fullName),
-      mrn: valueOf(loggedIn.mrn, fallback.mrn),
-      dateOfBirth: formatClinicDate(valueOf(loggedIn.dateOfBirth, fallback.dateOfBirth)),
-      gender: displayGender(valueOf(loggedIn.gender, fallback.gender)),
-      bloodGroup: valueOf(loggedIn.bloodGroup, fallback.bloodGroup),
-      phone: valueOf(loggedIn.phoneNumber, fallback.phone),
-      email: valueOf(loggedIn.email, fallback.email),
-      address: valueOf(loggedIn.address, fallback.address),
-      emergencyContact: valueOf(loggedIn.emergencyContact, fallback.emergencyContact),
-      insuranceProvider: valueOf(loggedIn.insuranceProvider, fallback.insuranceProvider),
-      insurancePolicyNumber: valueOf(loggedIn.insurancePolicyNumber, fallback.insurancePolicyNumber),
-    };
-  }
-
-  function valueOf<T>(primary: T | undefined | null, fallback: T): T {
-    return primary === undefined || primary === null || primary === "" ? fallback : primary;
-  }
+  const displayed = {
+    fullName: profile.name,
+    mrn: profile.mrn,
+    dateOfBirth: formatClinicDate(profile.dateOfBirth),
+    gender: displayGender(profile.gender),
+    bloodGroup: profile.bloodGroup ?? "Not on file",
+    phone: profile.phoneNumber ?? "Not on file",
+    email: profile.email ?? "Not on file",
+    address: profile.address ?? "Not on file",
+    emergencyContact: profile.emergencyContact ?? "Not on file",
+    insuranceProvider: profile.insuranceProvider ?? "Not on file",
+    insurancePolicyNumber: profile.insurancePolicyNumber ?? "Not on file",
+  };
 
   return (
     <div className="max-w-3xl space-y-6">
