@@ -32,7 +32,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MeBootstrapService {
 
-    private static final Logger log = LoggerFactory.getLogger(MeBootstrapService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MeBootstrapService.class);
 
     private static final String PATIENT_ROLE = "PATIENT";
     private static final String DOCTOR_ROLE = "DOCTOR";
@@ -55,7 +55,7 @@ public class MeBootstrapService {
         try {
             return patientProfileService.getMyProfile(email);
         } catch (RuntimeException ex) {
-            log.warn("Session bootstrap could not load the patient profile for {}", email, ex);
+            LOG.warn("Session bootstrap could not load the patient profile for {}", email, ex);
             return null;
         }
     }
@@ -64,7 +64,7 @@ public class MeBootstrapService {
         try {
             return doctorProfileService.getMyProfile(email);
         } catch (RuntimeException ex) {
-            log.warn("Session bootstrap could not load the doctor profile for {}", email, ex);
+            LOG.warn("Session bootstrap could not load the doctor profile for {}", email, ex);
             return null;
         }
     }

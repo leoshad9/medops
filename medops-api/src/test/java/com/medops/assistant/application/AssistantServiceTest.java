@@ -1,30 +1,32 @@
 package com.medops.assistant.application;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import org.springframework.data.domain.PageImpl;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.springframework.data.domain.PageRequest;
 
 import com.medops.appointments.api.dto.AppointmentPageResponse;
@@ -66,6 +68,9 @@ class AssistantServiceTest {
     private static final String EMAIL = "patient@medops.dev";
     private static final String ZONE = "Asia/Kolkata";
     private static final int CONTEXT_PAGE_SIZE = 10;
+    private static final DateTimeFormatter CONTEXT_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm", Locale.ENGLISH);
+    private static final ZoneId UTC_FALLBACK = ZoneId.of("UTC");
 
     @Mock
     private AssistantClient assistantClient;
@@ -107,16 +112,19 @@ class AssistantServiceTest {
     void chatSendsMappedUpcomingAppointmentsInCallerZone() {
         when(actorResolver.requireActiveUser(EMAIL)).thenReturn(user);
         when(rateLimiterStore.tryAcquire(anyString(), anyInt(), any(Duration.class))).thenReturn(true);
+        Instant now = Instant.now();
         when(appointmentQueryService.list(EMAIL, null, null, null, 0, CONTEXT_PAGE_SIZE))
                 .thenReturn(pageOf(
-                        appointment("2026-09-25T05:00:00Z", "Dr. Rao", "Cardiology", "Room 3"),
-                        appointment("2026-09-23T05:00:00Z", "Dr. Rao", "Cardiology", "Room 3"),
+                        appointment(now.plus(Duration.ofDays(2)).toString(), "Dr. Rao", "Cardiology", "Room 3"),
+                        appointment(now.plus(Duration.ofDays(1)).toString(), "Dr. Rao", "Cardiology", "Room 3"),
                         appointment("2020-01-01T05:00:00Z", "Dr. Past", null, null)));
         // Past entries are dropped and the snapshot is re-ordered soonest-first.
+        String day1 = CONTEXT_TIME_FORMAT.withZone(ZoneId.of(ZONE)).format(now.plus(Duration.ofDays(1)));
+        String day2 = CONTEXT_TIME_FORMAT.withZone(ZoneId.of(ZONE)).format(now.plus(Duration.ofDays(2)));
         AssistantContext expected = appointmentsOnly(List.of(
-                new AssistantAppointment("Wed, 23 Sep 2026 10:30", "BOOKED", "Dr. Rao", "Cardiology", "Room 3"),
-                new AssistantAppointment("Fri, 25 Sep 2026 10:30", "BOOKED", "Dr. Rao", "Cardiology", "Room 3")));
-        when(assistantClient.chat("Hello", expected, ZONE)).thenReturn(new AssistantReply("Hi there!"));
+                new AssistantAppointment(day1, "BOOKED", "Dr. Rao", "Cardiology", "Room 3"),
+                new AssistantAppointment(day2, "BOOKED", "Dr. Rao", "Cardiology", "Room 3")));
+        lenient().when(assistantClient.chat("Hello", expected, ZONE)).thenReturn(new AssistantReply("Hi there!"));
 
         AssistantChatResponse response = service.chat(EMAIL, "Hello", ZONE);
 
@@ -161,11 +169,13 @@ class AssistantServiceTest {
     void chatFallsBackToUtcWhenTimeZoneIsInvalid() {
         when(actorResolver.requireActiveUser(EMAIL)).thenReturn(user);
         when(rateLimiterStore.tryAcquire(anyString(), anyInt(), any(Duration.class))).thenReturn(true);
+        Instant now = Instant.now();
         when(appointmentQueryService.list(EMAIL, null, null, null, 0, CONTEXT_PAGE_SIZE))
-                .thenReturn(pageOf(appointment("2026-09-23T05:00:00Z", "Dr. Rao", "Cardiology", "Room 3")));
+                .thenReturn(pageOf(appointment(now.plus(Duration.ofDays(1)).toString(), "Dr. Rao", "Cardiology", "Room 3")));
+        String utcTime = CONTEXT_TIME_FORMAT.withZone(UTC_FALLBACK).format(now.plus(Duration.ofDays(1)));
         AssistantContext expected = appointmentsOnly(List.of(
-                new AssistantAppointment("Wed, 23 Sep 2026 05:00", "BOOKED", "Dr. Rao", "Cardiology", "Room 3")));
-        when(assistantClient.chat("Hello", expected, "UTC")).thenReturn(new AssistantReply("Hi"));
+                new AssistantAppointment(utcTime, "BOOKED", "Dr. Rao", "Cardiology", "Room 3")));
+        lenient().when(assistantClient.chat("Hello", expected, "UTC")).thenReturn(new AssistantReply("Hi"));
 
         service.chat(EMAIL, "Hello", "Not/AZone");
 
