@@ -43,9 +43,10 @@ public class AssistantClientConfiguration {
 
     private static final String ASSISTANT_CHAT = "assistantChat";
     // User-facing budget for one chat exchange (sidecar retries + LLM provider).
-    // Kept short so a busy provider yields an actionable 503 in ~10 s instead of a
-    // generic 500 after a 20 s hang; see ResilientAssistantClient's mapping.
-    private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(10);
+    // Set above one full sidecar attempt (REQUEST_TIMEOUT_SECONDS + backoff) so a
+    // healthy provider answers in ~1-2 s instead of being cut off mid-attempt;
+    // only a rate-limited provider burns a second attempt here.
+    private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(15);
 
     /**
      * Selects the local stub or a resilient HTTP assistant client.
