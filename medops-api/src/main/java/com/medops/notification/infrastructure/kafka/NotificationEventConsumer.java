@@ -1,5 +1,8 @@
 package com.medops.notification.infrastructure.kafka;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -8,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import com.medops.appointments.infrastructure.Appointment;
 import com.medops.appointments.infrastructure.AppointmentRepository;
+import com.medops.appointments.infrastructure.AppointmentScheduleProperties;
 import com.medops.doctors.infrastructure.DoctorProfile;
 import com.medops.doctors.infrastructure.DoctorProfileRepository;
 import com.medops.messaging.infrastructure.DomainEventMessage;
@@ -39,6 +43,15 @@ public class NotificationEventConsumer {
     private final ClinicalReportRepository clinicalReportRepository;
     private final PatientProfileRepository patientProfileRepository;
     private final DoctorProfileRepository doctorProfileRepository;
+    private final AppointmentScheduleProperties scheduleProperties;
+
+    private static final DateTimeFormatter PATIENT_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("EEE, d MMM yyyy 'at' h:mm a");
+
+    private String formatStart(Instant startsAt) {
+        ZoneId zone = scheduleProperties.zoneId();
+        return startsAt.atZone(zone).format(PATIENT_TIME_FORMATTER);
+    }
 
     @KafkaListener(
             topics = "${medops.messaging.appointments-topic}",
@@ -73,16 +86,16 @@ public class NotificationEventConsumer {
             log.warn("Cannot enrich AppointmentBooked appointmentId={}", appointment.getId());
             return;
         }
-        String startsAt = appointment.getStartsAt().toString();
+        String startsAt = formatStart(appointment.getStartsAt());
         notificationService.create(new CreateNotification(
                 patient.getUserId(), NotificationType.APPOINTMENT_BOOKED,
                 "Appointment confirmed",
-                "Your appointment with " + doctor.getFullName() + " is confirmed at " + startsAt + ".",
+                "Your appointment with " + doctor.getFullName() + " is confirmed on " + startsAt + ".",
                 "APPOINTMENT", appointment.getId(), sourceEventId));
         notificationService.create(new CreateNotification(
                 doctor.getUserId(), NotificationType.APPOINTMENT_BOOKED,
                 "New appointment",
-                "Appointment with " + patient.getFullName() + " at " + startsAt + ".",
+                "Appointment with " + patient.getFullName() + " on " + startsAt + ".",
                 "APPOINTMENT", appointment.getId(), sourceEventId));
     }
 

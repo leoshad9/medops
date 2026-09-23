@@ -31,32 +31,54 @@ export interface UpcomingAppointment {
   weekday: string;
   doctorName: string;
   specialty: string;
-  time: string;
+  department: string;
   location: string;
   visitType: string;
+  reason: string | null;
+  status: AppointmentStatus;
+  startsAt: string;
+  endsAt: string;
+  cancellationPolicy: string | null;
+  meetingLink: string | null;
+  timeRemaining: string;
+  time: string;
+  doctorId: string;
 }
 
-export type AppointmentStatus = "COMPLETED" | "CANCELLED" | "UPCOMING";
+export type AppointmentStatus = "COMPLETED" | "CANCELLED" | "UPCOMING" | "PENDING_CONFIRMATION";
 
 export interface AppointmentRecord {
   id: string;
   doctorId?: string;
   startsAt?: string;
+  endsAt?: string;
   dateTime: string;
   doctorName: string;
   department: string;
   status: AppointmentStatus;
   location?: string;
   reason?: string;
+  visitType?: string;
 }
 
 export type RecentAppointmentRow = AppointmentRecord;
+
+export type NotificationCategory =
+  | "lab"
+  | "appointment"
+  | "prescription"
+  | "billing"
+  | "record";
 
 export interface NotificationItem {
   id: string;
   title: string;
   description: string;
   timeAgo: string;
+  timeAbsolute?: string;
+  category?: NotificationCategory;
+  actionLabel?: string;
+  actionPath?: string;
   unread?: boolean;
 }
 

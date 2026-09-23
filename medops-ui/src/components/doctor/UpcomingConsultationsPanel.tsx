@@ -1,8 +1,8 @@
-import { CalendarClock, ChevronRight, Stethoscope } from "lucide-react";
+import { ArrowUpRight, CalendarClock, ChevronRight, Stethoscope } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { formatClinicTime } from "../../lib/clinicTime";
-import { doctorPatientChartPath } from "../../lib/doctorRoutes";
+import { DOCTOR_PATHS, doctorPatientChartPath } from "../../lib/doctorRoutes";
 import type { AppointmentDto } from "../../services/appointmentService";
 
 interface UpcomingConsultationsPanelProps {
@@ -33,7 +33,16 @@ export function UpcomingConsultationsPanel({
       </div>
 
       {appointments.length === 0 ? (
-        <p className="mt-4 text-sm text-brand-muted">No more booked visits today.</p>
+        <div className="mt-4 text-center">
+          <p className="mb-1 text-sm text-brand-muted">No more booked visits today.</p>
+          <Link
+            to={DOCTOR_PATHS.patients}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-brand-primary-dark hover:underline"
+          >
+            View patient roster
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       ) : (
         <div className="mt-4 space-y-3">
           {appointments.map((appointment) => (

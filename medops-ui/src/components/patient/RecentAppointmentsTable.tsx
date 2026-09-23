@@ -7,12 +7,14 @@ const STATUS_STYLES: Record<AppointmentStatus, string> = {
   COMPLETED: "bg-brand-success-tint text-brand-success",
   CANCELLED: "bg-brand-rust-tint text-brand-rust",
   UPCOMING: "bg-brand-primary-tint text-brand-primary-dark",
+  PENDING_CONFIRMATION: "bg-amber-100 text-amber-800",
 };
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
   UPCOMING: "Upcoming",
+  PENDING_CONFIRMATION: "Pending Confirmation",
 };
 
 interface RecentAppointmentsTableProps {

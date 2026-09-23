@@ -1,4 +1,4 @@
-import { Activity, Clock, FileCheck2, TrendingUp, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import type { DoctorDashboardStat } from "../../types/doctor";
 
@@ -6,22 +6,17 @@ interface DoctorStatCardsProps {
   stats: DoctorDashboardStat[];
 }
 
-const STAT_ICONS: Record<string, typeof Users> = {
-  "today-patients": Users,
-  "waiting-room": Clock,
-  "lab-results": FileCheck2,
-  satisfaction: Activity,
-};
-
 export function DoctorStatCards({ stats }: Readonly<DoctorStatCardsProps>) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => {
-        const Icon = STAT_ICONS[stat.id] ?? TrendingUp;
+        const Icon = stat.icon;
         return (
-          <div
+          <Link
             key={stat.id}
-            className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-brand-line bg-white p-5 shadow-xs transition hover:border-brand-primary/40 hover:shadow-md"
+            to={stat.to}
+            className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-brand-line bg-white p-5 shadow-xs no-underline text-inherit transition hover:border-brand-primary/40 hover:shadow-md focus-visible-ring"
+            data-testid={`stat-card-${stat.id}`}
           >
             <div className="flex items-start justify-between">
               <div>
@@ -47,7 +42,7 @@ export function DoctorStatCards({ stats }: Readonly<DoctorStatCardsProps>) {
                 </span>
               )}
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

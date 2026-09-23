@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Calendar, ChevronRight, FlaskConical, Folder, Pill } from "lucide-react";
+import { Calendar, ChevronRight, CreditCard, FlaskConical, Folder, Pill } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { PATIENT_PATHS, type PatientViewKey } from "../../lib/patientRoutes";
@@ -10,6 +10,7 @@ const ICONS_BY_ID: Record<string, LucideIcon> = {
   prescriptions: Pill,
   "lab-reports": FlaskConical,
   "medical-records": Folder,
+  billing: CreditCard,
 };
 
 const VIEW_BY_STAT_ID: Record<string, PatientViewKey> = {
@@ -17,6 +18,7 @@ const VIEW_BY_STAT_ID: Record<string, PatientViewKey> = {
   prescriptions: "prescriptions",
   "lab-reports": "labs",
   "medical-records": "records",
+  billing: "billing",
 };
 
 // One shared badge style (40x40, 12px radius, teal tint) keeps the four

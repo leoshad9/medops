@@ -44,7 +44,7 @@ export function PatientLayout() {
     error: notificationsError,
     markRead: markNotificationRead,
     markAllRead: markAllNotificationsRead,
-  } = useNotifications();
+  } = useNotifications("patient");
 
   const loadProfile = useCallback(() => {
     setProfileError(false);

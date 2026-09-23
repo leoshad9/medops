@@ -7,6 +7,13 @@ import {
   formatClinicDate,
   formatClinicDateTime,
   formatClinicTime,
+  formatPatientDateTime,
+  formatPatientDateTimeAbsolute,
+  formatPatientTime,
+  formatRelativeWithAbsolute,
+  formatTimeRemaining,
+  sanitizePatientField,
+  createCalendarDataUri,
 } from "./clinicTime";
 
 describe("calcAge", () => {
@@ -93,5 +100,104 @@ describe("clinic timezone formatting", () => {
 
   it("formats date-times in the clinic zone", () => {
     expect(formatClinicDateTime(instant)).toMatch(/10:30/);
+  });
+});
+
+describe("patient timezone formatting (UTC fixture)", () => {
+  const TZ = "UTC";
+  // 2026-09-30T08:00:00Z is 8:00 AM UTC / Wed 30 Sep 2026.
+  const instant = "2026-09-30T08:00:00Z";
+
+  it("formats full date+time as 'Wed, 30 Sep 2026 at 8:00 AM'", () => {
+    expect(formatPatientDateTime(instant, TZ)).toBe("Wed, 30 Sep 2026 at 8:00 AM");
+  });
+
+  it("formats short absolute date+time as '30 Sep 2026, 8:00 AM'", () => {
+    expect(formatPatientDateTimeAbsolute(instant, TZ)).toBe("30 Sep 2026, 8:00 AM");
+  });
+
+  it("formats time-of-day only as '8:00 AM'", () => {
+    expect(formatPatientTime(instant, TZ)).toBe("8:00 AM");
+  });
+
+  it("never includes a raw ISO UTC string", () => {
+    expect(formatPatientDateTime(instant, TZ)).not.toMatch(/T\d{2}:\d{2}:\d{2}/);
+  });
+
+  it("renders PM hours without a leading zero", () => {
+    expect(formatPatientTime("2026-09-30T21:30:00Z", TZ)).toBe("9:30 PM");
+  });
+});
+
+describe("formatRelativeWithAbsolute", () => {
+  const TZ = "UTC";
+  const now = Date.parse("2026-09-22T10:00:00Z");
+
+  it("shows relative age plus the exact local time", () => {
+    // 20 hours before now -> "20 hours ago · 21 Sep 2026, 2:00 PM"
+    expect(formatRelativeWithAbsolute("2026-09-21T14:00:00Z", TZ, now)).toBe(
+      "20 hours ago · 21 Sep 2026, 2:00 PM",
+    );
+  });
+});
+
+describe("formatTimeRemaining", () => {
+  const TZ = "UTC";
+  const now = Date.parse("2026-09-22T10:00:00Z");
+
+  it("returns 'Now' for a past appointment", () => {
+    expect(formatTimeRemaining("2026-09-22T09:00:00Z", now, TZ)).toBe("Now");
+  });
+
+  it("returns a relative label for an hour-scale future appointment", () => {
+    expect(formatTimeRemaining("2026-09-22T12:00:00Z", now, TZ)).toBe("in 2 hours");
+  });
+
+  it("returns 'Today at …' for a same-day appointment", () => {
+    expect(formatTimeRemaining("2026-09-22T21:30:00Z", now, TZ)).toBe("Today at 9:30 PM");
+  });
+
+  it("returns 'Tomorrow at …' for a next-day appointment", () => {
+    expect(formatTimeRemaining("2026-09-23T21:30:00Z", now, TZ)).toBe("Tomorrow at 9:30 PM");
+  });
+});
+
+describe("sanitizePatientField", () => {
+  it("returns undefined for null/empty", () => {
+    expect(sanitizePatientField(null)).toBeUndefined();
+    expect(sanitizePatientField("   ")).toBeUndefined();
+  });
+
+  it("drops known test/internal strings", () => {
+    expect(sanitizePatientField("Testing bot")).toBeUndefined();
+    expect(sanitizePatientField("Dr. Mohd: staff only notes")).toBeUndefined();
+    expect(sanitizePatientField("  INTERNAL USE ONLY  ")).toBeUndefined();
+  });
+
+  it("strips a leading clinician role prefix but keeps the note", () => {
+    expect(sanitizePatientField("Dr. Mohd Adnan: Routine check-up")).toBe("Routine check-up");
+  });
+
+  it("passes patient-safe text through trimmed", () => {
+    expect(sanitizePatientField("  Annual physical  ")).toBe("Annual physical");
+  });
+});
+
+describe("createCalendarDataUri", () => {
+  it("produces a downloadable ICS data URI", () => {
+    const uri = createCalendarDataUri({
+      id: "apt-123",
+      startsAt: "2026-09-30T08:00:00Z",
+      endsAt: "2026-09-30T08:30:00Z",
+      summary: "Appointment with Dr. Mohd Adnan",
+      location: "Clinic",
+      description: "Annual check-up",
+    });
+    expect(uri).toMatch(/^data:text\/calendar;charset=utf-8;base64,/);
+    const decoded = atob(uri.split(",")[1]);
+    expect(decoded).toContain("BEGIN:VCALENDAR");
+    expect(decoded).toContain("DTSTART:20260930T080000Z");
+    expect(decoded).toContain("SUMMARY:Appointment with Dr. Mohd Adnan");
+    expect(decoded).toContain("LOCATION:Clinic");
   });
 });

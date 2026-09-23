@@ -2,7 +2,7 @@ import { AlertCircle, ArrowUpRight, CheckCircle, FlaskConical, Hourglass } from 
 import { Link } from "react-router-dom";
 
 import { formatClinicDateTime } from "../../lib/clinicTime";
-import { doctorPatientChartPath } from "../../lib/doctorRoutes";
+import { DOCTOR_PATHS, doctorPatientChartPath } from "../../lib/doctorRoutes";
 import type { ClinicalReportDto } from "../../services/clinicalService";
 
 interface PendingLabsPanelProps {
@@ -32,7 +32,16 @@ export function PendingLabsPanel({ labs }: Readonly<PendingLabsPanelProps>) {
       </div>
 
       {labs.length === 0 ? (
-        <p className="mt-4 text-sm text-brand-muted">No reports awaiting review.</p>
+        <div className="mt-4 text-center">
+          <p className="mb-1 text-sm text-brand-muted">No reports awaiting review.</p>
+          <Link
+            to={DOCTOR_PATHS.labs}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-brand-primary-dark hover:underline"
+          >
+            View lab history
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       ) : (
         <div className="mt-4 space-y-3">
           {labs.map((lab) => (

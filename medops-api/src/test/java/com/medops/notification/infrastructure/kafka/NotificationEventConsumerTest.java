@@ -1,12 +1,14 @@
 package com.medops.notification.infrastructure.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.medops.appointments.domain.AppointmentStatus;
 import com.medops.appointments.infrastructure.Appointment;
 import com.medops.appointments.infrastructure.AppointmentRepository;
+import com.medops.appointments.infrastructure.AppointmentScheduleProperties;
 import com.medops.doctors.infrastructure.DoctorProfile;
 import com.medops.doctors.infrastructure.DoctorProfileRepository;
 import com.medops.messaging.infrastructure.DomainEventMessage;
@@ -46,13 +49,16 @@ class NotificationEventConsumerTest {
     private PatientProfileRepository patientProfileRepository;
     @Mock
     private DoctorProfileRepository doctorProfileRepository;
+    @Mock
+    private AppointmentScheduleProperties scheduleProperties;
 
     private NotificationEventConsumer consumer;
 
     @BeforeEach
     void setUp() {
+        lenient().when(scheduleProperties.zoneId()).thenReturn(ZoneId.of("Asia/Kolkata"));
         consumer = new NotificationEventConsumer(notificationService, appointmentRepository, clinicalReportRepository,
-                patientProfileRepository, doctorProfileRepository);
+                patientProfileRepository, doctorProfileRepository, scheduleProperties);
     }
 
     @Test

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { DashboardGreeting } from "../../components/common/DashboardGreeting";
 import { HealthSummaryPanel } from "../../components/patient/HealthSummaryPanel";
 import { NotificationsPanel } from "../../components/patient/NotificationsPanel";
 import { QuickActionsGrid } from "../../components/patient/QuickActionsGrid";
@@ -11,20 +10,32 @@ import { usePatientPortal } from "../../components/patient/usePatientPortal";
 import { buildPatientDashboardLiveData } from "../../lib/patientDashboard";
 import { listMyAppointments } from "../../services/appointmentService";
 import { listPrescriptions, listReports } from "../../services/clinicalService";
+import { listInvoices } from "../../services/billingService";
 
 export function PatientDashboard() {
   const { profile, notifications, notificationsLoading, notificationsError, markNotificationRead } =
     usePatientPortal();
-  const [live, setLive] = useState(buildPatientDashboardLiveData([], [], []));
+  const patientId = profile?.id ?? null;
+  const [live, setLive] = useState(() =>
+    buildPatientDashboardLiveData([], [], [], [], profile ?? null),
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!patientId) {
+      return;
+    }
     let cancelled = false;
-    Promise.all([listMyAppointments(), listPrescriptions(), listReports()])
-      .then(([appointments, prescriptions, reports]) => {
+    Promise.all([
+      listMyAppointments(),
+      listPrescriptions(),
+      listReports(),
+      listInvoices(patientId).then((page) => page.content),
+    ])
+      .then(([appointments, prescriptions, reports, invoices]) => {
         if (!cancelled) {
-          setLive(buildPatientDashboardLiveData(appointments, prescriptions, reports));
+          setLive(buildPatientDashboardLiveData(appointments, prescriptions, reports, invoices, profile ?? null));
           setError(null);
         }
       })
@@ -41,21 +52,16 @@ export function PatientDashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [patientId, profile]);
 
-  // Real event notifications; fall back to the derived activity feed only while
-  // the notifications API is unreachable.
+  // Real event notifications drive the Reminders feed whenever the
+  // notifications service is reachable; the derived activity feed is a
+  // fallback so reminders and stat counts always agree on a single load.
   const activity =
     notifications.length > 0 || notificationsError === null ? notifications : live.activity;
 
-  const firstName = profile?.name.split(" ")[0];
-
   return (
     <div className="space-y-6">
-      <DashboardGreeting
-        name={firstName}
-        message="Here's your health overview and upcoming appointments."
-      />
       {error && (
         <p className="rounded-xl border border-brand-rust/30 bg-brand-rust-tint px-4 py-3 text-sm text-brand-rust">
           {error}
@@ -82,7 +88,7 @@ export function PatientDashboard() {
             loading={notificationsLoading && activity.length === 0}
             onMarkRead={markNotificationRead}
           />
-          <HealthSummaryPanel metrics={[]} />
+          <HealthSummaryPanel metrics={live.healthMetrics} />
         </div>
       </div>
     </div>

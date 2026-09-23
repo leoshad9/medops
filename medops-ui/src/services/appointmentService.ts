@@ -1,6 +1,6 @@
 import type { ApiResponse } from "../types/api";
 import type { AppointmentRecord, AppointmentStatus } from "../types/patient";
-import { formatClinicDateTime } from "../lib/clinicTime";
+import { formatPatientDateTime, sanitizePatientField } from "../lib/clinicTime";
 import { messageFromApiError } from "../lib/apiError";
 import { api } from "./api";
 
@@ -54,16 +54,19 @@ export function deriveUiStatus(dto: AppointmentDto, nowMs: number = Date.now()):
 }
 
 export function toAppointmentRecord(dto: AppointmentDto): AppointmentRecord {
+  const safeReason = sanitizePatientField(dto.reason);
   return {
     id: dto.id,
     doctorId: dto.doctorId,
     startsAt: dto.startsAt,
-    dateTime: formatClinicDateTime(dto.startsAt),
+    endsAt: dto.endsAt,
+    dateTime: formatPatientDateTime(dto.startsAt),
     doctorName: dto.doctorName,
     department: dto.specialty,
     status: deriveUiStatus(dto),
     location: dto.location ?? undefined,
-    reason: dto.reason ?? undefined,
+    reason: safeReason ?? undefined,
+    visitType: safeReason ?? "Consultation",
   };
 }
 

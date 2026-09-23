@@ -15,8 +15,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     # Localhost only — never publish 5432 on 0.0.0.0. Reach it via SSH tunnel.
+    # Override LOCAL_DB_PORT when another PostgreSQL instance owns host port 5432.
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${LOCAL_DB_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medops} -d ${POSTGRES_DB:-medops}"]
       interval: 5s

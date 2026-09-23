@@ -3,12 +3,13 @@ import { Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "../../context/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
+import { useDoctorDutyStatus } from "../../hooks/useDoctorDutyStatus";
 import { DoctorHeader } from "./DoctorHeader";
 import { DoctorNotificationDropdown } from "./DoctorNotificationDropdown";
 import { DoctorSidebar } from "./DoctorSidebar";
 import { DOCTOR_VIEW_METADATA, doctorViewFromPath } from "../../lib/doctorRoutes";
 import { getMyDoctorProfile } from "../../services/doctorService";
-import type { DoctorProfile } from "../../types/doctor";
+import type { DoctorDutyStatus, DoctorProfile } from "../../types/doctor";
 import type { NotificationItem } from "../../types/patient";
 
 export interface DoctorLayoutContext {
@@ -19,19 +20,35 @@ export interface DoctorLayoutContext {
   notificationsError: string | null;
   markNotificationRead: (notificationId: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
+  dutyStatus: DoctorDutyStatus;
+  changeDutyStatus: (status: DoctorDutyStatus) => Promise<void>;
+  isChangingDutyStatus: boolean;
+  dutyStatusError: string | null;
+  needsConfirmation: (status: DoctorDutyStatus) => boolean;
+  pendingClinicalWorkItems: string[];
+  setPendingClinicalWorkItems: (items: string[]) => void;
 }
 
 export function DoctorLayout() {
   const location = useLocation();
-  // A page-load restore receives the profile with the session from GET /v1/me, so the
-  // header can render immediately; sessions established by login/registration still
-  // fetch it below.
-  const { doctorProfile: bootstrapProfile } = useAuth();
+  const { doctorProfile: bootstrapProfile, logout } = useAuth();
   const [profile, setProfile] = useState<DoctorProfile | null>(bootstrapProfile);
   const [profileError, setProfileError] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [pendingClinicalWorkItems, setPendingClinicalWorkItems] = useState<string[]>([]);
   const view = doctorViewFromPath(location.pathname);
   const meta = DOCTOR_VIEW_METADATA[view];
+
+  const hasPendingClinicalWork = pendingClinicalWorkItems.length > 0;
+
+  const {
+    status: dutyStatus,
+    isChanging: isChangingDutyStatus,
+    error: dutyStatusError,
+    changeStatus: changeDutyStatus,
+    needsConfirmation,
+  } = useDoctorDutyStatus(profile?.email ?? "", hasPendingClinicalWork);
+
   const {
     notifications,
     unreadCount,
@@ -39,7 +56,7 @@ export function DoctorLayout() {
     error: notificationsError,
     markRead: markNotificationRead,
     markAllRead: markAllNotificationsRead,
-  } = useNotifications();
+  } = useNotifications("doctor");
 
   const loadProfile = useCallback(() => {
     setProfileError(false);
@@ -68,8 +85,17 @@ export function DoctorLayout() {
             profile={profile}
             unreadAlertsCount={unreadCount}
             onToggleNotifications={() => setShowNotifications((prev) => !prev)}
+            onLogout={logout}
             title={meta.title}
             subtitle={meta.subtitle}
+            duty={{
+              status: dutyStatus,
+              onChange: changeDutyStatus,
+              needsConfirmation,
+              isChanging: isChangingDutyStatus,
+              error: dutyStatusError,
+              pendingItems: pendingClinicalWorkItems,
+            }}
           />
         ) : (
           <div className="border-b border-brand-line pb-6">
@@ -110,6 +136,13 @@ export function DoctorLayout() {
             notificationsError,
             markNotificationRead,
             markAllNotificationsRead,
+            dutyStatus,
+            changeDutyStatus,
+            isChangingDutyStatus,
+            dutyStatusError,
+            needsConfirmation,
+            pendingClinicalWorkItems,
+            setPendingClinicalWorkItems,
           }}
         />
       </main>

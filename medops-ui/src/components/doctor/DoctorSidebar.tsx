@@ -2,7 +2,6 @@ import { NavLink } from "react-router-dom";
 import {
   Calendar,
   FlaskConical,
-  Headset,
   LayoutDashboard,
   Bell,
   LogOut,
@@ -58,17 +57,7 @@ export function DoctorSidebar() {
         ))}
       </nav>
 
-      <div className="mt-auto shrink-0 border-t border-brand-line pt-4 space-y-3">
-        <div className="rounded-xl border border-brand-primary-tint bg-gradient-to-br from-brand-primary-tint to-white p-4">
-          <p className="text-sm font-semibold text-brand-ink">On-Call Support</p>
-          <p className="mt-1 text-xs leading-relaxed text-brand-muted">
-            Need immediate hospital IT, pharmacy liaison, or on-call staff coordination?
-          </p>
-          <span className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-primary py-2 text-xs font-semibold text-brand-primary-dark touch-target-sm">
-            <Headset className="h-3.5 w-3.5" />
-            Page Clinical Ops
-          </span>
-        </div>
+      <div className="mt-auto shrink-0 border-t border-brand-line pt-4">
         <button
           type="button"
           onClick={() => void logout()}

@@ -17,6 +17,7 @@ type FilterType = "all" | "UPCOMING" | "COMPLETED" | "CANCELLED";
 
 const STATUS_CONFIG: Record<AppointmentStatus, { label: string; className: string }> = {
   UPCOMING: { label: "Upcoming", className: "bg-brand-primary-tint text-brand-primary-dark" },
+  PENDING_CONFIRMATION: { label: "Pending", className: "bg-amber-100 text-amber-800" },
   COMPLETED: { label: "Completed", className: "bg-brand-success-tint text-brand-success" },
   CANCELLED: { label: "Cancelled", className: "bg-brand-rust-tint text-brand-rust" },
 };
