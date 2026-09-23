@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
@@ -66,7 +67,7 @@ class AssistantClientInfrastructureTest {
                                 + "{\"starts_at_local\":\"Wed, 23 Sep 2026 10:30\",\"status\":\"BOOKED\","
                                 + "\"practitioner_name\":\"Dr. Rao\",\"specialty\":\"Cardiology\","
                                 + "\"location\":\"Room 3\"}],\"lab_reports\":[],\"prescriptions\":[],"
-                                + "\"invoices\":[],\"medical_records\":[]}", true))
+                                + "\"invoices\":[],\"medical_records\":[]}", JsonCompareMode.STRICT))
                 .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess()
                         .contentType(MediaType.APPLICATION_JSON)
                         .body("{\"message\":\"Hi! How can I help?\"}"));
@@ -213,7 +214,7 @@ class AssistantClientInfrastructureTest {
                                 + "\"balance_cents\":10000,\"due_date_local\":\"2026-10-05\"}],"
                                 + "\"medical_records\":[{\"created_at_local\":\"Mon, 21 Sep 2026 08:15\","
                                 + "\"title\":\"Discharge Summary\",\"type\":\"CLINICAL_DOCUMENT\","
-                                + "\"doctor_name\":\"Dr. Rao\",\"has_summary\":false}]}", true))
+                                + "\"doctor_name\":\"Dr. Rao\",\"has_summary\":false}]}", JsonCompareMode.STRICT))
                 .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess()
                         .contentType(MediaType.APPLICATION_JSON)
                         .body("{\"message\":\"Hi!\"}"));
