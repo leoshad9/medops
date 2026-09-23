@@ -422,6 +422,38 @@ function toIcsUtc(isoInstant: string): string {
     .replace(/\.\d{3}/, "");
 }
 
+/**
+ * Builds a Google Calendar "add event" URL that opens the event editor in a
+ * new tab instead of silently downloading an ICS file.
+ *
+ * Google's format: https://calendar.google.com/calendar/render?action=TEMPLATE
+ *                  &text=<summary>&dates=<start>/<end>&location=<loc>&details=<desc>
+ * Dates are YYYYMMDDTHHMMSSZ (UTC). Times are always UTC here — the appointment
+ * window is stored as an ISO-8601 instant and Google renders the editor in the
+ * viewer's own time zone.
+ *
+ * URLSearchParams handles all encoding; values are trimmed first so an empty
+ * location/description is omitted entirely rather than sent as a blank query.
+ */
+export function createGoogleCalendarUrl(event: CalendarEvent): string {
+  const start = toIcsUtc(event.startsAt);
+  const end = toIcsUtc(event.endsAt);
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: event.summary.trim(),
+    dates: `${start}/${end}`,
+  });
+  const location = event.location?.trim();
+  if (location) {
+    params.set("location", location);
+  }
+  const description = event.description?.trim();
+  if (description) {
+    params.set("details", description);
+  }
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 /** Builds a one-click "Add to Calendar" ICS data URI from a UTC appointment window. */
 export function createCalendarDataUri(event: CalendarEvent): string {
   const lines = [

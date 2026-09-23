@@ -3,7 +3,7 @@ import { CalendarPlus, Clock, FileText, MapPin, Video } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { PATIENT_PATHS } from "../../lib/patientRoutes";
-import { createCalendarDataUri, type CalendarEvent } from "../../lib/clinicTime";
+import { createGoogleCalendarUrl, type CalendarEvent } from "../../lib/clinicTime";
 import type { UpcomingAppointment } from "../../types/patient";
 
 interface UpcomingAppointmentCardProps {
@@ -138,10 +138,11 @@ export function UpcomingAppointmentCard({ appointment }: Readonly<UpcomingAppoin
               </Link>
             )}
             <a
-              href={createCalendarDataUri(calendarEvent)}
-              download="appointment.ics"
+              href={createGoogleCalendarUrl(calendarEvent)}
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded-lg border border-brand-line bg-white px-4 py-2 text-xs font-semibold text-brand-ink transition duration-150 hover:-translate-y-px hover:bg-brand-primary-tint hover:shadow-sm active:translate-y-0 cursor-pointer focus-visible-ring"
-              aria-label="Add to calendar"
+              aria-label="Add to Google Calendar"
             >
               <span className="flex items-center gap-1.5">
                 <CalendarPlus className="h-3.5 w-3.5" />

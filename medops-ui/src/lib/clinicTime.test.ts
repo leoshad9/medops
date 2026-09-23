@@ -14,6 +14,7 @@ import {
   formatTimeRemaining,
   sanitizePatientField,
   createCalendarDataUri,
+  createGoogleCalendarUrl,
 } from "./clinicTime";
 
 describe("calcAge", () => {
@@ -199,5 +200,35 @@ describe("createCalendarDataUri", () => {
     expect(decoded).toContain("DTSTART:20260930T080000Z");
     expect(decoded).toContain("SUMMARY:Appointment with Dr. Mohd Adnan");
     expect(decoded).toContain("LOCATION:Clinic");
+  });
+});
+
+describe("createGoogleCalendarUrl", () => {
+  it("builds a Google Calendar add-event URL with the appointment window", () => {
+    const url = createGoogleCalendarUrl({
+      id: "apt-123",
+      startsAt: "2026-09-30T08:00:00Z",
+      endsAt: "2026-09-30T08:30:00Z",
+      summary: "Appointment with Dr. Mohd Adnan",
+      location: "Clinic",
+      description: "Annual check-up",
+    });
+    expect(url).toContain("https://calendar.google.com/calendar/render?");
+    expect(url).toContain("action=TEMPLATE");
+    expect(url).toContain("dates=20260930T080000Z%2F20260930T083000Z");
+    expect(url).toContain("text=Appointment+with+Dr.+Mohd+Adnan");
+    expect(url).toContain("location=Clinic");
+    expect(url).toContain("details=Annual+check-up");
+  });
+
+  it("omits empty optional fields instead of sending them as blank", () => {
+    const url = createGoogleCalendarUrl({
+      id: "apt-1",
+      startsAt: "2026-09-30T08:00:00Z",
+      endsAt: "2026-09-30T08:30:00Z",
+      summary: "Visit",
+    });
+    expect(url).not.toContain("location=");
+    expect(url).not.toContain("details=");
   });
 });
