@@ -51,4 +51,38 @@ class JwtServiceTest {
 
         assertThat(jwtService.isTokenValid(token, userDetails)).isFalse();
     }
+
+    @Test
+    void validateAndExtractUsernameReturnsSubjectForValidToken() {
+        JwtService jwtService = new JwtService(new JwtProperties(
+                SECRET, 900000, 28800000, "medops-api", "medops-web"));
+        User userDetails = new User(
+                "patient@medops.dev", "password",
+                List.of(new SimpleGrantedAuthority("ROLE_PATIENT")));
+
+        String token = jwtService.generateAccessToken(userDetails);
+
+        assertThat(jwtService.validateAndExtractUsername(token)).hasValue("patient@medops.dev");
+    }
+
+    @Test
+    void validateAndExtractUsernameIsEmptyForWrongIssuer() {
+        JwtService jwtService = new JwtService(new JwtProperties(
+                SECRET, 900000, 28800000, "medops-api", "medops-web"));
+        User userDetails = new User(
+                "patient@medops.dev", "password",
+                List.of(new SimpleGrantedAuthority("ROLE_PATIENT")));
+        String token = new JwtService(new JwtProperties(
+                SECRET, 900000, 28800000, "other-api", "medops-web")).generateAccessToken(userDetails);
+
+        assertThat(jwtService.validateAndExtractUsername(token)).isEmpty();
+    }
+
+    @Test
+    void validateAndExtractUsernameIsEmptyForMalformedToken() {
+        JwtService jwtService = new JwtService(new JwtProperties(
+                SECRET, 900000, 28800000, "medops-api", "medops-web"));
+
+        assertThat(jwtService.validateAndExtractUsername("not-a-jwt")).isEmpty();
+    }
 }

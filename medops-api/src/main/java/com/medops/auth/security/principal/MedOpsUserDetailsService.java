@@ -25,7 +25,10 @@ public class MedOpsUserDetailsService implements UserDetailsService {
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(username)
+        // Single round trip: user + roles via fetch join. findByEmail leaves roles
+        // lazy, causing an extra SELECT per role inside buildUserDetails on every
+        // authenticated request.
+        User user = userRepository.findWithRolesByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         return buildUserDetails(user);

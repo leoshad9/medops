@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import javax.crypto.SecretKey;
 
@@ -87,6 +88,26 @@ public final class JwtService {
 
     public String extractUsername(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    /**
+     * Validates signature, issuer, audience, and expiry in a single JJWT parse and
+     * returns the subject. Empty when the token is invalid or expired, so callers
+     * pay for exactly one cryptographic verification instead of parsing twice
+     * (once to extract the username, once to validate).
+     */
+    public Optional<String> validateAndExtractUsername(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            Date expiration = claims.getExpiration();
+            String subject = claims.getSubject();
+            if (expiration == null || !expiration.after(new Date()) || subject == null) {
+                return Optional.empty();
+            }
+            return Optional.of(subject);
+        } catch (JwtException | IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {

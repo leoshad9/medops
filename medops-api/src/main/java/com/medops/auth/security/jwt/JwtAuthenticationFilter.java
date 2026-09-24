@@ -14,7 +14,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.medops.auth.security.CookieConstants;
 import com.medops.auth.security.principal.MedOpsUserDetailsService;
 
-import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -38,6 +37,22 @@ public final class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final MedOpsUserDetailsService userDetailsService;
 
     @Override
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        // Public endpoints never need an authenticated SecurityContext. Skipping JWT
+        // parsing + the UserRepository lookup here keeps /api/auth/csrf (and other
+        // auth endpoints) to pure token-cookie work instead of paying 2x JJWT
+        // verifies + a users+roles DB round trip for a permitAll request.
+        return uri.startsWith("/api/auth/")
+                || uri.equals("/api/auth")
+                || uri.startsWith("/actuator/health")
+                || uri.equals("/swagger-ui.html")
+                || uri.startsWith("/swagger-ui/")
+                || uri.startsWith("/api-docs/")
+                || uri.startsWith("/webjars/");
+    }
+
+    @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
@@ -49,20 +64,18 @@ public final class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        try {
-            String username = jwtService.extractUsername(token);
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                if (jwtService.isTokenValid(token, userDetails)) {
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                }
+        // validateAndExtractUsername swallows parse failures to Optional, so invalid
+        // tokens just stay unauthenticated and the chain rejects them if the
+        // endpoint requires authentication. No try/catch needed here.
+        String username = jwtService.validateAndExtractUsername(token).orElse(null);
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            if (username.equals(userDetails.getUsername())) {
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
-        } catch (JwtException | IllegalArgumentException e) {
-            // Invalid, malformed, or expired token - leave the request unauthenticated and let
-            // the security filter chain reject it if the endpoint requires authentication.
         }
 
         filterChain.doFilter(request, response);

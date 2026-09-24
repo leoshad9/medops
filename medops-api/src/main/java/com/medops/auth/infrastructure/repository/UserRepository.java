@@ -3,6 +3,7 @@ package com.medops.auth.infrastructure.repository;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.medops.auth.domain.User;
@@ -21,6 +22,18 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * @return Optional containing the user if found
      */
     Optional<User> findByEmail(String email);
+
+    /**
+     * Eagerly loads {@code roles} with the user in one query. The default
+     * {@link #findByEmail(String)} leaves {@code roles} lazy, so the auth filter
+     * pays 1 (user) + N (roles) queries per authenticated request; this variant
+     * is the single-round-trip path for {@code JwtAuthenticationFilter}.
+     *
+     * @param email the user's email
+     * @return Optional containing the user with roles if found
+     */
+    @EntityGraph(attributePaths = "roles")
+    Optional<User> findWithRolesByEmail(String email);
 
     /**
      * Check if a user with the given email exists.

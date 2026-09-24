@@ -21,20 +21,39 @@ function isAuthEndpoint(url: string | undefined): boolean {
 // state-changing requests fire before the XSRF-TOKEN cookie is established.
 let csrfInitPromise: Promise<void> | null = null;
 
+async function fetchCsrfToken(): Promise<void> {
+  try {
+    await api.get("/auth/csrf");
+  } catch {
+    // CSRF bootstrap is best-effort: state-changing requests still go out and
+    // the server rejects only what is actually unprotected. Swallowing keeps a
+    // failed prefetch from blocking app boot.
+  }
+}
+
+/**
+ * Warms the XSRF-TOKEN cookie outside the critical path. Call once at app boot
+ * (e.g. alongside the session bootstrap) so the first state-changing request
+ * finds the cookie and skips the serialized GET /auth/csrf round trip that
+ * otherwise blocks it inside the request interceptor.
+ */
+export function prefetchCsrfToken(): Promise<void> {
+  if (getCookie("XSRF-TOKEN")) {
+    return Promise.resolve();
+  }
+  if (!csrfInitPromise) {
+    csrfInitPromise = fetchCsrfToken().finally(() => {
+      csrfInitPromise = null;
+    });
+  }
+  return csrfInitPromise;
+}
+
 async function ensureCsrfToken(): Promise<void> {
   if (getCookie("XSRF-TOKEN")) {
     return;
   }
-  if (!csrfInitPromise) {
-    csrfInitPromise = api
-      .get("/auth/csrf")
-      .then(() => undefined)
-      .catch(() => undefined)
-      .finally(() => {
-        csrfInitPromise = null;
-      });
-  }
-  await csrfInitPromise;
+  await prefetchCsrfToken();
 }
 
 function isStateChanging(method: string | undefined): boolean {

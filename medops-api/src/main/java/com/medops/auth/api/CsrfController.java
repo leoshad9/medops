@@ -23,8 +23,15 @@ public final class CsrfController {
 
     @GetMapping("/csrf")
     public ResponseEntity<ApiResponse<Void>> csrf(HttpServletRequest request, HttpServletResponse response) {
-        CsrfToken token = csrfTokenRepository.generateToken(request);
-        csrfTokenRepository.saveToken(token, request, response);
+        // Reuse the existing cookie token when present: rotation on every GET forces
+        // a SecureRandom + Set-Cookie round trip (and invalidates tokens other tabs
+        // already hold). CookieCsrfTokenRepository is stateless — no DB involved —
+        // so the win is avoiding redundant crypto + cookie churn on prefetch calls.
+        CsrfToken token = csrfTokenRepository.loadToken(request);
+        if (token == null) {
+            token = csrfTokenRepository.generateToken(request);
+            csrfTokenRepository.saveToken(token, request, response);
+        }
         return ResponseEntity.ok(ApiResponse.success(null, "CSRF token refreshed"));
     }
 }

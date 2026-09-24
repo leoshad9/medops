@@ -8,6 +8,7 @@ import {
   registerPatient as registerPatientRequest,
 } from "../services/authService";
 import { getSessionBootstrap } from "../services/sessionService";
+import { prefetchCsrfToken } from "../services/api";
 import { refreshSession } from "../services/sessionRefresh";
 import type { AuthUser, RegisterDoctorRequest, RegisterPatientRequest } from "../types/auth";
 import type { DoctorProfile } from "../types/doctor";
@@ -40,8 +41,12 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   // readable by JavaScript, so the server is the only source of truth for who is
   // signed in. /v1/me returns the identity and the role-specific profile in a single
   // request, so portal headers render without a second, serialized round trip.
+  // The CSRF cookie is warmed in parallel (not awaited): the first future
+  // state-changing request then finds XSRF-TOKEN already set and skips the
+  // serialized GET /api/auth/csrf hop inside the axios request interceptor.
   useEffect(() => {
     let cancelled = false;
+    void prefetchCsrfToken();
     getSessionBootstrap()
       .then((session) => {
         if (!cancelled) {
