@@ -11,6 +11,22 @@ ENV_FILE="${ENV_FILE:-.env}"
 
 COMPOSE=(sudo docker compose -f "$BASE_COMPOSE_FILE" -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
+# Non-interactive git: never prompt for a username/password under SSH deploy.
+export GIT_TERMINAL_PROMPT=0
+
+# Fetch via HTTPS token when available (private repo / no credential helper).
+# Uses an auth header so the token never lands in the remote URL or logs.
+git_fetch_origin() {
+  local b64
+  if [ -n "${GH_TOKEN:-}" ]; then
+    b64="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+    git -c "http.https://github.com/.extraHeader=AUTHORIZATION: basic $b64" \
+      fetch --prune "$@"
+  else
+    git fetch --prune "$@"
+  fi
+}
+
 is_corrupt_pull() {
   local out="$1"
   echo "$out" | grep -qiE 'crc32 mismatch|corrupted|invalid compressed|failed to extract|blob not found|sha256 mismatch|checksum mismatch'
@@ -105,7 +121,7 @@ pull_base_images() {
 
 run_deploy() {
   echo "==> Syncing git branch $BRANCH"
-  if git fetch --prune origin; then
+  if git_fetch_origin origin; then
     git checkout "$BRANCH"
     git reset --hard "origin/$BRANCH"
   else
@@ -114,7 +130,7 @@ run_deploy() {
     if [[ "$origin_url" == git@github.com:* ]]; then
       https_url="https://github.com/${origin_url#git@github.com:}"
       echo "==> SSH fetch failed; retrying via $https_url"
-      GIT_TERMINAL_PROMPT=0 git fetch --prune "$https_url" "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}" && {
+      git_fetch_origin "$https_url" "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}" && {
         git checkout "$BRANCH"
         git reset --hard "origin/$BRANCH"
       } || return 1

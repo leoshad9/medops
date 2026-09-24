@@ -43,13 +43,17 @@ jobs:
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
+          envs: GH_TOKEN
           script: |
             set -e
+            export GIT_TERMINAL_PROMPT=0
             cd /home/ec2-user/medops
 
             sudo chown -R ec2-user:ec2-user /home/ec2-user/medops
@@ -65,7 +69,18 @@ jobs:
             echo "Disk usage after cleanup:"
             df -h /
 
-            git fetch origin
+            # origin is HTTPS, so a non-interactive fetch needs a token.
+            # github.token already has contents:read for this repo (see
+            # top-level permissions), passed via `envs` so it never lands in
+            # the remote URL / shell history. Token is sent as an auth header,
+            # never echoed.
+            if [ -n "${GH_TOKEN:-}" ]; then
+              AUTH_B64="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+              git -c "http.https://github.com/.extraHeader=AUTHORIZATION: basic $AUTH_B64" fetch --prune origin "+refs/heads/dev:refs/remotes/origin/dev"
+              unset AUTH_B64
+            else
+              git fetch --prune origin "+refs/heads/dev:refs/remotes/origin/dev"
+            fi
             git reset --hard origin/dev
 
             sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
