@@ -108,7 +108,7 @@ class ResendOtpServiceTest {
 
         service.resendOtp(new ResendOtpRequest(FLOW_ID));
 
-        verify(valueOperations, never()).set(eq(OTP_KEY), anyString(), any());
+        verify(valueOperations, never()).set(eq(OTP_KEY), anyString(), any(Duration.class));
         verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyInt());
         verify(auditService, never()).recordEventBestEffort(any(AuditEventType.class), any(), any());
     }
@@ -122,7 +122,7 @@ class ResendOtpServiceTest {
 
         assertThat(response.status()).isEqualTo(ResendOtpResponse.Status.EXPIRED);
         verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyInt());
-        verify(valueOperations, never()).setIfAbsent(anyString(), anyString(), any());
+        verify(valueOperations, never()).setIfAbsent(anyString(), anyString(), any(Duration.class));
     }
 
     /** Verifies that resend otp returns generic sent without email for dummy flow. */

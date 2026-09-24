@@ -92,8 +92,9 @@ class ForgotPasswordServiceTest {
         assertThat(response.resetFlowId()).isNotNull();
         assertThat(response.message()).contains("OTP");
         verify(valueOperations).set(startsWith("password-reset:otp:"), anyString(), eq(Duration.ofMinutes(10)));
-        verify(valueOperations).set(startsWith("password-reset:flow:user:"), eq(EMAIL), any());
-        verify(valueOperations).set(startsWith("password-reset:flow:user:id:"), eq(user.getId().toString()), any());
+        verify(valueOperations).set(startsWith("password-reset:flow:user:"), eq(EMAIL), any(Duration.class));
+        verify(valueOperations).set(startsWith("password-reset:flow:user:id:"), eq(user.getId().toString()),
+                any(Duration.class));
         verify(emailService).sendOtpEmail(eq(EMAIL), anyString(), eq(10));
         verify(auditService).recordEventBestEffort(AuditEventType.PASSWORD_RESET_REQUESTED, user.getId(), EMAIL);
     }

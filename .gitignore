@@ -70,3 +70,6 @@ AGENTS.md
 ssh_command
 ssh_command.md
 .cline/clinerules.md
+HLD_LLD_REVIEW.md
+.gitignore
+MEDOPS_ARCHITECTURE_REVIEW.md
