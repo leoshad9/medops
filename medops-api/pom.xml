@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.16</version>
+		<version>4.1.1</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.medops</groupId>
@@ -30,7 +30,7 @@
 		<java.version>21</java.version>
 		<jjwt.version>0.13.0</jjwt.version>
 		<owasp.dependency-check.version>13.0.0</owasp.dependency-check.version>
-		<checkstyle.version>10.21.4</checkstyle.version>
+		<checkstyle.version>14.1.0</checkstyle.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
 		<lombok.version>1.18.48</lombok.version>
 	</properties>
@@ -92,7 +92,7 @@
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>2.1.0</version>
+			<version>3.1.1</version>
 		</dependency>
 
 		<!-- JWT -->
@@ -130,12 +130,12 @@
 		<dependency>
 			<groupId>io.github.resilience4j</groupId>
 			<artifactId>resilience4j-spring-boot3</artifactId>
-			<version>2.3.0</version>
+			<version>2.4.0</version>
 		</dependency>
 		<dependency>
 			<groupId>io.github.resilience4j</groupId>
 			<artifactId>resilience4j-micrometer</artifactId>
-			<version>2.3.0</version>
+			<version>2.4.0</version>
 		</dependency>
 
 		<!-- Email -->
