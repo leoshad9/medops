@@ -89,7 +89,7 @@ class SummarizeReportServiceTest {
                 .build();
 
         byte[] pdf = "%PDF-1.4".getBytes();
-        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+        when(reportRepository.findByIdForUpdate(report.getId())).thenReturn(Optional.of(report));
         when(fileStorage.load("reports/a.pdf")).thenReturn(new ByteArrayResource(pdf));
         when(reportSummarizer.summarize(report.getId(), pdf))
                 .thenReturn(new ReportSummary("Plain overview"));
@@ -132,7 +132,7 @@ class SummarizeReportServiceTest {
                 .build();
 
         report.applySummary("existing", NOW);
-        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+        when(reportRepository.findByIdForUpdate(report.getId())).thenReturn(Optional.of(report));
 
         service.summarizeIfAbsent(report.getId());
 

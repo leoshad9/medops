@@ -7,6 +7,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import com.medops.ratelimit.domain.RateLimiterStore;
+import com.medops.cache.infrastructure.RedisRateLimitScripts;
 import com.medops.shared.exception.ServiceUnavailableException;
 
 import lombok.RequiredArgsConstructor;
@@ -27,12 +28,12 @@ public final class RedisRateLimiterStore implements RateLimiterStore {
     public boolean tryAcquire(String key, int maxAttempts, Duration window) {
         String redisKey = "ratelimit:" + key;
         try {
-            Long count = redisTemplate.opsForValue().increment(redisKey);
+            Long count = redisTemplate.execute(
+                    RedisRateLimitScripts.INCREMENT_WITH_EXPIRY,
+                    java.util.List.of(redisKey),
+                    Long.toString(Math.max(1L, window.toMillis())));
             if (count == null) {
                 throw new ServiceUnavailableException("Rate limiter temporarily unavailable");
-            }
-            if (count == 1L) {
-                redisTemplate.expire(redisKey, window);
             }
             return count <= maxAttempts;
         } catch (RuntimeException ex) {

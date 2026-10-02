@@ -169,6 +169,10 @@ medops:
     enabled: ${MEDOPS_MESSAGING_ENABLED:true}
     appointments-topic: medops.appointments
     reports-topic: medops.reports
+    outbox-batch-size: 100
+    outbox-fixed-delay-ms: 1000
+    consumer-retry-attempts: 3
+    consumer-retry-backoff-ms: 1000
   ai:
     # When true, Spring calls medops-ai (FastAPI). Provider keys live only in that service.
     service-enabled: ${MEDOPS_AI_ENABLED:true}

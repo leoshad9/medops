@@ -13,19 +13,44 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 @Configuration
 @EnableKafka
 @ConditionalOnProperty(prefix = "medops.messaging", name = "enabled", havingValue = "true", matchIfMissing = true)
 @SuppressWarnings("unused") // Spring invokes @Bean factory methods through the application context.
 public class MessagingConfiguration {
+
+    @Bean
+    NewTopic appointmentsTopic(MessagingProperties properties) {
+        return TopicBuilder.name(properties.appointmentsTopic()).partitions(3).replicas(1).build();
+    }
+
+    @Bean
+    NewTopic reportsTopic(MessagingProperties properties) {
+        return TopicBuilder.name(properties.reportsTopic()).partitions(3).replicas(1).build();
+    }
+
+    @Bean
+    NewTopic appointmentsDeadLetterTopic(MessagingProperties properties) {
+        return TopicBuilder.name(properties.appointmentsTopic() + ".DLT").partitions(3).replicas(1).build();
+    }
+
+    @Bean
+    NewTopic reportsDeadLetterTopic(MessagingProperties properties) {
+        return TopicBuilder.name(properties.reportsTopic() + ".DLT").partitions(3).replicas(1).build();
+    }
 
     @Bean
     ProducerFactory<String, DomainEventMessage> domainEventProducerFactory(KafkaProperties kafkaProperties) {
@@ -42,6 +67,17 @@ public class MessagingConfiguration {
     }
 
     @Bean
+    DefaultErrorHandler domainEventErrorHandler(
+            KafkaTemplate<String, DomainEventMessage> kafkaTemplate,
+            MessagingProperties properties) {
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
+                kafkaTemplate, (record, exception) -> new org.apache.kafka.common.TopicPartition(
+                        record.topic() + ".DLT", Math.floorMod(record.partition(), 3)));
+        return new DefaultErrorHandler(recoverer, new FixedBackOff(
+                properties.consumerRetryBackoffMs(), Math.max(0, properties.consumerRetryAttempts() - 1L)));
+    }
+
+    @Bean
     ConsumerFactory<String, DomainEventMessage> domainEventConsumerFactory(KafkaProperties kafkaProperties) {
         Map<String, Object> props = new HashMap<>(kafkaProperties.buildConsumerProperties());
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
@@ -55,10 +91,12 @@ public class MessagingConfiguration {
 
     @Bean
     ConcurrentKafkaListenerContainerFactory<String, DomainEventMessage> domainEventKafkaListenerContainerFactory(
-            ConsumerFactory<String, DomainEventMessage> domainEventConsumerFactory) {
+            ConsumerFactory<String, DomainEventMessage> domainEventConsumerFactory,
+            DefaultErrorHandler domainEventErrorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, DomainEventMessage> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(domainEventConsumerFactory);
+        factory.setCommonErrorHandler(domainEventErrorHandler);
         return factory;
     }
 }

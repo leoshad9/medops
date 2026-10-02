@@ -44,7 +44,7 @@ public class SummarizeReportService {
      */
     @Transactional
     public void summarizeIfAbsent(UUID reportId) {
-        ClinicalReport report = reportRepository.findById(reportId).orElse(null);
+        ClinicalReport report = reportRepository.findByIdForUpdate(reportId).orElse(null);
         if (report == null) {
             log.warn("Summarize requested for unknown reportId={}", reportId);
             return;

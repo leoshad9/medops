@@ -1,42 +1,47 @@
 package com.medops.messaging.infrastructure;
 
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medops.messaging.domain.DomainEventPublisher;
 import com.medops.messaging.domain.MedopsDomainEvent;
+import com.medops.shared.exception.ServiceUnavailableException;
 
-import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-/**
- * Bridges use-case publish calls onto Spring's after-commit event phase, then delegates to Kafka
- * (or a no-op sink when messaging is disabled).
- */
-@Slf4j
+/** Persists an event in the same transaction as its domain change for reliable later delivery. */
 @Component
 @RequiredArgsConstructor
 public class SpringDomainEventPublisher implements DomainEventPublisher {
 
-    private final ApplicationEventPublisher applicationEventPublisher;
-    private final OutboundDomainEventSink outboundDomainEventSink;
-    private final MeterRegistry meterRegistry;
+    private final DomainEventOutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
+    @Transactional
     public void publishAfterCommit(MedopsDomainEvent event) {
-        applicationEventPublisher.publishEvent(event);
+        try {
+            outboxRepository.save(new DomainEventOutboxEntity(
+                    java.util.UUID.randomUUID(),
+                    event.eventType(),
+                    event.topicKey(),
+                    payload(event),
+                    event.occurredAt()));
+        } catch (IllegalArgumentException ex) {
+            throw new ServiceUnavailableException("Unable to serialize domain event", ex);
+        }
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void forwardAfterCommit(MedopsDomainEvent event) {
-        try {
-            outboundDomainEventSink.send(event);
-        } catch (RuntimeException ex) {
-            log.error("Failed to publish domain event type={} key={}", event.eventType(), event.topicKey(), ex);
-            meterRegistry.counter("domain.event.publish.failure", "event_type", event.eventType()).increment();
+    private com.fasterxml.jackson.databind.JsonNode payload(MedopsDomainEvent event) {
+        com.fasterxml.jackson.databind.node.ObjectNode node = objectMapper.createObjectNode();
+        if (event instanceof com.medops.messaging.events.AppointmentBookedEvent booked) {
+            node.put("appointmentId", booked.appointmentId().toString());
+        } else if (event instanceof com.medops.messaging.events.ReportUploadedEvent uploaded) {
+            node.put("reportId", uploaded.reportId().toString());
+        } else {
+            throw new IllegalArgumentException("Unsupported domain event: " + event.eventType());
         }
+        return node;
     }
 }

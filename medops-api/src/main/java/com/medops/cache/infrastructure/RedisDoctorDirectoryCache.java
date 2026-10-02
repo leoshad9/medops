@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public final class RedisDoctorDirectoryCache implements DoctorDirectoryCache {
 
     private static final String KEY_PREFIX = "doctors:list:";
+    private static final String GENERATION_KEY = "doctors:list:generation";
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -33,7 +34,8 @@ public final class RedisDoctorDirectoryCache implements DoctorDirectoryCache {
     @Override
     public Optional<List<DoctorSummaryResponse>> get(String specialtyKey) {
         try {
-            String json = redisTemplate.opsForValue().get(KEY_PREFIX + specialtyKey);
+            String generation = currentGeneration();
+            String json = redisTemplate.opsForValue().get(key(generation, specialtyKey));
             if (json == null || json.isBlank()) {
                 return Optional.empty();
             }
@@ -49,7 +51,12 @@ public final class RedisDoctorDirectoryCache implements DoctorDirectoryCache {
         try {
             String json = objectMapper.writeValueAsString(doctors);
             Duration ttl = aiProperties.doctorListCacheTtl();
-            redisTemplate.opsForValue().set(KEY_PREFIX + specialtyKey, json, ttl);
+            String generation = currentGeneration();
+            String cacheKey = key(generation, specialtyKey);
+            redisTemplate.opsForValue().set(cacheKey, json, ttl);
+            if (!generation.equals(currentGeneration())) {
+                redisTemplate.delete(cacheKey);
+            }
         } catch (RuntimeException | JsonProcessingException ex) {
             log.warn("Doctor directory cache write failed");
         }
@@ -58,12 +65,26 @@ public final class RedisDoctorDirectoryCache implements DoctorDirectoryCache {
     @Override
     public void evictAll() {
         try {
-            var keys = redisTemplate.keys(KEY_PREFIX + "*");
-            if (keys != null && !keys.isEmpty()) {
-                redisTemplate.delete(keys);
-            }
+            redisTemplate.execute(RedisRateLimitScripts.ADVANCE_GENERATION, java.util.List.of(GENERATION_KEY));
         } catch (RuntimeException ex) {
             log.warn("Doctor directory cache eviction failed");
         }
+    }
+
+    private static String key(String generation, String specialtyKey) {
+        return KEY_PREFIX + (generation == null ? "0" : generation) + ':' + specialtyKey;
+    }
+
+    private String currentGeneration() {
+        String generation = redisTemplate.opsForValue().get(GENERATION_KEY);
+        if (generation != null) {
+            return generation;
+        }
+        Boolean created = redisTemplate.opsForValue().setIfAbsent(GENERATION_KEY, "0");
+        if (Boolean.TRUE.equals(created)) {
+            return "0";
+        }
+        generation = redisTemplate.opsForValue().get(GENERATION_KEY);
+        return generation == null ? "0" : generation;
     }
 }
