@@ -88,6 +88,30 @@ jobs:
             fi
             git reset --hard origin/dev
 
-            sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+            # `up -d` detaches, so a container's own stdout never reaches this log.
+            # A service that crash-loops on startup surfaces only as
+            # "dependency failed to start: ... is unhealthy", which names the
+            # symptom and hides the exception; `set -e` would then abort before
+            # the ps below, so the diagnostics have to run inside the failure
+            # branch.
+            if ! sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build; then
+              echo "::group::compose ps -a"
+              sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -a || true
+              echo "::endgroup::"
+
+              # Exit code 137 with oom=true means the kernel killed the process
+              # (2 GB t4g.small shared with Kafka's heap); exit 1 means the app
+              # failed during context refresh and the stack trace is in the logs.
+              echo "::group::container state"
+              sudo docker inspect --format '{{.Name}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' $(sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -aq) || true
+              echo "::endgroup::"
+
+              for svc in medops-api medops-ui medops-ai postgres redis kafka; do
+                echo "::group::logs $svc"
+                sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail=200 --no-color "$svc" || true
+                echo "::endgroup::"
+              done
+              exit 1
+            fi
 
             sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
