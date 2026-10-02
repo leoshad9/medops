@@ -1,9 +1,10 @@
 import axios from "axios";
 import { Bot, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AIChatInput } from "./AIChatInput";
 import { AIMessageList } from "./AIMessageList";
+import { ActionDispatcher } from "./ActionDispatcher";
 import type { AIMessage } from "../../services/aiAssistantService";
 import type { ErrorResponse } from "../../types/api";
 import { getAIResponse } from "../../services/aiAssistantService";
@@ -20,15 +21,93 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Resolved once per mount: the browser's IANA zone, sent server-side so
   // appointment times render in the caller's local zone instead of UTC.
   const timeZone = useMemo<string>(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+
+  // Load persisted conversation from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("medops_ai_conv");
+      if (raw) {
+        const parsed = JSON.parse(raw) as AIMessage[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, []);
+
+  // Persist conversation whenever messages change
+  useEffect(() => {
+    try {
+      localStorage.setItem("medops_ai_conv", JSON.stringify(messages));
+    } catch {
+      // ignore storage errors
+    }
+  }, [messages]);
 
   if (!isOpen) return null;
 
   /** Sends the query associated with a selected quick action. */
-  const handleQuickAction = (_actionId: string, query: string) => {
+  const handleQuickAction = (actionId: string, query: string) => {
+    if (actionId === "back") {
+      // Reset conversation to show quick actions and greeting again
+      setMessages([]);
+      setInputValue("");
+      return;
+    }
     handleSendQuery(query);
+  };
+
+  const handleResetConversation = () => {
+    setMessages([]);
+    setInputValue("");
+    try {
+      localStorage.removeItem("medops_ai_conv");
+    } catch {
+      // ignore
+    }
+  };
+
+  const applyActionResolver = (response: { raw?: { actions?: Array<{ id?: string | null; resolved?: unknown; label?: string | null } | null> | null } | null }) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      (window as any).__medops_action_resolver = {};
+      const dto = response?.raw;
+      if (!dto || !Array.isArray(dto.actions)) return;
+
+      for (const action of dto.actions) {
+        if (!action || !action.id) continue;
+        try {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          (window as any).__medops_action_resolver[action.id] = {
+            resolved: action.resolved ?? null,
+            label: action.label ?? null,
+          };
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const createErrorMessage = (error: unknown): AIMessage => {
+    const apiMessage = axios.isAxiosError(error)
+      ? (error.response?.data as ErrorResponse | undefined)?.error?.message
+      : undefined;
+
+    return {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: apiMessage || "Sorry, I'm having trouble connecting. Please try again later.",
+      timestamp: new Date().toISOString(),
+    };
   };
 
   /** Adds a nonblank query, followed by an assistant response or connection-error message. */
@@ -48,21 +127,10 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
 
     try {
       const response = await getAIResponse(query, timeZone);
+      applyActionResolver(response);
       setMessages((prev) => [...prev, response.message]);
     } catch (error) {
-      // Prefer the API's curated message (e.g. the assistant client's 503
-      // "AI provider rate limit exceeded..." / "taking too long") over the
-      // generic fallback; fall back when the error carries no response body.
-      const apiMessage = axios.isAxiosError(error)
-        ? (error.response?.data as ErrorResponse | undefined)?.error?.message
-        : undefined;
-      const errorMessage: AIMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: apiMessage || "Sorry, I'm having trouble connecting. Please try again later.",
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, createErrorMessage(error)]);
     } finally {
       setIsLoading(false);
     }
@@ -111,7 +179,18 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
         </button>
       </div>
 
+      <div className="p-3 sm:p-4">
+        <button
+          type="button"
+          onClick={handleResetConversation}
+          className="text-xs text-brand-muted hover:text-brand-ink"
+        >
+          Reset conversation
+        </button>
+      </div>
+
       <AIMessageList messages={displayMessages} onQuickAction={handleQuickAction} />
+      <ActionDispatcher />
 
       <div className="border-t border-brand-line p-2 sm:p-3">
         <AIChatInput

@@ -10,11 +10,16 @@ export interface AIMessage {
 
 export interface AIChatResponse {
   message: AIMessage;
+  raw?: {
+    actions?: Array<{ id: string | null; resolved?: any; label?: string | null } | null> | null;
+    suggestions?: Array<string | { label?: string; query?: string }> | null;
+  } | null;
 }
 
 /** Wire format returned by `POST /api/v1/assistant/chat`. */
 interface AssistantChatResponseDto {
   message: string;
+  actions?: Array<{ id: string | null; resolved?: any; label?: string | null } | null> | null;
 }
 
 /**
@@ -34,12 +39,19 @@ export async function getAIResponse(query: string, timeZone?: string): Promise<A
     timeZone ? { message: query, timeZone } : { message: query },
   );
 
+  // Keep the raw actions array for the chat panel to populate the resolver.
+  const dto = response.data.data;
+
   return {
     message: {
       id: crypto.randomUUID(),
       role: "assistant",
-      content: response.data.data.message,
+      content: dto.message,
       timestamp: new Date().toISOString(),
     },
-  };
+    // expose the raw response for caller use (non-serialised)
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    raw: dto,
+  } as unknown as AIChatResponse;
 }

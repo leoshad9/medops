@@ -27,6 +27,13 @@ const QUICK_ACTIONS: QuickActionItem[] = [
   { id: "help", label: "Using MedOps", icon: HelpCircle, query: "How do I use the MedOps patient portal? What features are available?" },
 ];
 
+const BACK_ACTION: QuickActionItem = {
+  id: "back",
+  label: "Back to main",
+  icon: HelpCircle,
+  query: "Back to main",
+};
+
 const markdownComponents: Components = {
   p: ({ node: _node, ...props }) => (
     <p {...props} className="mb-1 last:mb-0 whitespace-pre-wrap leading-relaxed" />
@@ -60,43 +67,132 @@ const markdownComponents: Components = {
   ),
 };
 
+const parseJsonBlock = <T,>(content: string): T | null => {
+  const jsonBlock = content.match(/```json\s*([\s\S]*?)\s*```/i);
+  if (!jsonBlock) return null;
+
+  try {
+    return JSON.parse(jsonBlock[1]) as T;
+  } catch {
+    return null;
+  }
+};
+
+const parseActionsFromMessage = (content: string) => {
+  const parsed = parseJsonBlock<{ actions?: Array<{ id?: string; label?: string; query?: string }> }>(content);
+  return Array.isArray(parsed?.actions) ? parsed.actions : [];
+};
+
+const parseSuggestionsFromMessage = (content: string) => {
+  const parsed = parseJsonBlock<{ suggestions?: Array<string | { label?: string; query?: string }> }>(content);
+  return Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
+};
+
+const resolveActionQuery = (action: { id?: string; label?: string; query?: string }, onQuickAction: AIMessageListProps["onQuickAction"]) => {
+  const actionId = action.id ?? action.label ?? "";
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const resolver = (window as any).__medops_action_resolver as Record<string, { resolved?: unknown }> | undefined;
+    if (actionId) {
+      const resolved = resolver?.[actionId]?.resolved;
+      if (resolved && typeof resolved === "object" && "query" in resolved) {
+        const query = typeof resolved.query === "string" ? resolved.query : JSON.stringify(resolved.query);
+        onQuickAction(actionId, query);
+        return;
+      }
+    }
+  } catch {
+    // fall through to default
+  }
+
+  onQuickAction(actionId, action.query ?? action.label ?? "");
+};
+
+const renderSuggestions = (content: string, onQuickAction: AIMessageListProps["onQuickAction"]) => {
+  const suggestions = parseSuggestionsFromMessage(content);
+  if (!suggestions.length) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {suggestions.map((suggestion, idx) => {
+        const label = typeof suggestion === "string" ? suggestion : suggestion.label ?? suggestion.query ?? "";
+        const query = typeof suggestion === "string" ? suggestion : suggestion.query ?? label;
+        return (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => onQuickAction(`suggestion_${idx}`, query)}
+            className="rounded-full border border-brand-line bg-white px-3 py-1.5 text-xs font-medium text-brand-ink hover:border-brand-primary hover:bg-brand-paper"
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 /** Renders the conversation and shows quick actions until a patient message is present. */
 export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageListProps>) {
   const showQuickActions = messages.length <= 1 && !messages.some((m) => m.role === "user");
 
   return (
     <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
-      {messages.map((message) => (
-        <div
-          key={message.id}
-          className={`max-w-[80%] ${message.role === "user" ? "ml-auto" : ""}`}
-        >
+      {messages.map((message, index) => {
+        const actions = message.role === "assistant" ? parseActionsFromMessage(message.content) : [];
+        const isFirstAssistantMessage = message.role === "assistant" && index === 0;
+
+        return (
           <div
-            className={`rounded-2xl px-4 py-2.5 text-sm ${
-              message.role === "assistant"
-                ? "rounded-tl-none bg-brand-primary-tint text-brand-ink"
-                : "rounded-tr-none bg-brand-primary text-white"
-            }`}
+            key={message.id}
+            className={`max-w-[80%] ${message.role === "user" ? "ml-auto" : ""}`}
           >
-            {message.role === "assistant" && messages.indexOf(message) === 0 ? (
-              <Bot className="mb-1 h-4 w-4 text-brand-primary" />
-            ) : null}
-            <ReactMarkdown
-              components={markdownComponents}
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeRaw, rehypeSanitize]}
+            <div
+              className={`rounded-2xl px-4 py-2.5 text-sm ${
+                message.role === "assistant"
+                  ? "rounded-tl-none bg-brand-primary-tint text-brand-ink"
+                  : "rounded-tr-none bg-brand-primary text-white"
+              }`}
             >
-              {message.content}
-            </ReactMarkdown>
+              {isFirstAssistantMessage ? (
+                <Bot className="mb-1 h-4 w-4 text-brand-primary" />
+              ) : null}
+              <ReactMarkdown
+                components={markdownComponents}
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw, rehypeSanitize]}
+              >
+                {message.content}
+              </ReactMarkdown>
+
+              {message.role === "assistant" && actions.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {actions.map((act) => (
+                    <button
+                      key={act.id}
+                      type="button"
+                      onClick={() => resolveActionQuery(act, onQuickAction)}
+                      className="rounded-md bg-brand-primary px-3 py-1 text-xs font-medium text-white"
+                    >
+                      {act.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {message.role === "assistant" ? renderSuggestions(message.content, onQuickAction) : null}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {showQuickActions && (
         <div className="mt-4">
           <p className="text-xs font-semibold text-brand-muted mb-2">What can I help you with?</p>
           <div className="flex flex-wrap gap-2">
-            {QUICK_ACTIONS.map((action) => {
+            {[...QUICK_ACTIONS, BACK_ACTION].map((action) => {
               const Icon = action.icon;
               return (
                 <button
