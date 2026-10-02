@@ -103,6 +103,17 @@
 		</dependency>
 
 		<!-- Flyway -->
+		<!-- Spring Boot 4 moved FlywayAutoConfiguration out of spring-boot-autoconfigure
+		     (verified: spring-boot-autoconfigure-4.1.1.jar contains no flyway classes)
+		     into this module. flyway-core alone is therefore inert, and the 9c528b1
+		     Boot 4 upgrade silently stopped db/migration from running: V6 was never
+		     applied, messaging.domain_event_outbox was never created, and prod's
+		     ddl-auto: validate then failed on it, crash-looping the API. Restore the
+		     module. Version is managed by the Boot parent. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-flyway</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
