@@ -9,10 +9,10 @@ import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
-import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.medops.MockMvcSecurityConfiguration;
 import com.medops.auth.dto.login.LoginRequest;
 import com.medops.auth.dto.login.UserInfo;
 import com.medops.auth.exception.InvalidRefreshTokenException;
@@ -36,6 +37,7 @@ import com.medops.auth.application.SessionResult;
  * Security filters are disabled here (see {@code addFilters = false}) since these endpoints are
  * intentionally public - the filter chain's own behaviour is out of scope for this slice.
  */
+@Import(MockMvcSecurityConfiguration.class)
 @WebMvcTest(
         controllers = AuthController.class,
         excludeFilters = @ComponentScan.Filter(
@@ -48,7 +50,7 @@ class AuthControllerTest {
     private static final SessionResult SAMPLE_RESPONSE =
             new SessionResult("access-token", "refresh-token", SAMPLE_USER);
 
-    private static final @NonNull MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
+    private static final MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
     private static final String REFRESH_COOKIE = "MEDOPS_REFRESH";
 
     @Autowired
@@ -63,7 +65,7 @@ class AuthControllerTest {
     @MockitoBean
     private JwtService jwtService;
 
-    private @NonNull String json(Object value) throws Exception {
+    private String json(Object value) throws Exception {
         return Objects.requireNonNull(objectMapper.writeValueAsString(value));
     }
 

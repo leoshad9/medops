@@ -13,7 +13,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -171,7 +170,7 @@ class NotificationStreamPublisherTest {
         private final List<SseEmitter.SseEventBuilder> sent = new ArrayList<>();
 
         @Override
-        public void send(@NonNull SseEmitter.SseEventBuilder builder) {
+        public void send(SseEmitter.SseEventBuilder builder) {
             sent.add(builder);
         }
 
@@ -189,7 +188,7 @@ class NotificationStreamPublisherTest {
         private boolean completed;
 
         @Override
-        public void send(@NonNull SseEmitter.SseEventBuilder builder) {
+        public void send(SseEmitter.SseEventBuilder builder) {
             throw new IllegalStateException("connection broken");
         }
 
@@ -207,7 +206,7 @@ class NotificationStreamPublisherTest {
     private static final class BrokenSseEmitter extends SseEmitter {
 
         @Override
-        public void send(@NonNull SseEmitter.SseEventBuilder builder) {
+        public void send(SseEmitter.SseEventBuilder builder) {
             throw new IllegalStateException("connection broken");
         }
 
@@ -226,7 +225,7 @@ class NotificationStreamPublisherTest {
         private final AtomicInteger sendAttempts = new AtomicInteger();
 
         @Override
-        public void send(@NonNull SseEmitter.SseEventBuilder builder) {
+        public void send(SseEmitter.SseEventBuilder builder) {
             sendAttempts.incrementAndGet();
             throw new IllegalStateException("connection broken");
         }

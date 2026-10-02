@@ -16,14 +16,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
-import org.springframework.lang.NonNull;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.medops.MockMvcSecurityConfiguration;
 import com.medops.appointments.application.AppointmentActorResolver;
 import com.medops.auth.domain.User;
 import com.medops.auth.security.filters.AuthRateLimitFilter;
@@ -36,6 +37,7 @@ import com.medops.notification.application.NotificationService;
 import com.medops.notification.domain.NotificationType;
 import com.medops.notification.infrastructure.sse.NotificationStreamPublisher;
 
+@Import(MockMvcSecurityConfiguration.class)
 @WebMvcTest(
         controllers = {NotificationController.class, NotificationStreamController.class},
         excludeFilters = @ComponentScan.Filter(
@@ -45,7 +47,7 @@ import com.medops.notification.infrastructure.sse.NotificationStreamPublisher;
 @SuppressWarnings({"null", "Nullable", "ConstantConditions"})
 class NotificationControllerTest {
 
-    private static final @NonNull String PATIENT_EMAIL = "patient@medops.dev";
+    private static final String PATIENT_EMAIL = "patient@medops.dev";
 
     @Autowired
     private MockMvc mockMvc;

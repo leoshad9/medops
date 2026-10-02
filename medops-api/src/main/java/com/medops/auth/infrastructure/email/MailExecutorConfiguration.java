@@ -34,7 +34,7 @@ public class MailExecutorConfiguration implements AsyncConfigurer {
     private static final int QUEUE_CAPACITY = 100;
     private static final int AWAIT_TERMINATION_SECONDS = 30;
 
-    private final ThreadPoolTaskExecutor mailExecutor = buildExecutor();
+    private static final ThreadPoolTaskExecutor MAIL_EXECUTOR = buildExecutor();
 
     private static ThreadPoolTaskExecutor buildExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -52,15 +52,15 @@ public class MailExecutorConfiguration implements AsyncConfigurer {
         return executor;
     }
 
-    /** Provides the mail-delivery executor bean. */
-    @Bean(destroyMethod = "shutdown")
-    public MailDeliveryExecutor mailDeliveryExecutor() {
-        return new MailDeliveryExecutor(mailExecutor);
-    }
-
     @Override
     public Executor getAsyncExecutor() {
-        return mailExecutor;
+        return MAIL_EXECUTOR;
+    }
+
+    /** Provides the mail-delivery executor bean without requiring a configuration instance. */
+    @Bean(destroyMethod = "shutdown")
+    public static MailDeliveryExecutor mailDeliveryExecutor() {
+        return new MailDeliveryExecutor(MAIL_EXECUTOR);
     }
 
     @Override

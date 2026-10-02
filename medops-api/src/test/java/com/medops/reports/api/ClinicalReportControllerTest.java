@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
@@ -26,6 +27,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.medops.MockMvcSecurityConfiguration;
 import com.medops.auth.security.filters.AuthRateLimitFilter;
 import com.medops.auth.security.jwt.JwtAuthenticationFilter;
 import com.medops.idempotency.application.IdempotencyExecutor;
@@ -35,6 +37,7 @@ import com.medops.reports.application.SummarizeReportService;
 import com.medops.reports.application.UploadReportService;
 import com.medops.reports.domain.ReportStatus;
 
+@Import(MockMvcSecurityConfiguration.class)
 @WebMvcTest(
         controllers = ClinicalReportController.class,
         excludeFilters = @ComponentScan.Filter(

@@ -2,7 +2,6 @@ package com.medops.shared.web;
 
 import java.io.IOException;
 
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -22,9 +21,9 @@ public final class AuthCacheControlFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain) throws ServletException, IOException {
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
 
         if (request.getRequestURI().startsWith(AUTH_PATH_PREFIX)) {
             response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");

@@ -7,15 +7,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
-import org.springframework.lang.NonNull;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.medops.MockMvcSecurityConfiguration;
 import com.medops.auth.dto.session.AuthResponse;
 import com.medops.auth.security.filters.AuthRateLimitFilter;
 import com.medops.auth.security.jwt.JwtAuthenticationFilter;
@@ -41,6 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Security filters are enabled (see {@code @AutoConfigureMockMvc} without {@code addFilters = false});
  * public endpoints are tested with {@code @WithMockUser} and CSRF tokens as needed.
  */
+@Import(MockMvcSecurityConfiguration.class)
 @WebMvcTest(
         controllers = PatientController.class,
         excludeFilters = @ComponentScan.Filter(
@@ -52,7 +54,7 @@ class PatientControllerTest {
     private static final AuthResponse SAMPLE_RESPONSE =
             new AuthResponse("access-token", "refresh-token", "Bearer", 900L);
 
-    private static final @NonNull MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
+    private static final MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
 
     @Autowired
     private MockMvc mockMvc;
@@ -66,7 +68,7 @@ class PatientControllerTest {
     @MockitoBean
     private PatientProfileService patientProfileService;
 
-    private @NonNull String json(Object value) throws Exception {
+    private String json(Object value) throws Exception {
         return Objects.requireNonNull(objectMapper.writeValueAsString(value));
     }
 

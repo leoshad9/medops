@@ -2,7 +2,6 @@ package com.medops.auth.security.jwt;
 
 import java.io.IOException;
 
-import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -37,7 +36,7 @@ public final class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final MedOpsUserDetailsService userDetailsService;
 
     @Override
-    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+    protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
         // Public endpoints never need an authenticated SecurityContext. Skipping JWT
         // parsing + the UserRepository lookup here keeps /api/auth/csrf (and other
@@ -54,9 +53,9 @@ public final class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain) throws ServletException, IOException {
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
 
         String token = resolveToken(request);
         if (token == null) {

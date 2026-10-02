@@ -23,7 +23,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.lang.NonNull;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.medops.MockMvcSecurityConfiguration;
 import com.medops.auth.security.PasswordResetProperties;
 import com.medops.auth.dto.passwordreset.ForgotPasswordRequest;
 import com.medops.auth.dto.passwordreset.ForgotPasswordResponse;
@@ -56,20 +57,20 @@ import jakarta.servlet.http.Cookie;
  * travels: it must leave the server in an HttpOnly cookie and must never appear in the
  * response body, since the body is what previously carried it into the page URL.
  */
+@Import({MockMvcSecurityConfiguration.class, PasswordResetControllerTest.ResetPropertiesConfig.class})
 @WebMvcTest(
         controllers = PasswordResetController.class,
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = {JwtAuthenticationFilter.class, AuthRateLimitFilter.class}))
 @AutoConfigureMockMvc(addFilters = false)
-@Import(PasswordResetControllerTest.ResetPropertiesConfig.class)
 class PasswordResetControllerTest {
 
     private static final String RAW_RESET_TOKEN = "raw-reset-token-abc123";
     private static final String FLOW_ID = UUID.randomUUID().toString();
     private static final String NEW_PASSWORD = "NewPassword123!";
 
-    private static final @NonNull MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
+    private static final MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
 
     @Autowired
     private MockMvc mockMvc;

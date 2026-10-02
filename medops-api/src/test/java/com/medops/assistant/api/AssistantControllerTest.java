@@ -18,14 +18,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
-import org.springframework.lang.NonNull;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.medops.MockMvcSecurityConfiguration;
 import com.medops.appointments.application.AppointmentActorResolver;
 import com.medops.assistant.api.dto.AssistantChatResponse;
 import com.medops.assistant.application.AssistantService;
@@ -40,6 +41,7 @@ import com.medops.auth.security.jwt.JwtAuthenticationFilter;
  * filters (JWT / auth rate limit) are excluded as in {@code NotificationControllerTest};
  * the filter chain's own behaviour is out of scope for this slice.
  */
+@Import(MockMvcSecurityConfiguration.class)
 @WebMvcTest(
         controllers = AssistantController.class,
         excludeFilters = @ComponentScan.Filter(
@@ -49,8 +51,8 @@ import com.medops.auth.security.jwt.JwtAuthenticationFilter;
 @SuppressWarnings({"null", "Nullable", "ConstantConditions"})
 class AssistantControllerTest {
 
-    private static final @NonNull String PATIENT_EMAIL = "patient@medops.dev";
-    private static final @NonNull String CHAT_BODY = "{\"message\":\"How do I reschedule an appointment?\"}";
+    private static final String PATIENT_EMAIL = "patient@medops.dev";
+    private static final String CHAT_BODY = "{\"message\":\"How do I reschedule an appointment?\"}";
     private static final String CHAT_URI = "/api/v1/assistant/chat";
 
     @Autowired
@@ -132,8 +134,7 @@ class AssistantControllerTest {
     @Test
     @WithMockUser(username = PATIENT_EMAIL, roles = "PATIENT")
     void chatForwardsBrowserTimeZoneToService() throws Exception {
-        when(assistantService.chat(
-                        eq(PATIENT_EMAIL), eq("How do I reschedule an appointment?"), eq("Asia/Kolkata")))
+        when(assistantService.chat(PATIENT_EMAIL, "How do I reschedule an appointment?", "Asia/Kolkata"))
                 .thenReturn(new AssistantChatResponse("Reply"));
 
         mockMvc.perform(post(CHAT_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON)

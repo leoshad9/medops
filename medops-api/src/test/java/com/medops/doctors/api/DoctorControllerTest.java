@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
@@ -14,6 +15,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.medops.MockMvcSecurityConfiguration;
 import com.medops.auth.dto.session.AuthResponse;
 import com.medops.auth.security.filters.AuthRateLimitFilter;
 import com.medops.auth.security.jwt.JwtAuthenticationFilter;
@@ -37,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * here (see {@code addFilters = false}) since registration is intentionally public - the same
  * pattern used by {@code AuthControllerTest}.
  */
+@Import(MockMvcSecurityConfiguration.class)
 @WebMvcTest(
         controllers = DoctorController.class,
         excludeFilters = @ComponentScan.Filter(
@@ -48,7 +51,7 @@ class DoctorControllerTest {
     private static final AuthResponse SAMPLE_RESPONSE =
             new AuthResponse("access-token", "refresh-token", "Bearer", 900L);
 
-    private static final @NonNull MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
+    private static final MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
 
     @Autowired
     private MockMvc mockMvc;

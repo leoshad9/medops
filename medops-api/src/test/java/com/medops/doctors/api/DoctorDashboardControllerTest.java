@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,6 +20,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.medops.MockMvcSecurityConfiguration;
 import com.medops.auth.security.filters.AuthRateLimitFilter;
 import com.medops.auth.security.jwt.JwtAuthenticationFilter;
 import com.medops.doctors.api.dto.DoctorDashboardResponse;
@@ -34,6 +36,7 @@ import com.medops.doctors.application.DoctorRegistrationService;
  * {@code @WithMockUser} session - the same pattern as
  * {@code NotificationControllerTest}.
  */
+@Import(MockMvcSecurityConfiguration.class)
 @WebMvcTest(
         controllers = DoctorController.class,
         excludeFilters = @ComponentScan.Filter(

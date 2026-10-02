@@ -19,15 +19,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
-import org.springframework.lang.NonNull;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.medops.MockMvcSecurityConfiguration;
 import com.medops.appointments.api.dto.AppointmentResponse;
 import com.medops.patients.domain.Gender;
 import com.medops.appointments.api.dto.BookAppointmentRequest;
@@ -41,6 +42,7 @@ import com.medops.auth.security.jwt.JwtAuthenticationFilter;
 import com.medops.idempotency.application.IdempotencyExecutor;
 import com.medops.shared.exception.ConflictException;
 
+@Import(MockMvcSecurityConfiguration.class)
 @WebMvcTest(
         controllers = AppointmentController.class,
         excludeFilters = @ComponentScan.Filter(
@@ -49,7 +51,7 @@ import com.medops.shared.exception.ConflictException;
 @AutoConfigureMockMvc
 class AppointmentControllerTest {
 
-    private static final @NonNull MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
+    private static final MediaType JSON = Objects.requireNonNull(MediaType.APPLICATION_JSON);
 
     @Autowired
     private MockMvc mockMvc;
