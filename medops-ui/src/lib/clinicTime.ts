@@ -455,6 +455,14 @@ export function createGoogleCalendarUrl(event: CalendarEvent): string {
 }
 
 /** Builds a one-click "Add to Calendar" ICS data URI from a UTC appointment window. */
+function escapeIcsText(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r?\n/g, "\\n");
+}
+
 export function createCalendarDataUri(event: CalendarEvent): string {
   const lines = [
     "BEGIN:VCALENDAR",
@@ -466,13 +474,13 @@ export function createCalendarDataUri(event: CalendarEvent): string {
     `DTSTAMP:${toIcsUtc(new Date().toISOString())}`,
     `DTSTART:${toIcsUtc(event.startsAt)}`,
     `DTEND:${toIcsUtc(event.endsAt)}`,
-    `SUMMARY:${event.summary.replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n")}`,
+    `SUMMARY:${escapeIcsText(event.summary)}`,
   ];
   if (event.location) {
-    lines.push(`LOCATION:${event.location.replace(/;/g, "\\;").replace(/,/g, "\\,")}`);
+    lines.push(`LOCATION:${escapeIcsText(event.location)}`);
   }
   if (event.description) {
-    lines.push(`DESCRIPTION:${event.description.replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n")}`);
+    lines.push(`DESCRIPTION:${escapeIcsText(event.description)}`);
   }
   lines.push("END:VEVENT", "END:VCALENDAR");
   const ics = lines.join("\r\n");
