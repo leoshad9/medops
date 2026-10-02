@@ -32,6 +32,7 @@
 		<owasp.dependency-check.version>13.0.0</owasp.dependency-check.version>
 		<checkstyle.version>14.3.0</checkstyle.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+		<maven-failsafe-plugin.version>3.6.0</maven-failsafe-plugin.version>
 		<lombok.version>1.18.48</lombok.version>
 		<!-- Overrides for versions pinned by spring-boot-dependencies 4.1.1.
 		     Remove these once the Spring Boot BOM ships the fixed versions. -->
@@ -208,6 +209,30 @@
 			<artifactId>embedded-postgres</artifactId>
 			<version>2.2.2</version>
 			<scope>test</scope>
+			<!-- This artifact depends on a ~14-28MB Postgres binary bundle per
+			     platform, all four of them, unconditionally. Maven resolves test
+			     scope even under -Dmaven.test.skip=true, so the image build was
+			     downloading windows+darwin+linux+linux-alpine binaries it can never
+			     use. Excluded here and re-added one-per-OS by the profiles at the
+			     bottom of this file. -->
+			<exclusions>
+				<exclusion>
+					<groupId>io.zonky.test.postgres</groupId>
+					<artifactId>embedded-postgres-binaries-windows-amd64</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.zonky.test.postgres</groupId>
+					<artifactId>embedded-postgres-binaries-darwin-amd64</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.zonky.test.postgres</groupId>
+					<artifactId>embedded-postgres-binaries-linux-amd64</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.zonky.test.postgres</groupId>
+					<artifactId>embedded-postgres-binaries-linux-amd64-alpine</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 	</dependencies>
@@ -277,6 +302,15 @@
 				<version>3.6.0</version>
 			</plugin>
 
+		<!-- Integration tests (*IT). Not bound explicitly: the default lifecycle
+		     already maps integration-test/verify onto the verify phase, so `mvn verify`
+		     runs them. Without this plugin they were never executed by any phase. -->
+		<plugin>
+			<groupId>org.apache.maven.plugins</groupId>
+			<artifactId>maven-failsafe-plugin</artifactId>
+			<version>${maven-failsafe-plugin.version}</version>
+		</plugin>
+
 		<!-- Checkstyle -->
 		<plugin>
 			<groupId>org.apache.maven.plugins</groupId>
@@ -311,6 +345,11 @@
 				<groupId>org.owasp</groupId>
 				<artifactId>dependency-check-maven</artifactId>
 				<version>${owasp.dependency-check.version}</version>
+				<!-- Deliberately NOT bound to a lifecycle phase. The first NVD feed
+				     download needs an API key and takes a long time, so it must not sit
+				     in the per-push `mvn verify` gate. .github/workflows/security-scan.yml
+				     invokes `dependency-check-maven:check` directly on a weekly schedule
+				     with secrets.NVD_API_KEY, and picks up the configuration below. -->
 				<configuration>
 					<!-- Fail on High severity vulnerabilities (CVSS >= 7). -->
 					<failBuildOnCVSS>7</failBuildOnCVSS>
@@ -323,15 +362,67 @@
 					</formats>
 					<outputDirectory>${project.build.directory}/dependency-check-report</outputDirectory>
 				</configuration>
-				<executions>
-					<execution>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>
+
+	<!-- Re-adds the single embedded-postgres binary bundle matching the build host,
+	     undoing the blanket exclusion on the embedded-postgres dependency above.
+	     Only used when Testcontainers cannot reach a Docker daemon; when Docker is
+	     available the tests use postgres:11-alpine through testcontainers and never
+	     touch these binaries. -->
+	<profiles>
+		<profile>
+			<id>embedded-postgres-windows</id>
+			<activation>
+				<os>
+					<family>windows</family>
+					<arch>amd64</arch>
+				</os>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>io.zonky.test.postgres</groupId>
+					<artifactId>embedded-postgres-binaries-windows-amd64</artifactId>
+					<version>14.22.0</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>embedded-postgres-linux</id>
+			<activation>
+				<os>
+					<family>unix</family>
+					<arch>amd64</arch>
+				</os>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>io.zonky.test.postgres</groupId>
+					<artifactId>embedded-postgres-binaries-linux-amd64</artifactId>
+					<version>14.22.0</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>embedded-postgres-mac</id>
+			<activation>
+				<os>
+					<family>mac</family>
+					<arch>amd64</arch>
+				</os>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>io.zonky.test.postgres</groupId>
+					<artifactId>embedded-postgres-binaries-darwin-amd64</artifactId>
+					<version>14.22.0</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 </project>

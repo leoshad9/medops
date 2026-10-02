@@ -92,6 +92,11 @@ class BookAppointmentServiceTest {
                 .build();
     }
 
+    /** Books claim the doctor row lock before reading availability. */
+    private void givenDoctorRowLockIsAcquired() {
+        when(doctorProfileRepository.findByIdForUpdate(doctor.getId())).thenReturn(Optional.of(doctor));
+    }
+
     /** Verifies that book persists and audits. */
     @Test
     void bookPersistsAndAudits() {
@@ -99,6 +104,7 @@ class BookAppointmentServiceTest {
                 .atZone(java.time.ZoneId.of("Asia/Kolkata")).toInstant();
         when(actorResolver.requirePatient(PATIENT_EMAIL)).thenReturn(patient);
         when(doctorProfileRepository.findById(doctor.getId())).thenReturn(Optional.of(doctor));
+        givenDoctorRowLockIsAcquired();
         when(appointmentRepository.findByDoctorProfileIdAndStatusAndStartsAt(
                 doctor.getId(), AppointmentStatus.BOOKED, start)).thenReturn(Optional.empty());
         when(appointmentRepository.existsOverlappingForPatient(
@@ -129,6 +135,7 @@ class BookAppointmentServiceTest {
                 .atZone(java.time.ZoneId.of("Asia/Kolkata")).toInstant();
         when(actorResolver.requirePatient(PATIENT_EMAIL)).thenReturn(patient);
         when(doctorProfileRepository.findById(doctor.getId())).thenReturn(Optional.of(doctor));
+        givenDoctorRowLockIsAcquired();
         when(appointmentRepository.findByDoctorProfileIdAndStatusAndStartsAt(
                 doctor.getId(), AppointmentStatus.BOOKED, start)).thenReturn(Optional.empty());
         when(appointmentRepository.existsOverlappingForPatient(
@@ -157,6 +164,7 @@ when(appointmentRepository.save(any()))
                 .atZone(java.time.ZoneId.of("Asia/Kolkata")).toInstant();
         when(actorResolver.requirePatient(PATIENT_EMAIL)).thenReturn(patient);
         when(doctorProfileRepository.findById(doctor.getId())).thenReturn(Optional.of(doctor));
+        givenDoctorRowLockIsAcquired();
         Appointment existing = Appointment.book(UUID.randomUUID(), doctor.getId(), start, java.time.Duration.ofMinutes(30), null);
         existing.prePersist();
         when(appointmentRepository.findByDoctorProfileIdAndStatusAndStartsAt(

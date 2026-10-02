@@ -30,9 +30,9 @@ jobs:
           cache: npm
           cache-dependency-path: medops-ui/package-lock.json
 
-      - name: Maven tests (medops-api)
+      - name: Maven verify (medops-api, includes *IT integration tests)
         working-directory: medops-api
-        run: bash ./mvnw -B test
+        run: bash ./mvnw -B verify
 
       - name: npm audit (medops-ui, fails on high/critical)
         working-directory: medops-ui

@@ -68,8 +68,8 @@ public class BookAppointmentService {
     }
 
     /**
-     * Books an appointment for the given patient, translating a lost unique-index race
-     * into a user-facing conflict.
+     * Books an appointment for the given patient, translating a lost race for the same
+     * doctor slot into a user-facing conflict.
      *
      * @param patientEmail the booking patient's email
      * @param request the booking request
@@ -101,8 +101,9 @@ public class BookAppointmentService {
             domainEventPublisher.publishAfterCommit(AppointmentBookedEvent.of(saved.getId()));
             return assembler.toResponse(saved);
         } catch (DataIntegrityViolationException ex) {
-            // Pre-checks above cannot win a concurrent race for the same doctor slot: the
-            // unique index is the arbiter, so translate its violation into the same 409.
+            // Defense in depth behind the doctor row lock taken in assertBookableSlot:
+            // should a unique constraint ever be added on the slot, surface its
+            // violation as the same 409 rather than a 500.
             throw new ConflictException("That time is no longer available", ex);
         }
     }
@@ -115,6 +116,13 @@ public class BookAppointmentService {
                 startsAt, zone(), schedule.slotLength(), schedule.open(), schedule.close())) {
             throw new InvalidRequestException("That time is not a valid clinic slot");
         }
+        // Claim the doctor immediately before reading availability. Booking and
+        // rescheduling both funnel through here, and that read is a plain select, so
+        // without this lock two transactions can each see the slot as free and both
+        // insert. Held for the rest of the transaction, so it is released on commit
+        // or rollback; at READ_COMMITTED the select below sees the winner's row.
+        doctorProfileRepository.findByIdForUpdate(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
         appointmentRepository.findByDoctorProfileIdAndStatusAndStartsAt(
                         doctorId, AppointmentStatus.BOOKED, startsAt)
                 .filter(existing -> excludeAppointmentId == null || !existing.getId().equals(excludeAppointmentId))
