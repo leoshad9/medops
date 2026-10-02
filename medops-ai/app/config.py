@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "MedOps AI Service"
+    # Simple internal token to protect internal-only endpoints in tests and
+    # lightweight deployments. Production should use a stronger auth layer.
+    internal_api_token: str = ""
 
     # LLM_PROVIDER: generate_content | chat_completions
     llm_provider: str = ""

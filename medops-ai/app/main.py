@@ -9,10 +9,11 @@ Route definitions live in ``app.routers``; this module only wires the app.
 from fastapi import FastAPI
 
 from app.config import settings
-from app.routers import assistant, health, reports
+from app.routers import assistant, health, reports, internal
 
 app = FastAPI(title=settings.app_name)
 app.include_router(health.router)
 app.include_router(reports.router)
 app.include_router(assistant.router)
+app.include_router(internal.router)
 

@@ -67,7 +67,82 @@ def test_valid_request_returns_reply(client: TestClient, monkeypatch: pytest.Mon
     response = client.post("/ai/assistant/chat", json={"message": "How do I reschedule?"})
 
     assert response.status_code == 200
-    assert response.json() == {"message": "Open the Appointments section."}
+    assert response.json() == {"message": "Open the Appointments section.", "actions": None, "suggestions": None}
+
+
+def test_resolved_actions_attached(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """If the assistant returns actions, the router should attach resolved payloads."""
+    # assistant reply with a JSON actions block
+    reply = 'Here are options. ```json {"actions":[{"id":"open_appointment:0","label":"View appointment","query":"open appointment 0","type":"navigate"}]} ```'
+
+    class StubWithActions(StubService):
+        def __init__(self):
+            super().__init__(reply=reply)
+        def _extract_actions_block(self, text: str):
+            import re, json
+
+            m = re.search(r"```json\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
+            if not m:
+                return None
+            return json.loads(m.group(1))
+
+        def resolve_action(self, aid: str, context: AssistantContext):
+            # simple resolver mimicking production behaviour for tests
+            if aid.startswith("open_appointment:"):
+                try:
+                    idx = int(aid.split(":", 1)[1])
+                except Exception:
+                    return None
+                if len(context.appointments) > idx:
+                    return {"type": "navigate", "route": "/appointments", "query": {"index": idx}}
+            return None
+
+    stub = StubWithActions()
+    monkeypatch.setattr(assistant_router, "assistant_service", stub)
+
+    # provide one appointment in the snapshot so resolution succeeds
+    payload = {
+        "message": "How do I reschedule?",
+        "appointments": [
+            {"starts_at_local": "2026-10-10T09:00:00", "status": "BOOKED"}
+        ],
+    }
+
+    response = client.post("/ai/assistant/chat", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["message"].startswith("Here are options.")
+    assert isinstance(body.get("actions"), list)
+    assert body["actions"][0]["id"] == "open_appointment:0"
+    assert body["actions"][0]["resolved"] is not None
+
+
+def test_suggestions_are_returned(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Assistant suggestions attached to JSON actions are returned to the client."""
+    reply = 'Here are options. ```json {"actions":[{"id":"open_appointment:0","label":"View appointment","query":"open appointment 0","type":"navigate"}],"suggestions":["Schedule an appointment","View prescriptions"]} ```'
+
+    class StubWithSuggestions(StubService):
+        def __init__(self):
+            super().__init__(reply=reply)
+
+        def _extract_actions_block(self, text: str):
+            import json, re
+
+            m = re.search(r"```json\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
+            if not m:
+                return None
+            return json.loads(m.group(1))
+
+    stub = StubWithSuggestions()
+    monkeypatch.setattr(assistant_router, "assistant_service", stub)
+
+    response = client.post("/ai/assistant/chat", json={"message": "Help me with my appointments"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["message"].startswith("Here are options.")
+    assert body["actions"][0]["id"] == "open_appointment:0"
+    assert body["suggestions"] == ["Schedule an appointment", "View prescriptions"]
 
 
 def test_blank_message_rejected(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

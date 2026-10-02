@@ -25,6 +25,7 @@ from app.services.assistant_service import (
     AssistantPrescriptionContext,
     AssistantService,
 )
+from app.utils import metrics
 from app.services.llm_types import (
     LlmError,
     LlmRateLimitError,
@@ -97,9 +98,85 @@ class AssistantChatResponse(BaseModel):
     """Response payload containing the assistant's reply.
 
     :param message: the AI-generated reply text.
+    :param actions: optional resolved action payloads.
+    :param suggestions: optional follow-up suggestions surfaced by the model.
     """
 
     message: str
+    # Optional resolved action payloads the server computed for any actions
+    # included in the assistant's JSON block. Each entry matches the
+    # assistant-suggested action `id` and a `resolved` payload or null.
+    actions: Optional[List[dict]] = None
+    suggestions: Optional[List[str]] = None
+
+
+def _resolve_action_payloads(service, context: AssistantContext, actions_block: dict) -> Optional[List[dict]]:
+    """Resolve allowed JSON action ids into the safe server-side payloads."""
+    actions = actions_block.get("actions", [])
+    if not isinstance(actions, list):
+        return None
+
+    resolved: List[dict] = []
+    for action in actions:
+        if not isinstance(action, dict):
+            continue
+        aid = action.get("id")
+        if not aid:
+            resolved.append({"id": None, "resolved": None})
+            continue
+
+        payload = None
+        if hasattr(service, "resolve_action"):
+            try:
+                payload = service.resolve_action(aid, context)
+            except Exception:
+                payload = None
+
+        resolved.append({
+            "id": aid,
+            "resolved": payload,
+            "label": action.get("label") if isinstance(action.get("label"), str) else None,
+        })
+
+    return resolved or None
+
+
+def _extract_suggestions(actions_block: dict) -> Optional[List[str]]:
+    """Normalize model-provided suggestions into a simple string list."""
+    raw_suggestions = actions_block.get("suggestions")
+    if not isinstance(raw_suggestions, list):
+        return None
+
+    suggestions: List[str] = []
+    for item in raw_suggestions:
+        if isinstance(item, str):
+            suggestions.append(item)
+            continue
+        if not isinstance(item, dict):
+            continue
+
+        label = item.get("label")
+        query = item.get("query")
+        if isinstance(label, str):
+            suggestions.append(label)
+        elif isinstance(query, str):
+            suggestions.append(query)
+
+    return suggestions or None
+
+
+def _extract_response_metadata(service, context: AssistantContext, reply: str):
+    """Extract any structured action payloads and suggestions from the model reply."""
+    if not hasattr(service, "_extract_actions_block"):
+        return None, None
+
+    actions_block = service._extract_actions_block(reply)
+    if not isinstance(actions_block, dict):
+        return None, None
+
+    resolved = _resolve_action_payloads(service, context, actions_block)
+    suggestions = _extract_suggestions(actions_block)
+    return resolved, suggestions
 
 
 @router.post("/assistant/chat", response_model=AssistantChatResponse)
@@ -128,7 +205,18 @@ async def assistant_chat(body: AssistantChatRequest):
             medical_records=body.medical_records,
         )
         raw = await assistant_service.chat(body.message, context, body.time_zone)
+        # increment simple assistant request counter
+        try:
+            metrics.increment("assistant_chat_requests")
+        except Exception:
+            logger.exception("Failed to increment assistant metrics")
         reply = assistant_service.validate_reply(raw)
+        try:
+            resolved, suggestions = _extract_response_metadata(assistant_service, context, reply)
+        except Exception:
+            # resolution failures must not expose internals; log and continue
+            logger.exception("Failed to resolve assistant actions")
+            resolved, suggestions = None, None
     except ValueError as exc:
         raise HTTPException(status_code=502, detail="Assistant returned an unusable result") from exc
     except LlmTimeoutError as exc:
@@ -144,4 +232,7 @@ async def assistant_chat(body: AssistantChatRequest):
     except LlmError as exc:
         raise HTTPException(status_code=502, detail="Assistant chat failed") from exc
 
-    return AssistantChatResponse(message=reply)
+    payload = {"message": reply, "actions": resolved}
+    if suggestions is not None:
+        payload["suggestions"] = suggestions
+    return payload
