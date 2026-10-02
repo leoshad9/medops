@@ -49,12 +49,6 @@ jwt:
   issuer: ${JWT_ISSUER:medops-api}
   audience: ${JWT_AUDIENCE:medops-web}
 
-springdoc:
-  api-docs:
-    enabled: false
-  swagger-ui:
-    enabled: false
-
 management:
   endpoints:
     web:
@@ -74,7 +68,6 @@ management:
 medops:
   security:
     open-registration: false
-    api-docs-public: false
   files:
     root: ${MEDOPS_FILES_ROOT:/data/clinical-files}
     storage-quota-bytes: ${MEDOPS_FILES_STORAGE_QUOTA_BYTES:52428800}

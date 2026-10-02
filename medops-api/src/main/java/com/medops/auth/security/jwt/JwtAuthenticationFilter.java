@@ -44,11 +44,7 @@ public final class JwtAuthenticationFilter extends OncePerRequestFilter {
         // verifies + a users+roles DB round trip for a permitAll request.
         return uri.startsWith("/api/auth/")
                 || uri.equals("/api/auth")
-                || uri.startsWith("/actuator/health")
-                || uri.equals("/swagger-ui.html")
-                || uri.startsWith("/swagger-ui/")
-                || uri.startsWith("/api-docs/")
-                || uri.startsWith("/webjars/");
+                || uri.startsWith("/actuator/health");
     }
 
     @Override

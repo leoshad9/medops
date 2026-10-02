@@ -103,7 +103,7 @@ class PasswordResetControllerTest {
         /** Provides trusted-proxy security properties for controller tests. */
         @Bean
         MedopsSecurityProperties medopsSecurityProperties() {
-            return new MedopsSecurityProperties(true, true,
+            return new MedopsSecurityProperties(true,
                     List.of("127.0.0.1/8", "0:0:0:0:0:0:0:1/128", "::1/128"));
         }
     }

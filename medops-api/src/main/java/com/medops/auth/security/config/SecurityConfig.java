@@ -41,13 +41,6 @@ public class SecurityConfig {
             "/actuator/health/**"
     };
 
-    private static final String[] DOCS_PUBLIC = {
-            "/swagger-ui.html",
-            "/swagger-ui/**",
-            "/api-docs/**",
-            "/webjars/**"
-    };
-
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
@@ -111,9 +104,6 @@ public class SecurityConfig {
                     if (securityProperties.openRegistration()) {
                         auth.requestMatchers(HttpMethod.POST, "/api/v1/patients", "/api/v1/doctors")
                                 .permitAll();
-                    }
-                    if (securityProperties.apiDocsPublic()) {
-                        auth.requestMatchers(DOCS_PUBLIC).permitAll();
                     }
                     auth.requestMatchers("/actuator/**").denyAll();
                     auth.requestMatchers(HttpMethod.GET, "/api/v1/notifications/stream")

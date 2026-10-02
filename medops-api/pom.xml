@@ -33,6 +33,20 @@
 		<checkstyle.version>14.3.0</checkstyle.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
 		<lombok.version>1.18.48</lombok.version>
+		<!-- Overrides for versions pinned by spring-boot-dependencies 4.1.1.
+		     Remove these once the Spring Boot BOM ships the fixed versions. -->
+		<!-- tomcat-embed 11.0.24: CVE-2026-65905, CVE-2026-65182, CVE-2026-68525 -->
+		<tomcat.version>11.0.26</tomcat.version>
+		<!-- jackson2 2.21.5: CVE-2026-91777, CVE-2026-91776, CVE-2026-83557,
+		     CVE-2026-68497, CVE-2026-19032, CVE-2026-89425, CVE-2026-89407 -->
+		<jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+		<!-- jackson3 3.1.5 (pulled in by flyway-core): same 5 databind CVEs as
+		     jackson2 above plus CVE-2026-89425 and CVE-2026-89407 on jackson-core -->
+		<jackson-bom.version>3.1.7</jackson-bom.version>
+		<!-- flyway 12.4.0 -> latest 12.x -->
+		<flyway.version>12.11.0</flyway.version>
+		<!-- lz4-java 1.10.1 (via kafka-clients): CVE-2026-59949. Not BOM-managed. -->
+		<lz4.version>1.11.1</lz4.version>
 	</properties>
 
 	<dependencyManagement>
@@ -41,6 +55,11 @@
 				<groupId>org.projectlombok</groupId>
 				<artifactId>lombok</artifactId>
 				<version>${lombok.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>at.yawk.lz4</groupId>
+				<artifactId>lz4-java</artifactId>
+				<version>${lz4.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -51,10 +70,6 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -94,13 +109,6 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-database-postgresql</artifactId>
-		</dependency>
-
-		<!-- API Documentation -->
-		<dependency>
-			<groupId>org.springdoc</groupId>
-			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>3.1.1</version>
 		</dependency>
 
 		<!-- JWT -->
@@ -304,7 +312,6 @@
 				<artifactId>dependency-check-maven</artifactId>
 				<version>${owasp.dependency-check.version}</version>
 				<configuration>
-					<skip>true</skip>
 					<!-- Fail on High severity vulnerabilities (CVSS >= 7). -->
 					<failBuildOnCVSS>7</failBuildOnCVSS>
 					<!-- Skip test-scoped dependencies. -->
