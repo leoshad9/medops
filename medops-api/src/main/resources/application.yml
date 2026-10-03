@@ -205,6 +205,16 @@ spring:
   config:
     activate:
       on-profile: test
+  # The database sql-maven-plugin creates and drops around the test run, not the
+  # developer `medops` database above. Deliberately separate TEST_DB_* names:
+  # pointing a test run at a real database would apply ddl-auto=update to it and
+  # leave rows behind. Hibernate builds the schema because flyway is disabled
+  # below, so the plugin only has to hand over an empty database.
+  datasource:
+    url: "${TEST_DB_URL:jdbc:postgresql://localhost:5432/medops_test}"
+    username: ${TEST_DB_USERNAME:postgres}
+    password: ${TEST_DB_PASSWORD:root}
+    driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: update

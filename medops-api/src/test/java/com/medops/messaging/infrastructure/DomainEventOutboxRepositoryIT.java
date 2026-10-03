@@ -13,11 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.zonky.test.db.AutoConfigureEmbeddedDatabase;
-
 @SpringBootTest
 @ActiveProfiles("test")
-@AutoConfigureEmbeddedDatabase(type = AutoConfigureEmbeddedDatabase.DatabaseType.POSTGRES)
 class DomainEventOutboxRepositoryIT {
 
     @Autowired private DomainEventOutboxRepository repository;

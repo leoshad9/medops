@@ -35,17 +35,16 @@ import com.medops.patients.application.PatientRegistrationService;
 import com.medops.patients.domain.Gender;
 import com.medops.shared.exception.ConflictException;
 
-import io.zonky.test.db.AutoConfigureEmbeddedDatabase;
-
 /**
  * Proves two concurrent bookings for the same doctor slot cannot both succeed —
  * the partial unique index plus {@code saveAndFlush} race mapping is the safety net.
  * <p>
- * Uses embedded PostgreSQL (Zonky) so the race is exercised without a Docker daemon.
+ * Runs against the real Postgres that sql-maven-plugin creates for the build,
+ * because the race is only meaningful if the partial unique index is enforced by
+ * the database rather than by Hibernate.
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@AutoConfigureEmbeddedDatabase(type = AutoConfigureEmbeddedDatabase.DatabaseType.POSTGRES)
 class AppointmentBookingConcurrencyIT {
 
     private static final ZoneId CLINIC_ZONE = ZoneId.of("Asia/Kolkata");

@@ -15,6 +15,24 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    # sql-maven-plugin provisions medops_test on a real Postgres. The tests used
+    # to embed one, but nothing here started a server, so `mvn verify` needs this.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+
     steps:
       - uses: actions/checkout@v7
 
