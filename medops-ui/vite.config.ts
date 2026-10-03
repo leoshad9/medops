@@ -1,7 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
-import { viteStaticCopy } from 'vite-plugin-static-copy'
 import generateSitemap from 'vite-plugin-sitemap'
 
 // https://vite.dev/config/
@@ -9,12 +8,6 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    viteStaticCopy({
-      targets: [
-        { src: 'public/robots.txt', dest: '.' },
-        { src: 'public/manifest.webmanifest', dest: '.' },
-      ],
-    }),
     generateSitemap({
       hostname: 'https://medops.ai',
       dynamicRoutes: [
