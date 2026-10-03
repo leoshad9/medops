@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Callable, List, Optional, Sequence
+from typing import Any, Callable, List, Literal, Optional, Sequence
 
 from pydantic import BaseModel, Field
 import json
@@ -36,7 +36,12 @@ SYSTEM_PROMPT = (
     "When asked for personal information that is not in the snapshot, or that is "
     "not provided at all, say you cannot see it and point the user to the "
     "relevant MedOps section instead. "
-    "Use plain language and stay concise and helpful. This is not medical advice."
+    "Use plain language and stay concise and helpful. This is not medical advice. "
+    "When it would help the user continue a task, include a JSON code block with "
+    "up to 3 short follow-up suggestion strings in a 'suggestions' array — for example: "
+    "```json\n{\"suggestions\": [\"Show my upcoming appointments\", \"What's my balance?\"]}\n``` "
+    "Only include a JSON block when it genuinely helps the user; omit it for simple or "
+    "one-off answers."
 )
 
 # Guidance for structured UI actions: when the assistant wants the frontend to
@@ -57,7 +62,7 @@ _BLOCKED_CLAIM = re.compile(
     re.IGNORECASE,
 )
 
-MAX_REPLY_CHARS = 4_000
+MAX_REPLY_CHARS = 6_000
 
 STUB_REPLY = (
     "I'm the MedOps AI Assistant (AI service stub). I can help with appointments, "
@@ -185,6 +190,20 @@ class AssistantMedicalRecordContext(BaseModel):
     summary: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
 
 
+class ConversationTurn(BaseModel):
+    """A single prior turn in a multi-turn conversation.
+
+    :param role: either ``"user"`` or ``"assistant"``.
+    :param content: the message text for this turn (max 2000 chars).
+    """
+
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=2000)
+
+
+MAX_HISTORY_TURNS = 10
+
+
 class AssistantContext(BaseModel):
     """Bounded, LLM-safe snapshot of the signed-in user's own records.
 
@@ -197,6 +216,11 @@ class AssistantContext(BaseModel):
     prescriptions: List[AssistantPrescriptionContext] = Field(default_factory=list)
     invoices: List[AssistantInvoiceContext] = Field(default_factory=list)
     medical_records: List[AssistantMedicalRecordContext] = Field(default_factory=list)
+    conversation_history: List[ConversationTurn] = Field(
+        default_factory=list,
+        max_length=MAX_HISTORY_TURNS,
+        description="Prior turns for multi-turn context (most recent last)",
+    )
 
 
 def _sanitize_field(value: Optional[str]) -> Optional[str]:
@@ -366,7 +390,8 @@ class AssistantService:
         :param message: the validated, non-blank user message
         :param context: bounded, read-only snapshot of the user's own
             appointments, lab reports, prescriptions, invoices, and
-            medical records, assembled by the API for this user only
+            medical records, assembled by the API for this user only;
+            also carries optional prior conversation turns
         :param time_zone: optional IANA zone the snapshot times were rendered in
         :returns: raw reply text (never ``None``)
         """
@@ -385,13 +410,22 @@ class AssistantService:
         if context.medical_records:
             sections.append(_medical_record_snapshot(context.medical_records))
 
-        user_prompt = message
+        # Build the current user prompt (context snapshot + current message).
+        current_user_prompt = message
         if sections:
-            user_prompt = "\n\n".join(sections) + f"\n\nUser question: {message}"
+            current_user_prompt = "\n\n".join(sections) + f"\n\nUser question: {message}"
+
+        # Inject prior conversation turns so the model has multi-turn context.
+        history = list(context.conversation_history or [])[-MAX_HISTORY_TURNS:]
+        messages = []
+        for turn in history:
+            messages.append({"role": turn.role, "content": turn.content})
+        messages.append({"role": "user", "content": current_user_prompt})
 
         result: ChatResult = await self._client.chat(
             system=SYSTEM_PROMPT,
-            user=user_prompt,
+            user=current_user_prompt,
+            messages=messages,
             temperature=settings.llm_temperature,
             max_tokens=settings.llm_max_tokens,
         )
@@ -428,6 +462,14 @@ class AssistantService:
             raise ValueError("Assistant actions block must be a JSON object")
 
         actions = obj.get("actions")
+        suggestions = obj.get("suggestions")
+
+        # A suggestions-only block (no 'actions' key) is valid — the model may
+        # emit follow-up chips without attaching navigable action buttons.
+        if actions is None and suggestions is not None:
+            self._validate_suggestions(suggestions)
+            return
+
         if actions is None:
             raise ValueError("Assistant actions block must contain an 'actions' array")
         if not isinstance(actions, list):
@@ -438,7 +480,7 @@ class AssistantService:
         for action in actions:
             self._validate_action(action)
 
-        self._validate_suggestions(obj.get("suggestions"))
+        self._validate_suggestions(suggestions)
 
     def _validate_action(self, action: Any) -> None:
         """Validate a single action object."""
@@ -572,6 +614,8 @@ class AssistantService:
         action_resolvers = (
             ("open_appointment:", lambda: self._resolve_indexed_action(aid, "open_appointment:", context, "appointments", "/appointments")),
             ("open_lab:", lambda: self._resolve_indexed_action(aid, "open_lab:", context, "lab_reports", "/lab-reports")),
+            ("open_prescription:", lambda: self._resolve_indexed_action(aid, "open_prescription:", context, "prescriptions", "/prescriptions")),
+            ("open_medical_record:", lambda: self._resolve_indexed_action(aid, "open_medical_record:", context, "medical_records", "/medical-records")),
             ("api_call:pay_invoice:", lambda: self._resolve_invoice_path(aid, "api_call:pay_invoice:", context)),
             ("modal:invoice_details:", lambda: self._resolve_invoice_path(aid, "modal:invoice_details:", context)),
         )

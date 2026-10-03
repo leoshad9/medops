@@ -8,8 +8,11 @@ from app.config import settings
 from app.services.assistant_service import (
     AssistantContext,
     AssistantInvoiceContext,
+    AssistantLabReportContext,
+    AssistantMedicalRecordContext,
     AssistantPrescriptionContext,
     AssistantService,
+    ConversationTurn,
 )
 from app.services.llm_types import ChatResult
 
@@ -22,11 +25,21 @@ class FakeChatClient:
         self._content = content
         self.last_system: str | None = None
         self.last_user: str | None = None
+        self.last_messages: list[dict] | None = None
 
-    async def chat(self, *, system: str, user: str, temperature=None, max_tokens=None) -> ChatResult:
+    async def chat(
+        self,
+        *,
+        system: str,
+        user: str,
+        temperature=None,
+        max_tokens=None,
+        messages: list[dict] | None = None,
+    ) -> ChatResult:
         """Record the prompts and return the configured chat result."""
         self.last_system = system
         self.last_user = user
+        self.last_messages = messages
         return ChatResult(content=self._content, prompt_tokens=None, completion_tokens=None,
                           total_tokens=None, latency_ms=0)
 
@@ -58,6 +71,18 @@ async def test_chat_system_prompt_forbids_medical_advice() -> None:
 
 
 @pytest.mark.asyncio
+async def test_chat_system_prompt_includes_suggestions_guidance() -> None:
+    """The system prompt must tell the model how to emit follow-up suggestions."""
+    fake = FakeChatClient("ok")
+    service = AssistantService(client=fake)
+
+    await service.chat("Hello", AssistantContext())
+
+    prompt = (fake.last_system or "").lower()
+    assert "suggestions" in prompt
+
+
+@pytest.mark.asyncio
 async def test_chat_returns_stub_when_no_provider_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     """With no API key configured, a deterministic stub reply is returned."""
     monkeypatch.setattr(settings, "llm_api_key", "")
@@ -80,10 +105,10 @@ def test_validate_reply_rejects_empty() -> None:
 
 
 def test_validate_reply_rejects_oversized() -> None:
-    """Reply validation rejects content over the reply limit."""
+    """Reply validation rejects content over the reply limit (6000 chars)."""
     service = AssistantService(client=None)
     with pytest.raises(ValueError):
-        service.validate_reply("x" * 4001)
+        service.validate_reply("x" * 6001)
 
 
 def test_validate_reply_rejects_diagnostic_claims() -> None:
@@ -101,6 +126,123 @@ def test_validate_reply_allows_navigation_help_mentioning_prescriptions() -> Non
     text = "You can request a refill in the Prescriptions section of MedOps."
     assert service.validate_reply(text) == text
 
+
+# ---------------------------------------------------------------------------
+# Suggestions-only JSON block (fix for the validation bug)
+# ---------------------------------------------------------------------------
+
+def test_validate_reply_accepts_suggestions_only_json_block() -> None:
+    """A JSON block with only 'suggestions' and no 'actions' must not raise."""
+    service = AssistantService(client=None)
+    reply = (
+        'Sure! Here are some things you can do next.\n\n'
+        '```json\n{"suggestions": ["Show my appointments", "What\'s my balance?"]}\n```'
+    )
+    assert service.validate_reply(reply) == reply
+
+
+def test_validate_actions_requires_actions_when_no_suggestions() -> None:
+    """An empty JSON block with neither 'actions' nor 'suggestions' is invalid."""
+    service = AssistantService(client=None)
+    with pytest.raises(ValueError, match="'actions' array"):
+        service._validate_actions({})
+
+
+# ---------------------------------------------------------------------------
+# Multi-turn conversation history
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_chat_sends_conversation_history_to_client() -> None:
+    """Prior turns in conversation_history are forwarded to the LLM client."""
+    fake = FakeChatClient("ok")
+    service = AssistantService(client=fake)
+
+    context = AssistantContext(
+        conversation_history=[
+            ConversationTurn(role="user", content="What is my next appointment?"),
+            ConversationTurn(role="assistant", content="Your next appointment is on Monday."),
+        ]
+    )
+    await service.chat("What time exactly?", context)
+
+    assert fake.last_messages is not None
+    roles = [m["role"] for m in fake.last_messages]
+    assert roles == ["user", "assistant", "user"]
+    assert fake.last_messages[2]["content"] == "What time exactly?"
+
+
+@pytest.mark.asyncio
+async def test_chat_without_history_still_sends_messages() -> None:
+    """Without history, the messages list contains only the current user turn."""
+    fake = FakeChatClient("ok")
+    service = AssistantService(client=fake)
+
+    await service.chat("Hello", AssistantContext())
+
+    assert fake.last_messages is not None
+    assert len(fake.last_messages) == 1
+    assert fake.last_messages[0]["role"] == "user"
+
+
+# ---------------------------------------------------------------------------
+# resolve_action — prescription and medical-record resolvers
+# ---------------------------------------------------------------------------
+
+def test_resolve_action_open_prescription() -> None:
+    """open_prescription:<idx> resolves to the /prescriptions route."""
+    service = AssistantService(client=None)
+    context = AssistantContext(
+        prescriptions=[
+            AssistantPrescriptionContext(
+                created_at_local="2026-01-01 09:00",
+                medication_name="Atorvastatin",
+                status="ACTIVE",
+            )
+        ]
+    )
+    result = service.resolve_action("open_prescription:0", context)
+    assert result is not None
+    assert result["route"] == "/prescriptions"
+    assert result["query"]["index"] == 0
+
+
+def test_resolve_action_open_prescription_out_of_range_returns_none() -> None:
+    """out-of-range open_prescription index returns None (not an error)."""
+    service = AssistantService(client=None)
+    context = AssistantContext(
+        prescriptions=[
+            AssistantPrescriptionContext(
+                created_at_local="2026-01-01 09:00",
+                medication_name="Aspirin",
+                status="ACTIVE",
+            )
+        ]
+    )
+    assert service.resolve_action("open_prescription:5", context) is None
+
+
+def test_resolve_action_open_medical_record() -> None:
+    """open_medical_record:<idx> resolves to the /medical-records route."""
+    service = AssistantService(client=None)
+    context = AssistantContext(
+        medical_records=[
+            AssistantMedicalRecordContext(
+                created_at_local="2026-03-15 10:00",
+                title="Discharge Summary",
+                type="CLINICAL_DOCUMENT",
+            )
+        ]
+    )
+    result = service.resolve_action("open_medical_record:0", context)
+    assert result is not None
+    assert result["route"] == "/medical-records"
+    assert result["query"]["index"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Original context-rendering test (unchanged behaviour)
+# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_chat_renders_prescription_and_billing_context() -> None:
@@ -151,3 +293,5 @@ async def test_chat_without_context_sends_the_bare_message() -> None:
     await service.chat("Hello", AssistantContext())
 
     assert fake.last_user == "Hello"
+
+

@@ -92,6 +92,7 @@ class ChatClient(Protocol):
         user: str,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        messages: list[dict] | None = None,
     ) -> ChatResult: ...
 
 

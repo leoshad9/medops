@@ -33,8 +33,14 @@ class ChatCompletionsClient:
         user: str,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        messages: list[dict] | None = None,
     ) -> ChatResult:
-        """Send a chat request to the /chat/completions endpoint."""
+        """Send a chat request to the /chat/completions endpoint.
+
+        :param messages: when supplied, used as the full messages array (for
+            multi-turn history). The system prompt is prepended automatically.
+            When ``None``, falls back to a single ``[system, user]`` turn.
+        """
         if not settings.llm_api_key.strip():
             raise LlmUnavailableError("LLM_API_KEY is not configured")
 
@@ -43,14 +49,19 @@ class ChatCompletionsClient:
         if not model or not base:
             raise LlmUnavailableError("LLM model/base URL is not configured")
 
+        if messages is not None:
+            full_messages = [{"role": "system", "content": system}] + messages
+        else:
+            full_messages = [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ]
+
         payload = {
             "model": model,
             "temperature": settings.llm_temperature if temperature is None else temperature,
             "max_tokens": settings.llm_max_tokens if max_tokens is None else max_tokens,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            "messages": full_messages,
         }
         url = base.rstrip("/") + "/chat/completions"
         # Prefer Authorization Bearer when explicitly requested; otherwise

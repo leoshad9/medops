@@ -34,8 +34,15 @@ class GenerateContentClient:
         user: str,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        messages: list[dict] | None = None,
     ) -> ChatResult:
-        """Send a chat request to the generateContent-style LLM endpoint."""
+        """Send a chat request to the generateContent-style LLM endpoint.
+
+        :param messages: when supplied, used to build a multi-turn ``contents``
+            array in the generateContent format. Each entry must have ``role``
+            (``"user"`` or ``"assistant"``) and ``content`` (str). When
+            ``None``, falls back to a single-turn request.
+        """
         if not settings.llm_api_key.strip():
             raise LlmUnavailableError("LLM_API_KEY is not configured")
 
@@ -72,9 +79,23 @@ class GenerateContentClient:
                 "x-goog-api-key": settings.llm_api_key.strip(),
             }
             logger.info("llm_request target=%s model=%s headers=%s", base, model, redact_headers(headers))
+
+        # Build multi-turn contents when history is provided; otherwise single-turn.
+        # generateContent uses "model" for assistant turns (not "assistant").
+        if messages is not None:
+            contents = [
+                {
+                    "role": "model" if turn["role"] == "assistant" else "user",
+                    "parts": [{"text": turn["content"]}],
+                }
+                for turn in messages
+            ]
+        else:
+            contents = [{"role": "user", "parts": [{"text": user}]}]
+
         payload = {
             "systemInstruction": {"parts": [{"text": system}]},
-            "contents": [{"role": "user", "parts": [{"text": user}]}],
+            "contents": contents,
             "generationConfig": {
                 "temperature": settings.llm_temperature if temperature is None else temperature,
                 "maxOutputTokens": settings.llm_max_tokens if max_tokens is None else max_tokens,

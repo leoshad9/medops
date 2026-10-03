@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from app.services.assistant_service import (
     MAX_CONTEXT_APPOINTMENTS,
     MAX_CONTEXT_ITEMS,
+    MAX_HISTORY_TURNS,
     AssistantContext,
     AssistantAppointmentContext,
     AssistantInvoiceContext,
@@ -24,6 +25,7 @@ from app.services.assistant_service import (
     AssistantMedicalRecordContext,
     AssistantPrescriptionContext,
     AssistantService,
+    ConversationTurn,
 )
 from app.utils import metrics
 from app.services.llm_types import (
@@ -47,6 +49,7 @@ class AssistantChatRequest(BaseModel):
 
     :param message: the user's chat message (1–2000 characters).
     :param time_zone: optional IANA time zone of the user's browser session.
+    :param conversation_history: prior turns for multi-turn context (most recent last).
     :param appointments: bounded, read-only snapshot of the signed-in user's
         own upcoming appointments, assembled server-side by the Spring Boot API.
     :param lab_reports: bounded, read-only snapshot of the user's own lab reports.
@@ -66,6 +69,11 @@ class AssistantChatRequest(BaseModel):
         default=None,
         max_length=64,
         description="IANA time zone the record times were rendered in",
+    )
+    conversation_history: List[ConversationTurn] = Field(
+        default_factory=list,
+        max_length=MAX_HISTORY_TURNS,
+        description="Prior turns for multi-turn context (most recent last)",
     )
     appointments: List[AssistantAppointmentContext] = Field(
         default_factory=list,
@@ -203,6 +211,7 @@ async def assistant_chat(body: AssistantChatRequest):
             prescriptions=body.prescriptions,
             invoices=body.invoices,
             medical_records=body.medical_records,
+            conversation_history=body.conversation_history,
         )
         raw = await assistant_service.chat(body.message, context, body.time_zone)
         # increment simple assistant request counter
