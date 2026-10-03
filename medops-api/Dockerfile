@@ -10,9 +10,11 @@ FROM eclipse-temurin:25-jre-jammy
 WORKDIR /app
 
 # gosu lets the entrypoint fix volume ownership as root and then drop privileges.
+# curl is here for the container healthcheck only: the jre-jammy base has neither
+# curl nor wget, which is why the previous check shelled out to bash /dev/tcp.
 RUN useradd --system --uid 10001 --no-create-home appuser \
     && apt-get update \
-    && apt-get install -y --no-install-recommends gosu \
+    && apt-get install -y --no-install-recommends gosu curl \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /data/clinical-files \
     && chown appuser:appuser /data/clinical-files

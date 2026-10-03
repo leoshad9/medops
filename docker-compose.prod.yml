@@ -80,8 +80,22 @@ services:
       JAVA_OPTS: ${MEDOPS_API_JAVA_OPTS:--Xms128m -Xmx512m}
     volumes:
       - clinical_files:/data/clinical-files
+    # Asserts the application is serving, not merely that a socket is open.
+    # Spring Boot binds Tomcat during context refresh *before* JPA validation and
+    # Flyway run, so the previous bare TCP connect (/dev/tcp, because the jre
+    # image has no curl) reported healthy for an app that was about to die. That
+    # is how the 2026-10-02 deploy crash-looped for three weeks. Readiness flips
+    # to ACCEPTING_TRAFFIC only after the context refreshes.
+    # SecurityConfig permits /actuator/health/** and denies the rest of
+    # /actuator/**, so this needs no credentials.
+    #
+    # The readiness group intentionally excludes db/redis/kafka (see
+    # application-prod.yml): dependants are already gated by depends_on
+    # service_healthy, and a transient Postgres blip marking this container
+    # unhealthy would stop medops-ui starting on the next `up`. The aggregate
+    # /actuator/health still reports all three.
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "--max-time", "4", "http://127.0.0.1:8080/actuator/health/readiness"]
       interval: 10s
       timeout: 5s
       retries: 18
