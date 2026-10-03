@@ -6,6 +6,7 @@ import pytest
 
 from app.config import settings
 from app.services.assistant_service import (
+    STRUCTURED_ONLY_FALLBACK,
     AssistantContext,
     AssistantInvoiceContext,
     AssistantLabReportContext,
@@ -132,13 +133,73 @@ def test_validate_reply_allows_navigation_help_mentioning_prescriptions() -> Non
 # ---------------------------------------------------------------------------
 
 def test_validate_reply_accepts_suggestions_only_json_block() -> None:
-    """A JSON block with only 'suggestions' and no 'actions' must not raise."""
+    """A suggestions-only block is valid, and is stripped from the visible text."""
     service = AssistantService(client=None)
     reply = (
         'Sure! Here are some things you can do next.\n\n'
         '```json\n{"suggestions": ["Show my appointments", "What\'s my balance?"]}\n```'
     )
-    assert service.validate_reply(reply) == reply
+    visible = service.validate_reply(reply)
+    assert "```" not in visible
+    assert "suggestions" not in visible
+    assert visible == "Sure! Here are some things you can do next."
+
+
+def test_validate_reply_strips_actions_block() -> None:
+    """The actions block must not reach the patient as raw JSON."""
+    service = AssistantService(client=None)
+    reply = (
+        'Your invoice is paid.\n\n'
+        '```json\n{"actions":[{"id":"open_invoice","label":"View invoice",'
+        '"query":"open invoice 1","type":"navigate"}]}\n```'
+    )
+    visible = service.validate_reply(reply)
+    assert visible == "Your invoice is paid."
+
+
+def test_validate_reply_strips_every_block_when_actions_precede_suggestions() -> None:
+    """A reply can carry two blocks; both must be removed, not just the first."""
+    service = AssistantService(client=None)
+    reply = (
+        'Here are your results.\n\n'
+        '```json\n{"actions":[{"id":"open_invoice","label":"View invoice",'
+        '"query":"open invoice 1","type":"navigate"}]}\n```\n\n'
+        '```json\n{"suggestions":["Show my invoices"]}\n```'
+    )
+    visible = service.validate_reply(reply)
+    assert "```" not in visible
+    assert visible == "Here are your results."
+
+
+def test_validate_reply_validates_the_second_block_too() -> None:
+    """The suggestions block is shape-checked even when it is not the first."""
+    service = AssistantService(client=None)
+    reply = (
+        'Here are your results.\n\n'
+        '```json\n{"actions":[{"id":"open_invoice","label":"View invoice",'
+        '"query":"open invoice 1","type":"navigate"}]}\n```\n\n'
+        '```json\n{"suggestions":"not-a-list"}\n```'
+    )
+    with pytest.raises(ValueError):
+        service.validate_reply(reply)
+
+
+def test_validate_reply_falls_back_when_only_a_block_was_returned() -> None:
+    """A reply that was nothing but a block still leaves readable text."""
+    service = AssistantService(client=None)
+    reply = '```json\n{"suggestions":["Show my appointments"]}\n```'
+    visible = service.validate_reply(reply)
+    assert visible
+    assert "```" not in visible
+    assert visible == STRUCTURED_ONLY_FALLBACK
+
+
+def test_validate_reply_still_rejects_disallowed_claims() -> None:
+    """Moving the safety scan after stripping must not weaken it."""
+    service = AssistantService(client=None)
+    reply = 'You should take ibuprofen.\n\n```json\n{"suggestions":["Show reports"]}\n```'
+    with pytest.raises(ValueError, match="disallowed"):
+        service.validate_reply(reply)
 
 
 def test_validate_actions_requires_actions_when_no_suggestions() -> None:

@@ -37,11 +37,13 @@ SYSTEM_PROMPT = (
     "not provided at all, say you cannot see it and point the user to the "
     "relevant MedOps section instead. "
     "Use plain language and stay concise and helpful. This is not medical advice. "
-    "When it would help the user continue a task, include a JSON code block with "
-    "up to 3 short follow-up suggestion strings in a 'suggestions' array — for example: "
+    "When it would help the user continue a task, you may include a JSON code block "
+    "with up to 3 short follow-up suggestion strings in a 'suggestions' array — for "
+    "example: "
     "```json\n{\"suggestions\": [\"Show my upcoming appointments\", \"What's my balance?\"]}\n``` "
     "Only include a JSON block when it genuinely helps the user; omit it for simple or "
-    "one-off answers."
+    "one-off answers. The block is removed before the reply is shown, so never rely on "
+    "it to communicate anything the patient needs to read."
 )
 
 # Guidance for structured UI actions: when the assistant wants the frontend to
@@ -53,6 +55,15 @@ SYSTEM_PROMPT = (
 # The assistant should only include such a JSON block when it is appropriate to
 # surface actionable UI elements. The human-readable reply may precede or
 # follow the JSON block; the frontend will parse the first JSON block it finds.
+
+# The fenced JSON block the model uses for structured actions and suggestions.
+# Shared by validate_reply (which strips it) and _extract_actions_block (which
+# reads it), so the two can never disagree about what counts as a block.
+_JSON_BLOCK_RE = re.compile(r"```json\s*([\s\S]*?)\s*```", re.IGNORECASE)
+
+# Used when a reply contained nothing but a structured block. validate_reply
+# strips the blocks, so without this the patient would get an empty bubble.
+STRUCTURED_ONLY_FALLBACK = "Here is the information you asked for."
 
 # Rejects diagnostic/prescriptive *advice* in the reply. Worded narrowly so
 # legitimate navigation help ("you can request refills in Prescriptions") passes.
@@ -432,23 +443,45 @@ class AssistantService:
         return result.content
 
     def validate_reply(self, reply: str) -> str:
-        """Probabilistic output must pass business rules before leaving the service."""
+        """Probabilistic output must pass business rules before leaving the service.
+
+        Also strips the ```json blocks the model uses for actions and suggestions,
+        so the UI never has to parse them out of the prose. A reply that carried
+        only a structured block still has to leave the patient with readable
+        text, so that case falls back to a generic line rather than 502-ing.
+        """
         text = (reply or "").strip()
         if not text:
             raise ValueError("Empty assistant response")
         if len(text) > MAX_REPLY_CHARS:
             raise ValueError("Assistant response exceeds length limit")
-        if _BLOCKED_CLAIM.search(text):
+
+        # Validate every block before removing any of them. A reply can carry an
+        # actions block and a suggestions block, and _extract_actions_block only
+        # reads the first, so looping here is what validates the second one too.
+        for block in self._extract_all_json_blocks(text):
+            self._validate_actions(block)
+
+        visible = _JSON_BLOCK_RE.sub("", text).strip()
+        if _BLOCKED_CLAIM.search(visible):
             raise ValueError("Assistant response contains disallowed diagnostic/prescriptive claims")
-        # If the assistant included a JSON actions block, validate its shape.
-        actions_block = self._extract_actions_block(text)
-        if actions_block is not None:
-            self._validate_actions(actions_block)
-        return text
+        if not visible:
+            visible = STRUCTURED_ONLY_FALLBACK
+        return visible
+
+    def _extract_all_json_blocks(self, text: str) -> List[Any]:
+        """Parse every ```json ... ``` block, raising on malformed JSON."""
+        blocks: List[Any] = []
+        for m in _JSON_BLOCK_RE.finditer(text):
+            try:
+                blocks.append(json.loads(m.group(1)))
+            except Exception:
+                raise ValueError("Assistant returned malformed JSON actions block")
+        return blocks
 
     def _extract_actions_block(self, text: str) -> Optional[Any]:
         """Extract the first ```json ... ``` code block and return the parsed JSON, or None."""
-        m = re.search(r"```json\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
+        m = _JSON_BLOCK_RE.search(text)
         if not m:
             return None
         try:

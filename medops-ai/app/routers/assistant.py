@@ -221,7 +221,10 @@ async def assistant_chat(body: AssistantChatRequest):
             logger.exception("Failed to increment assistant metrics")
         reply = assistant_service.validate_reply(raw)
         try:
-            resolved, suggestions = _extract_response_metadata(assistant_service, context, reply)
+            # Read the structured payloads from raw, not reply: validate_reply
+            # strips the fenced blocks, so the stripped text has nothing left
+            # to parse.
+            resolved, suggestions = _extract_response_metadata(assistant_service, context, raw)
         except Exception:
             # resolution failures must not expose internals; log and continue
             logger.exception("Failed to resolve assistant actions")
