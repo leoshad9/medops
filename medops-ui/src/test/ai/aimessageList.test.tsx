@@ -190,6 +190,55 @@ describe("AIMessageList", () => {
     expect(html).not.toContain("Using MedOps");
   });
 
+  it("disables 'Back to main' until the assistant reply has finished rendering", () => {
+    const messages: AIMessage[] = [
+      {
+        id: "1",
+        role: "assistant",
+        content: "Hello! How can I help?",
+        timestamp: "2026-09-20T00:00:00Z",
+      },
+      {
+        id: "2",
+        role: "user",
+        content: "I need help with my upcoming appointments.",
+        timestamp: "2026-09-20T00:00:10Z",
+      },
+    ];
+
+    // The chip swaps to "Back to main" the instant the question is sent, so the
+    // control was live while the reply was still in flight. Clearing the
+    // conversation then left the pending reply to land on an empty transcript.
+    const pending = renderToStaticMarkup(
+      <AIMessageList messages={messages} onQuickAction={() => {}} isPending />
+    );
+    const settled = renderToStaticMarkup(
+      <AIMessageList messages={messages} onQuickAction={() => {}} />
+    );
+
+    expect(pending).toMatch(/<button[^>]*\sdisabled=""[^>]*>[\s\S]*?Back to main/);
+    expect(settled).not.toMatch(/\sdisabled=""/);
+  });
+
+  it("disables the suggestion chips of the message being answered", () => {
+    const messages: AIMessage[] = [
+      {
+        id: "1",
+        role: "assistant",
+        content: "Your invoice is paid.",
+        suggestions: ["Show my lab reports", { label: "View prescriptions", query: "prescriptions" }],
+        timestamp: "2026-09-20T00:00:00Z",
+      },
+    ];
+
+    const pending = renderToStaticMarkup(
+      <AIMessageList messages={messages} onQuickAction={() => {}} isPending />
+    );
+
+    expect(pending).toMatch(/<button[^>]*\sdisabled=""[^>]*>[\s\S]*?Show my lab reports/);
+    expect(pending).toMatch(/<button[^>]*\sdisabled=""[^>]*>[\s\S]*?View prescriptions/);
+  });
+
   it("renders suggestions from the message field, not from the reply text", () => {
     const messages: AIMessage[] = [
       {

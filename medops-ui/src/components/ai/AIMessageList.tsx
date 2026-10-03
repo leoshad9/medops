@@ -10,6 +10,7 @@ import type { AIMessage, AISuggestion } from "../../services/aiAssistantService"
 interface AIMessageListProps {
   messages: AIMessage[];
   onQuickAction: (actionId: string, query: string) => void;
+  isPending?: boolean;
 }
 
 interface QuickActionItem {
@@ -105,7 +106,7 @@ const resolveActionQuery = (action: { id?: string; label?: string; query?: strin
   onQuickAction(actionId, action.query ?? action.label ?? "");
 };
 
-const renderSuggestions = (suggestions: AISuggestion[], onQuickAction: AIMessageListProps["onQuickAction"]) => {
+const renderSuggestions = (suggestions: AISuggestion[], onQuickAction: AIMessageListProps["onQuickAction"], isPending: boolean) => {
   if (!suggestions.length) return null;
 
   return (
@@ -119,7 +120,8 @@ const renderSuggestions = (suggestions: AISuggestion[], onQuickAction: AIMessage
             key={idx}
             type="button"
             onClick={() => onQuickAction(`suggestion_${idx}`, query)}
-            className="rounded-full border border-brand-line bg-white px-3 py-1.5 text-xs font-medium text-brand-ink hover:border-brand-primary hover:bg-brand-paper"
+            disabled={isPending}
+            className="rounded-full border border-brand-line bg-white px-3 py-1.5 text-xs font-medium text-brand-ink hover:border-brand-primary hover:bg-brand-paper disabled:cursor-not-allowed disabled:opacity-50"
           >
             {label}
           </button>
@@ -130,7 +132,7 @@ const renderSuggestions = (suggestions: AISuggestion[], onQuickAction: AIMessage
 };
 
 /** Renders the conversation and shows quick actions until a patient message is present. */
-export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageListProps>) {
+export function AIMessageList({ messages, onQuickAction, isPending = false }: Readonly<AIMessageListProps>) {
   const hasUserMessage = messages.some((m) => m.role === "user");
   const showQuickActions = messages.length <= 1 && !hasUserMessage;
 
@@ -177,7 +179,8 @@ export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageLis
                       key={act.id}
                       type="button"
                       onClick={() => resolveActionQuery(act, onQuickAction)}
-                      className="rounded-md bg-brand-primary px-3 py-1 text-xs font-medium text-white"
+                      disabled={isPending}
+                      className="rounded-md bg-brand-primary px-3 py-1 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {act.label}
                     </button>
@@ -186,7 +189,7 @@ export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageLis
               ) : null}
 
               {message.role === "assistant" && message.suggestions?.length
-                ? renderSuggestions(message.suggestions, onQuickAction)
+                ? renderSuggestions(message.suggestions, onQuickAction, isPending)
                 : null}
             </div>
           </div>
@@ -204,7 +207,8 @@ export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageLis
                   key={action.id}
                   type="button"
                   onClick={() => onQuickAction(action.id, action.query)}
-                  className="flex items-center gap-1.5 rounded-full border border-brand-line bg-white px-3 py-1.5 text-xs font-medium text-brand-ink transition hover:border-brand-primary hover:bg-brand-paper cursor-pointer"
+                  disabled={isPending}
+                  className="flex items-center gap-1.5 rounded-full border border-brand-line bg-white px-3 py-1.5 text-xs font-medium text-brand-ink transition hover:border-brand-primary hover:bg-brand-paper cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Icon className="h-3 w-3 text-brand-primary" />
                   {action.label}

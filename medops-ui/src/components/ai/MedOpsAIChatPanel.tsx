@@ -53,6 +53,7 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
   /** Sends the query associated with a selected quick action. */
   const handleQuickAction = (actionId: string, query: string) => {
     if (actionId === "back") {
+      if (isLoading) return;
       // Reset conversation to show quick actions and greeting again
       setMessages([]);
       setInputValue("");
@@ -62,6 +63,7 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
   };
 
   const handleResetConversation = () => {
+    if (isLoading) return;
     setMessages([]);
     setInputValue("");
     try {
@@ -183,13 +185,14 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
         <button
           type="button"
           onClick={handleResetConversation}
-          className="text-xs text-brand-muted hover:text-brand-ink"
+          disabled={isLoading}
+          className="text-xs text-brand-muted hover:text-brand-ink disabled:cursor-not-allowed disabled:opacity-50"
         >
           Reset conversation
         </button>
       </div>
 
-      <AIMessageList messages={displayMessages} onQuickAction={handleQuickAction} />
+      <AIMessageList messages={displayMessages} onQuickAction={handleQuickAction} isPending={isLoading} />
       <ActionDispatcher />
 
       <div className="border-t border-brand-line p-2 sm:p-3">
