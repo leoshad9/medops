@@ -144,4 +144,49 @@ describe("AIMessageList", () => {
     expect(html).not.toContain("**Dr. Mohd Adnan**");
     expect(html).not.toContain("**September 25**");
   });
+
+  it("shows the topic chips on arrival but not 'Back to main'", () => {
+    const messages: AIMessage[] = [
+      {
+        id: "1",
+        role: "assistant",
+        content: "Hello! How can I help?",
+        timestamp: "2026-09-20T00:00:00Z",
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <AIMessageList messages={messages} onQuickAction={() => {}} />
+    );
+
+    expect(html).toContain("Appointments");
+    expect(html).toContain("Using MedOps");
+    // Nothing to return from yet, so the control would be dead weight.
+    expect(html).not.toContain("Back to main");
+  });
+
+  it("replaces the topic chips with 'Back to main' once the patient has asked something", () => {
+    const messages: AIMessage[] = [
+      {
+        id: "1",
+        role: "assistant",
+        content: "Hello! How can I help?",
+        timestamp: "2026-09-20T00:00:00Z",
+      },
+      {
+        id: "2",
+        role: "user",
+        content: "I need help with my upcoming appointments.",
+        timestamp: "2026-09-20T00:00:10Z",
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <AIMessageList messages={messages} onQuickAction={() => {}} />
+    );
+
+    expect(html).toContain("Back to main");
+    expect(html).not.toContain("What can I help you with?");
+    expect(html).not.toContain("Using MedOps");
+  });
 });

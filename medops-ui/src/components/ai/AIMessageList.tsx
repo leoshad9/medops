@@ -136,7 +136,15 @@ const renderSuggestions = (content: string, onQuickAction: AIMessageListProps["o
 
 /** Renders the conversation and shows quick actions until a patient message is present. */
 export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageListProps>) {
-  const showQuickActions = messages.length <= 1 && !messages.some((m) => m.role === "user");
+  const hasUserMessage = messages.some((m) => m.role === "user");
+  const showQuickActions = messages.length <= 1 && !hasUserMessage;
+
+  // The topic chips and "Back to main" serve opposite moments. The chips are only
+  // useful before the first question; "Back to main" is only useful after one, when
+  // the rest of the row has gone. Rendering them together put the only control that
+  // can return you to this list in the one state where there is nothing to return
+  // from, and dropped it in the state where it is needed.
+  const footerActions = showQuickActions ? QUICK_ACTIONS : hasUserMessage ? [BACK_ACTION] : [];
 
   return (
     <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
@@ -188,11 +196,11 @@ export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageLis
         );
       })}
 
-      {showQuickActions && (
+      {footerActions.length > 0 && (
         <div className="mt-4">
-          <p className="text-xs font-semibold text-brand-muted mb-2">What can I help you with?</p>
+          {showQuickActions && <p className="text-xs font-semibold text-brand-muted mb-2">What can I help you with?</p>}
           <div className="flex flex-wrap gap-2">
-            {[...QUICK_ACTIONS, BACK_ACTION].map((action) => {
+            {footerActions.map((action) => {
               const Icon = action.icon;
               return (
                 <button
