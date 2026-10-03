@@ -189,4 +189,52 @@ describe("AIMessageList", () => {
     expect(html).not.toContain("What can I help you with?");
     expect(html).not.toContain("Using MedOps");
   });
+
+  it("renders suggestions from the message field, not from the reply text", () => {
+    const messages: AIMessage[] = [
+      {
+        id: "1",
+        role: "assistant",
+        content: "Your invoice is paid.",
+        suggestions: ["Show my lab reports", { label: "View prescriptions", query: "prescriptions" }],
+        timestamp: "2026-09-20T00:00:00Z",
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <AIMessageList messages={messages} onQuickAction={() => {}} />
+    );
+
+    expect(html).toContain("Show my lab reports");
+    expect(html).toContain("View prescriptions");
+    // The backend strips the JSON block, so it must never reach the bubble.
+    expect(html).not.toContain("suggestions");
+    expect(html).not.toContain("```");
+  });
+
+it("does not invent chips from a JSON block left in the reply text", () => {
+    const messages: AIMessage[] = [
+      {
+        id: "1",
+        role: "assistant",
+        content: "Here you go.",
+        timestamp: "2026-09-20T00:00:00Z",
+      },
+    ];
+
+    // No suggestions field, but the text still carries a fenced block. Before,
+    // renderSuggestions regex-matched the content and built a chip from it.
+    const html = renderToStaticMarkup(
+      <AIMessageList
+        messages={messages.map((m) => ({ ...m, content: `${m.content}\n\n\`\`\`json\n{"suggestions": ["Leaked chip"]}\n\`\`\`` }))}
+        onQuickAction={() => {}}
+      />
+    );
+
+    // Stripping is validate_reply's job on the server. Here we only assert the UI
+    // no longer mines the text for chips: the block still renders as prose, but
+    // no suggestion button is created from it.
+    expect(html).not.toContain("suggestion_");
+    expect(html).not.toMatch(/<button[^>]*>[^<]*Leaked chip/);
+  });
 });

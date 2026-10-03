@@ -5,7 +5,7 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import type { ComponentType } from "react";
 
-import type { AIMessage } from "../../services/aiAssistantService";
+import type { AIMessage, AISuggestion } from "../../services/aiAssistantService";
 
 interface AIMessageListProps {
   messages: AIMessage[];
@@ -83,11 +83,6 @@ const parseActionsFromMessage = (content: string) => {
   return Array.isArray(parsed?.actions) ? parsed.actions : [];
 };
 
-const parseSuggestionsFromMessage = (content: string) => {
-  const parsed = parseJsonBlock<{ suggestions?: Array<string | { label?: string; query?: string }> }>(content);
-  return Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
-};
-
 const resolveActionQuery = (action: { id?: string; label?: string; query?: string }, onQuickAction: AIMessageListProps["onQuickAction"]) => {
   const actionId = action.id ?? action.label ?? "";
 
@@ -110,8 +105,7 @@ const resolveActionQuery = (action: { id?: string; label?: string; query?: strin
   onQuickAction(actionId, action.query ?? action.label ?? "");
 };
 
-const renderSuggestions = (content: string, onQuickAction: AIMessageListProps["onQuickAction"]) => {
-  const suggestions = parseSuggestionsFromMessage(content);
+const renderSuggestions = (suggestions: AISuggestion[], onQuickAction: AIMessageListProps["onQuickAction"]) => {
   if (!suggestions.length) return null;
 
   return (
@@ -119,6 +113,7 @@ const renderSuggestions = (content: string, onQuickAction: AIMessageListProps["o
       {suggestions.map((suggestion, idx) => {
         const label = typeof suggestion === "string" ? suggestion : suggestion.label ?? suggestion.query ?? "";
         const query = typeof suggestion === "string" ? suggestion : suggestion.query ?? label;
+        if (!label) return null;
         return (
           <button
             key={idx}
@@ -190,7 +185,9 @@ export function AIMessageList({ messages, onQuickAction }: Readonly<AIMessageLis
                 </div>
               ) : null}
 
-              {message.role === "assistant" ? renderSuggestions(message.content, onQuickAction) : null}
+              {message.role === "assistant" && message.suggestions?.length
+                ? renderSuggestions(message.suggestions, onQuickAction)
+                : null}
             </div>
           </div>
         );

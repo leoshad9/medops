@@ -126,7 +126,7 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
     setIsLoading(true);
 
     try {
-      const response = await getAIResponse(query, timeZone);
+      const response = await getAIResponse(query, timeZone, messages);
       applyActionResolver(response);
       setMessages((prev) => [...prev, response.message]);
     } catch (error) {
