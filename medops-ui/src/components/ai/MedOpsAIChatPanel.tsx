@@ -15,6 +15,11 @@ interface MedOpsAIChatPanelProps {
   firstName?: string;
 }
 
+const CONVERSATION_STORAGE_KEY = "medops_ai_conv";
+// sessionStorage is per browser tab, so this flag marks "this visit has already
+// decided whether to keep the stored conversation" and survives panel remounts.
+const VISIT_MARKER_KEY = "medops_ai_chat_visit";
+
 /** Renders the assistant when open and retains its conversation while mounted. */
 export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Readonly<MedOpsAIChatPanelProps>) {
   const [messages, setMessages] = useState<AIMessage[]>([]);
@@ -24,10 +29,18 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
   // appointment times render in the caller's local zone instead of UTC.
   const timeZone = useMemo<string>(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
-  // Load persisted conversation from localStorage on mount
+  // A new visit always starts from a clean slate: a transcript left behind by an
+  // earlier visit is dropped instead of being replayed. Reopening the panel within
+  // the same visit still restores it, which is what the marker decides.
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("medops_ai_conv");
+      if (!sessionStorage.getItem(VISIT_MARKER_KEY)) {
+        sessionStorage.setItem(VISIT_MARKER_KEY, "1");
+        localStorage.removeItem(CONVERSATION_STORAGE_KEY);
+        return;
+      }
+
+      const raw = localStorage.getItem(CONVERSATION_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as AIMessage[];
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -35,14 +48,14 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
         }
       }
     } catch {
-      // ignore parse errors
+      // ignore storage errors
     }
   }, []);
 
   // Persist conversation whenever messages change
   useEffect(() => {
     try {
-      localStorage.setItem("medops_ai_conv", JSON.stringify(messages));
+      localStorage.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify(messages));
     } catch {
       // ignore storage errors
     }
@@ -51,14 +64,8 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
   if (!isOpen) return null;
 
   /** Sends the query associated with a selected quick action. */
-  const handleQuickAction = (actionId: string, query: string) => {
-    if (actionId === "back") {
-      if (isLoading) return;
-      // Reset conversation to show quick actions and greeting again
-      setMessages([]);
-      setInputValue("");
-      return;
-    }
+  const handleQuickAction = (_actionId: string, query: string) => {
+    if (isLoading) return;
     handleSendQuery(query);
   };
 
@@ -67,9 +74,9 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
     setMessages([]);
     setInputValue("");
     try {
-      localStorage.removeItem("medops_ai_conv");
+      localStorage.removeItem(CONVERSATION_STORAGE_KEY);
     } catch {
-      // ignore
+      // ignore storage errors
     }
   };
 
@@ -181,14 +188,14 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
         </button>
       </div>
 
-      <div className="p-3 sm:p-4">
+      <div className="px-3 pt-2 sm:px-4 sm:pt-3">
         <button
           type="button"
           onClick={handleResetConversation}
           disabled={isLoading}
           className="text-xs text-brand-muted hover:text-brand-ink disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Reset conversation
+          Reset chat
         </button>
       </div>
 

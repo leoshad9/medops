@@ -28,13 +28,6 @@ const QUICK_ACTIONS: QuickActionItem[] = [
   { id: "help", label: "Using MedOps", icon: HelpCircle, query: "How do I use the MedOps patient portal? What features are available?" },
 ];
 
-const BACK_ACTION: QuickActionItem = {
-  id: "back",
-  label: "Back to main",
-  icon: HelpCircle,
-  query: "Back to main",
-};
-
 const markdownComponents: Components = {
   p: ({ node: _node, ...props }) => (
     <p {...props} className="mb-1 last:mb-0 whitespace-pre-wrap leading-relaxed" />
@@ -131,17 +124,14 @@ const renderSuggestions = (suggestions: AISuggestion[], onQuickAction: AIMessage
   );
 };
 
-/** Renders the conversation and shows quick actions until a patient message is present. */
+/**
+ * Renders the conversation and keeps the topic chips reachable under every turn: they
+ * are the fastest way to jump to another subject mid-conversation, and a footer that
+ * emptied itself after the first question left no way to switch topics at all.
+ */
 export function AIMessageList({ messages, onQuickAction, isPending = false }: Readonly<AIMessageListProps>) {
   const hasUserMessage = messages.some((m) => m.role === "user");
-  const showQuickActions = messages.length <= 1 && !hasUserMessage;
-
-  // The topic chips and "Back to main" serve opposite moments. The chips are only
-  // useful before the first question; "Back to main" is only useful after one, when
-  // the rest of the row has gone. Rendering them together put the only control that
-  // can return you to this list in the one state where there is nothing to return
-  // from, and dropped it in the state where it is needed.
-  const footerActions = showQuickActions ? QUICK_ACTIONS : hasUserMessage ? [BACK_ACTION] : [];
+  const showTopicHeading = messages.length <= 1 && !hasUserMessage;
 
   return (
     <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
@@ -196,28 +186,26 @@ export function AIMessageList({ messages, onQuickAction, isPending = false }: Re
         );
       })}
 
-      {footerActions.length > 0 && (
-        <div className="mt-4">
-          {showQuickActions && <p className="text-xs font-semibold text-brand-muted mb-2">What can I help you with?</p>}
-          <div className="flex flex-wrap gap-2">
-            {footerActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  onClick={() => onQuickAction(action.id, action.query)}
-                  disabled={isPending}
-                  className="flex items-center gap-1.5 rounded-full border border-brand-line bg-white px-3 py-1.5 text-xs font-medium text-brand-ink transition hover:border-brand-primary hover:bg-brand-paper cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Icon className="h-3 w-3 text-brand-primary" />
-                  {action.label}
-                </button>
-              );
-            })}
-          </div>
+      <div className="mt-4">
+        {showTopicHeading && <p className="text-xs font-semibold text-brand-muted mb-2">What can I help you with?</p>}
+        <div className="flex flex-wrap gap-2">
+          {QUICK_ACTIONS.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => onQuickAction(action.id, action.query)}
+                disabled={isPending}
+                className="flex items-center gap-1.5 rounded-full border border-brand-line bg-white px-3 py-1.5 text-xs font-medium text-brand-ink transition hover:border-brand-primary hover:bg-brand-paper cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Icon className="h-3 w-3 text-brand-primary" />
+                {action.label}
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
     </div>
   );
 }

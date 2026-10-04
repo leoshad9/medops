@@ -145,7 +145,7 @@ describe("AIMessageList", () => {
     expect(html).not.toContain("**September 25**");
   });
 
-  it("shows the topic chips on arrival but not 'Back to main'", () => {
+  it("shows the topic chips on arrival", () => {
     const messages: AIMessage[] = [
       {
         id: "1",
@@ -161,11 +161,11 @@ describe("AIMessageList", () => {
 
     expect(html).toContain("Appointments");
     expect(html).toContain("Using MedOps");
-    // Nothing to return from yet, so the control would be dead weight.
+    // Leaving the conversation is the panel's own control, not a chip.
     expect(html).not.toContain("Back to main");
   });
 
-  it("replaces the topic chips with 'Back to main' once the patient has asked something", () => {
+  it("keeps the topic chips once the patient has asked something", () => {
     const messages: AIMessage[] = [
       {
         id: "1",
@@ -185,12 +185,16 @@ describe("AIMessageList", () => {
       <AIMessageList messages={messages} onQuickAction={() => {}} />
     );
 
-    expect(html).toContain("Back to main");
+    // Jumping to another subject from mid-conversation is the point of the row,
+    // so the chips stay instead of being replaced by a way back to the menu.
+    expect(html).toContain("Appointments");
+    expect(html).toContain("Using MedOps");
+    expect(html).not.toContain("Back to main");
+    // The heading introduces the menu on arrival only.
     expect(html).not.toContain("What can I help you with?");
-    expect(html).not.toContain("Using MedOps");
   });
 
-  it("disables 'Back to main' until the assistant reply has finished rendering", () => {
+  it("disables the topic chips until the assistant reply has finished rendering", () => {
     const messages: AIMessage[] = [
       {
         id: "1",
@@ -206,9 +210,8 @@ describe("AIMessageList", () => {
       },
     ];
 
-    // The chip swaps to "Back to main" the instant the question is sent, so the
-    // control was live while the reply was still in flight. Clearing the
-    // conversation then left the pending reply to land on an empty transcript.
+    // The chips used to vanish with the menu as soon as a question was sent, so a
+    // second click during the pending reply was impossible to reason about.
     const pending = renderToStaticMarkup(
       <AIMessageList messages={messages} onQuickAction={() => {}} isPending />
     );
@@ -216,7 +219,7 @@ describe("AIMessageList", () => {
       <AIMessageList messages={messages} onQuickAction={() => {}} />
     );
 
-    expect(pending).toMatch(/<button[^>]*\sdisabled=""[^>]*>[\s\S]*?Back to main/);
+    expect(pending).toMatch(/<button[^>]*\sdisabled=""[^>]*>[\s\S]*?Appointments/);
     expect(settled).not.toMatch(/\sdisabled=""/);
   });
 
