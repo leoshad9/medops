@@ -34,6 +34,13 @@ on:
   workflow_dispatch:
 
 permissions:
+  # Naming any scope here sets every unlisted scope to none, so the three
+  # below are all required and cannot be inferred. Without contents: read the
+  # checkout has no token to fetch with, and without security-events: write the
+  # scanner analyses the code but cannot publish the results to the Code
+  # Scanning tab, which is the stated purpose of this workflow.
+  contents: read # actions/checkout fetching the repository
+  security-events: write # importing SonarQube findings into Code Scanning
   pull-requests: read # allows SonarQube to decorate PRs with analysis results
 
 jobs:
