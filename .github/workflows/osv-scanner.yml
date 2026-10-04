@@ -28,21 +28,32 @@ permissions:
   contents: read
 
 jobs:
+  # Scan only the manifest OSV-Scanner can resolve to exact versions.
+  #
+  # The job used to scan the whole repository (`-r --skip-git ./`), which put two
+  # manifests it cannot evaluate in scope, and every push failed on the resulting
+  # false positives (verified locally with the same v1.7.1 image):
+  #
+  #   medops-ai/requirements.txt - 56 advisories against the *range* strings
+  #     themselves ("pypdf 6.19.0,<7", "uvicorn 0.54.0,<1", ...). OSV-Scanner 1.x
+  #     does not evaluate PEP 440 ranges, so e.g. GHSA-8h2j-cgx8-6xv7 (FastAPI
+  #     CSRF, fixed in 0.65.2) was reported against fastapi>=0.141.1,<1.
+  #   medops-api/pom.xml - 8 advisories reported at version "0", because every
+  #     version there comes from the spring-boot-starter-parent 4.1.1 BOM.
+  #
+  # package-lock.json pins exact versions, so the scanner evaluates it correctly:
+  # 336 packages, 0 advisories, exit 0. Python and Java stay covered by
+  # security-scan.yml, which uses resolvers that do understand ranges and the
+  # Maven BOM: `pip-audit -r requirements.txt` (clean) and OWASP dependency-check.
   scan-scheduled:
     if: ${{ github.event_name == 'push' || github.event_name == 'schedule' }}
     uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78" # v1.7.1
     with:
-      # Example of specifying custom arguments
       scan-args: |-
-        -r
-        --skip-git
-        ./
+        ./medops-ui/package-lock.json
   scan-pr:
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
     uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78" # v1.7.1
     with:
-      # Example of specifying custom arguments
       scan-args: |-
-        -r
-        --skip-git
-        ./
+        ./medops-ui/package-lock.json

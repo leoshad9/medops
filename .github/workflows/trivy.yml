@@ -25,24 +25,38 @@ jobs:
       actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
     name: Build
     runs-on: ubuntu-latest
+    # Each service owns its Dockerfile and expects its own directory as the build
+    # context (they all COPY pom.xml / requirements.txt / package.json from the
+    # context root). The previous single build ran `docker build .` at the repo
+    # root, where there is no Dockerfile, so every run died with "failed to read
+    # dockerfile" before Trivy ever started.
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [medops-api, medops-ai, medops-ui]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build an image from Dockerfile
-        run: |
-          docker build -t docker.io/my-organization/my-app:${{ github.sha }} .
+        run: docker build -t "medops-${{ matrix.service }}:${{ github.sha }}" "${{ matrix.service }}"
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
         with:
-          image-ref: 'docker.io/my-organization/my-app:${{ github.sha }}'
+          # Trivy resolves this against the runner's local Docker daemon, so the tag
+          # built above does not have to be pushed to a registry.
+          image-ref: "medops-${{ matrix.service }}:${{ github.sha }}"
           format: 'template'
           template: '@/contrib/sarif.tpl'
-          output: 'trivy-results.sarif'
+          output: "trivy-results-${{ matrix.service }}.sarif"
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results-${{ matrix.service }}.sarif"
+          # One category per matrix leg; uploading them all as the default
+          # category would have the three uploads overwrite each other.
+          category: "trivy-${{ matrix.service }}"
