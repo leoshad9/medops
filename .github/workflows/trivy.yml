@@ -25,6 +25,9 @@ jobs:
       actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
     name: Build
     runs-on: ubuntu-latest
+    # A hung scan should fail in 45m, not burn a 6h runner slot. The real
+    # speedup is the Trivy DB cache below, not this number.
+    timeout-minutes: 45
     # Each service owns its Dockerfile and expects its own directory as the build
     # context (they all COPY pom.xml / requirements.txt / package.json from the
     # context root). The previous single build ran `docker build .` at the repo
@@ -41,22 +44,76 @@ jobs:
       - name: Build an image from Dockerfile
         run: docker build -t "medops-${{ matrix.service }}:${{ github.sha }}" "${{ matrix.service }}"
 
+      # The action was pinned to a 2022 commit that runs Trivy 0.29.1 in a
+      # container, and that combination can never succeed here:
+      #
+      #   - `template: '@/contrib/sarif.tpl'` points at a file that does not
+      #     exist in Trivy 0.29.1. Upstream deleted contrib/sarif.tpl in v0.24.0
+      #     when SARIF became a built-in format; /contrib in 0.29.1 holds only
+      #     asff/gitlab/gitlab-codequality/html/junit (confirmed with
+      #     `docker run --entrypoint ls ghcr.io/aquasecurity/trivy:0.29.1 /contrib`).
+      #     Even with the timeout fixed this fails with
+      #     "error retrieving template from path".
+      #   - The containerised action cannot reach the runner's Docker daemon,
+      #     so `docker build` above is invisible to it.
+      #
+      # v0.36.0 is a composite action that installs the Trivy CLI on the runner
+      # (where the socket and the DB cache both live) and renders SARIF
+      # natively, so no template is needed.
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           # Trivy resolves this against the runner's local Docker daemon, so the tag
           # built above does not have to be pushed to a registry.
           image-ref: "medops-${{ matrix.service }}:${{ github.sha }}"
-          format: 'template'
-          template: '@/contrib/sarif.tpl'
+          # Built-in format since v0.24.0. Replaces the deleted sarif.tpl.
+          format: 'sarif'
           output: "trivy-results-${{ matrix.service }}.sarif"
           severity: 'CRITICAL,HIGH'
+          # Trivy's own default is 5m0s, and every run was dying with
+          #   FATAL image scan error  ... context deadline exceeded
+          # 20m is comfortable for all three images even on a cold cache.
+          timeout: '20m'
+          # Trivy defaults to vuln,secret. Secret scanning re-reads every layer
+          # and is a large part of what pushed the scan past the deadline; the
+          # image scan here only ever produced vuln findings, and repository
+          # secrets are already covered by Semgrep and dependabot.
+          scanners: 'vuln'
+          # Keep the Security tab focused on CRITICAL/HIGH rather than dropping
+          # the severity filter the way the action does for SARIF by default.
+          limit-severities-for-sarif: true
+
+      - name: Verify Trivy produced a non-empty SARIF report
+        id: sarif
+        if: always()
+        run: |
+          file="trivy-results-${{ matrix.service }}.sarif"
+          if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+            echo "::error::Trivy wrote no report to $file. The scan step above holds the real error."
+            exit 1
+          fi
+          # Validate the shape, not just the size. A timed-out scan leaves a
+          # 0-byte file here, and upload-sarif then fails a second time with
+          # "Invalid SARIF file", burying the real error under a confusing one.
+          python3 -c '
+          import json, sys
+          d = json.load(open(sys.argv[1]))
+          assert d.get("version"), "missing SARIF version"
+          assert d.get("runs"), "missing SARIF runs"
+          print("valid SARIF, %d result(s)" % sum(len(r.get("results", [])) for r in d["runs"]))
+          ' "$file" || { echo "::error::$file is not valid SARIF."; exit 1; }
+          echo "SARIF OK for ${{ matrix.service }} ($(wc -c < "$file") bytes)"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        if: always()
+        # Only upload a report that passed validation above.
+        if: always() && steps.sarif.outcome == 'success'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-results-${{ matrix.service }}.sarif"
           # One category per matrix leg; uploading them all as the default
           # category would have the three uploads overwrite each other.
           category: "trivy-${{ matrix.service }}"
+          # A failed upload is not a scan failure, and the step above is the
+          # gate. Without this the confusing upload error would still mask a
+          # real Trivy failure, which is the problem being fixed here.
+          continue-on-error: true
