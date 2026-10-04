@@ -94,34 +94,32 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}   # Generate token on SonarQube, add it to the secrets of this repo with the name SONAR_TOKEN (Settings > Secrets > Actions > add new repository secret)
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}   # add the URL of your instance to the secrets of this repo with the name SONAR_HOST_URL (Settings > Secrets > Actions > add new repository secret)
         with:
-          # Additional arguments for the SonarQube scanner.
+          # Scanner arguments. Every line in this block is passed to
+          # sonar-scanner verbatim, so it must contain nothing but -D flags:
+          # a '#' line is forwarded as a bare word and the scanner aborts with
+          # "Unrecognized option: #". Explanations belong in the comments
+          # above this key, not inside it.
+          #
+          # Coverage needs both the compiled classes and the JaCoCo XML, and
+          # the scanner runs from the repository root, so it can infer neither
+          # the way sonar-maven-plugin would. The property takes the XML file
+          # itself, not its directory; there is no sonar.coverageReportLocation,
+          # and Sonar ignores an unknown property and reports coverage as absent.
+          #
+          # sonar.junit.reportPaths is singular. The plural
+          # sonar.junit.reportsPath is the deprecated form. Both directories
+          # are listed because surefire and failsafe emit the same XML format.
+          #
+          # coverage.exclusions is kept separate from sonar.exclusions on
+          # purpose: untestable code (records, entities, config, generated
+          # OpenAPI, the entrypoint) leaves the coverage denominator, but is
+          # still scanned for real smells.
           args: |
             -Dsonar.projectKey=medops
             -Dsonar.sources=medops-api/src/main/java,medops-ai/app,medops-ui/src
             -Dsonar.projectBaseDir=.
             -Dsonar.tests=medops-api/src/test/java,medops-ai/tests,medops-ui/src/test
-            # Required for coverage: the scanner runs from the repository root,
-            # so it cannot infer either path the way sonar-maven-plugin would.
-            # The property is sonar.coverage.jacoco.xmlReportPaths, and it takes
-            # the XML file itself, not the directory holding it. There is no
-            # sonar.coverageReportLocation; Sonar ignores an unknown property
-            # and reports coverage as absent, which is the symptom this is
-            # meant to fix. The corpus in ups_pom.txt used the deprecated
-            # binary-format sonar.jacoco.reportPath plus a separate
-            # sonar.jacoco.itReportPath; both are superseded.
             -Dsonar.java.binaries=medops-api/target/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=medops-api/target/site/jacoco/jacoco.xml
-            # Without this Sonar imports the coverage above but reports zero
-            # tests, because it cannot link JUnit results to source files. Both
-            # directories are listed: surefire ran the 59 unit classes and
-            # failsafe ran the two *IT classes, and both emit the same XML
-            # format. Note the singular reportPaths; the plural
-            # sonar.junit.reportsPath is the deprecated form.
             -Dsonar.junit.reportPaths=medops-api/target/surefire-reports,medops-api/target/failsafe-reports
-            # Kept separate from sonar.exclusions on purpose. This list is
-            # untestable code, excluded from the coverage denominator only:
-            # records and entities with no behaviour, configuration, generated
-            # OpenAPI, and the application entrypoint. Excluding these from
-            # sonar.exclusions as well would hide real smells in them.
             -Dsonar.coverage.exclusions=medops-api/src/main/java/com/medops/**/api/dto/**,medops-api/src/main/java/com/medops/**/domain/**,medops-api/src/main/java/com/medops/**/infrastructure/persistence/**,medops-api/src/main/java/com/medops/**/config/**,medops-api/src/main/java/com/medops/MedopsApiApplication.java,medops-ai/app/schemas/**,medops-ui/src/**/*.d.ts
-            # -Dsonar.verbose=true
