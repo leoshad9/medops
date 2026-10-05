@@ -1,0 +1,102 @@
+# Observability overlay: Prometheus + Grafana.
+#
+#   local: docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.observability.yml up -d
+#   prod:  docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.observability.yml --env-file .env up -d
+#
+# Ports are bound to 127.0.0.1, never 0.0.0.0. These services hold operational
+# data (endpoint latencies, JVM state) and an admin console with no useful
+# public side, so reach them over an SSH tunnel:
+#   ssh -L 3000:127.0.0.1:3000 -L 9090:127.0.0.1:9090 ec2-user@<host>
+#
+# Both are optional and were deliberately kept out of docker-compose.yml so that
+# the base stack a contributor starts with stays the four services the app
+# actually needs.
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    # --storage.tsdb.retention.time keeps the on-disk series window to 15 days.
+    # Unbounded retention on a small EC2 disk is the usual way this fills up.
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/rules.yml:/etc/prometheus/rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:${LOCAL_PROMETHEUS_PORT:-9090}:9090"
+    # Grafana reads this over the compose network, so Grafana depends on it being
+    # up; Prometheus does not depend on medops-api, because a target that is down
+    # is exactly what it exists to record.
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    restart: unless-stopped
+    environment:
+      # No default. An unset GF_SECURITY_ADMIN_PASSWORD leaves the admin account
+      # on admin/admin, which is a published credential on any host reachable
+      # port 3000. Fail loudly instead.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?Set GRAFANA_PASSWORD in .env}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      # Provision the Prometheus datasource from the mounted file so it exists on
+      # first boot and dashboards do not have to be wired up by hand each time.
+      GF_PROVISIONING_DATASOURCES_NAME: medops
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # Docker's own rootless UID mapping breaks Grafana's permission model on
+      # the data volume; these are the documented workarounds.
+      GF_INSTALL_PLUGINS: ""
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_LOG_LEVEL: warn
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${LOCAL_GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
+  # Dynatrace OneAgent, attached as a sidecar to medops-api rather than as a
+  # host-level agent. Java auto-instruments on startup from DT_TOKEN and
+  # DT_CONNECTION_URL, so medops-api needs no code changes and no agent jar.
+  #
+  # Behind the "dynatrace" profile, so it does not start with a plain `up -d`.
+  # DT_ENABLED defaults to false as well: leaving the sidecar off means no
+  # telemetry leaves the host, which is the right default for a clinical app
+  # until someone has confirmed what Dynatrace does with request paths. Route
+  # templates and exception messages can carry patient identifiers, so settle
+  # the data governance question before enabling this in prod.
+  #
+  # Requires membership of the docker group on the host, since OneAgent mounts
+  # /var/run/docker.sock.
+  oneagent:
+    image: public.ecr.aws/dynatrace/dynatrace-oneagent:latest
+    profiles: ["dynatrace"]
+    restart: unless-stopped
+    environment:
+      DT_TOKEN: ${DT_TOKEN:-}
+      DT_CONNECTION_URL: ${DT_CONNECTION_URL:-}
+      DT_ENVIRONMENT_URL: ${DT_ENVIRONMENT_URL:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - oneagent_data:/var/lib/dynatrace/oneagent
+    # Deploy the OneAgent code modules into the API container.
+    labels:
+      oneagent-inject: "true"
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  oneagent_data:
+

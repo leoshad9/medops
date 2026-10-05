@@ -1,0 +1,48 @@
+# Prometheus scrape configuration for medops.
+#
+# Mounted read-only by docker-compose.observability.yml. Prometheus is the
+# collector; Grafana only reads from it. The app never talks to either.
+#
+# Targets use compose service names, not localhost. Inside the compose network
+# `medops-api:8080` resolves to the API container, whereas `localhost` would be
+# Prometheus's own container.
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    app: medops
+    env: ${MEDOPS_ENV:-local}
+
+scrape_configs:
+  - job_name: medops-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["medops-api:8080"]
+        labels:
+          service: medops-api
+    # Relabel instead of hardcoding honor_labels, so the job name shown in
+    # Grafana stays medops-api regardless of what the app's own labels say.
+    metric_relabel_configs:
+      # http_server_requests_seconds carries the full URI template as a label,
+      # which is high-cardinality per endpoint and per status. Dropping uri here
+      # keeps request-rate panels from hitting Prometheus' label limit as the
+      # endpoint count grows. /actuator/prometheus itself is a high-frequency,
+      # never-interesting series, so exclude it by exact path.
+      - source_labels: [__name__, uri]
+        regex: 'http_server_requests_seconds;.*actuator.*'
+        action: drop
+      - source_labels: [uri]
+        regex: '/actuator(/.*)?'
+        action: drop
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+# Alerting rules kept in-file rather than in Grafana so a missed dashboard
+# refresh still surfaces a problem. Grafana can alert too; this is the layer
+# that works when Grafana is the thing that is down.
+rule_files:
+  - /etc/prometheus/rules.yml

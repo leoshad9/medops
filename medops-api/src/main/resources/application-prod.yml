@@ -53,12 +53,23 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        # health for the container healthcheck and load balancer; prometheus for
+        # the scrape in ops/prometheus.yml. Nothing else: /actuator/env,
+        # /actuator/configprops and /actuator/heapdump would leak JWT_SECRET,
+        # DB_PASSWORD and OTP HMAC material to anything that can reach the port.
+        # prometheus is safe to expose because it carries counters and timings,
+        # not configuration, and nothing outside the compose network can reach it.
+        include: health,prometheus
   endpoint:
     health:
       probes:
         enabled: true
       show-details: never
+    prometheus:
+      # Stable names with no _total suffixes and a bounded cardinality, so
+      # dashboard queries written against these do not silently change shape
+      # between Spring Boot upgrades.
+      access: read_only
   health:
     redis:
       enabled: true

@@ -1,0 +1,20 @@
+# Grafana dashboard provisioning.
+#
+# Loads every dashboard JSON in /var/lib/grafana/dashboards on boot and refreshes
+# on save, so a dashboard can be edited and committed without hand-importing it
+# through the UI. allowUiUpdates is false so the UI cannot silently overwrite the
+# committed copy.
+
+apiVersion: 1
+
+providers:
+  - name: medops
+    orgId: 1
+    folder: medops
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

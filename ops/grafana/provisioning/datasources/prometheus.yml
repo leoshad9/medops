@@ -1,0 +1,23 @@
+# Grafana datasource provisioning.
+#
+# Defines the Prometheus datasource on first boot so dashboards can reference it
+# by the fixed name "medops-prometheus" and work without manual setup. uid is
+# pinned because provisioned dashboards reference the datasource by uid, not name.
+
+apiVersion: 1
+
+datasources:
+  - name: medops-prometheus
+    uid: medops-prometheus
+    type: prometheus
+    access: proxy
+    # Service name on the compose network, never localhost: Grafana's own
+    # container is what localhost refers to here.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # Matches scrape_interval in ops/prometheus.yml. Leaving this at the 1m
+      # default makes every panel resample coarser than the data actually is.
+      timeInterval: 15s
+      httpMethod: POST

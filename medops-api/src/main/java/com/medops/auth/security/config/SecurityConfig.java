@@ -38,7 +38,15 @@ public class SecurityConfig {
     private static final String[] ALWAYS_PUBLIC = {
             "/api/auth/**",
             "/actuator/health",
-            "/actuator/health/**"
+            "/actuator/health/**",
+            // Unauthenticated so Prometheus can scrape without a credential, but
+            // only the metrics endpoint: no env, configprops or heapdump, which
+            // would disclose JWT_SECRET, DB_PASSWORD and the OTP HMAC key.
+            // Unreachable from outside the deployment: medops-api publishes no
+            // host port in docker-compose.prod.yml, and nginx returns 404 for
+            // /actuator/ (medops-ui/nginx.conf), so only containers on the
+            // compose network and the local dev overlay can reach this.
+            "/actuator/prometheus"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;

@@ -1,0 +1,73 @@
+# Alerting rules. Mounted read-only at /etc/prometheus/rules.yml by
+# docker-compose.observability.yml and referenced from prometheus.yml.
+#
+# Thresholds are deliberately loose. They are tuned to fire on the failure modes
+# that actually broke this deployment before, not on generic best-practice
+# numbers: the 2026-10-02 crash-loop (app unreachable) and the report-summarizer
+# circuit breaker opening (downstream AI service degraded).
+
+groups:
+  - name: medops-api-availability
+    rules:
+      # The API being unable to serve at all. Annotates as the page, since the
+      # health endpoint is what the compose healthcheck already polls.
+      - alert: MedopsApiDown
+        expr: up{job="medops-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: medops-api is not responding to scrapes
+          description: >-
+            Prometheus has failed to scrape medops-api for 2 minutes. Either the
+            container is down or /actuator/prometheus is not being served.
+
+      # Rising 5xx rate. break_in_seconds > scrape_interval*2 so a single slow
+      # scrape cannot flap the alert.
+      - alert: MedopsApiHighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="medops-api",status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_server_requests_seconds_count{job="medops-api"}[5m])), 0.001)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: medops-api 5xx rate above 5%
+          description: >-
+            More than 5% of requests have failed with 5xx for 5 minutes. Check the
+            application logs before the circuit breakers below start tripping.
+
+  - name: medops-api-runtime
+    rules:
+      # JVM heap pressure. MaxHeapMemory is the JVM's own ceiling, so this is a
+      # true percentage rather than a guess at a container limit.
+      - alert: MedopsApiHeapPressure
+        expr: |
+          sum(jvm_memory_used_bytes{job="medops-api",area="heap"})
+          /
+          sum(jvm_memory_max_bytes{job="medops-api",area="heap"}) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: medops-api heap above 85%
+          description: >-
+            Sustained heap pressure. JAVA_OPTS caps this at -Xmx512m in the prod
+            overlay, so sustained use near that limit risks GC thrashing.
+
+  - name: medops-api-resilience4j
+    rules:
+      # The circuit breaker guarding the report summarizer, which calls the AI
+      # service. state=open means calls are being rejected outright.
+      - alert: ReportSummarizerCircuitOpen
+        expr: resilience4j_circuitbreaker_state_total{job="medops-api",name="reportSummarizer",state="open"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: reportSummarizer circuit breaker is open
+          description: >-
+            Calls to the AI summarizer are being rejected. Check medops-ai health
+            first; this fires on its failures, not on its own.
