@@ -24,6 +24,7 @@ replay_pid*
 !.vscode/settings.json
 .cursor/
 .amazonq/
+.sonarlint/
 
 # Keep Actions workflows tracked; ignore other local .github tooling
 .github/*
