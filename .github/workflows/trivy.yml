@@ -39,7 +39,7 @@ jobs:
         service: [medops-api, medops-ai, medops-ui]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Build an image from Dockerfile
         run: docker build -t "medops-${{ matrix.service }}:${{ github.sha }}" "${{ matrix.service }}"
@@ -107,7 +107,7 @@ jobs:
       - name: Upload Trivy scan results to GitHub Security tab
         # Only upload a report that passed validation above.
         if: always() && steps.sarif.outcome == 'success'
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@3f3e1c1e1c1e1c1e1c1e1c1e1c1e1c1e1c1e1c1e # v4.0.1
         with:
           sarif_file: "trivy-results-${{ matrix.service }}.sarif"
           # One category per matrix leg; uploading them all as the default

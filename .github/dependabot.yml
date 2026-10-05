@@ -4,33 +4,47 @@ updates:
     directory: "/medops-api"
     schedule:
       interval: "weekly"
+    cooldown:
+      days: 7
 
   - package-ecosystem: "pip"
     directory: "/medops-ai"
     schedule:
       interval: "weekly"
+    cooldown:
+      days: 7
 
   - package-ecosystem: "npm"
     directory: "/medops-ui"
     schedule:
       interval: "weekly"
+    cooldown:
+      days: 7
 
   - package-ecosystem: "docker"
     directory: "/medops-api"
     schedule:
       interval: "weekly"
+    cooldown:
+      days: 7
 
   - package-ecosystem: "docker"
     directory: "/medops-ai"
     schedule:
       interval: "weekly"
+    cooldown:
+      days: 7
 
   - package-ecosystem: "docker"
     directory: "/medops-ui"
     schedule:
       interval: "weekly"
+    cooldown:
+      days: 7
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      days: 7
