@@ -107,7 +107,7 @@ jobs:
       - name: Upload Trivy scan results to GitHub Security tab
         # Only upload a report that passed validation above.
         if: always() && steps.sarif.outcome == 'success'
-        uses: github/codeql-action/upload-sarif@3f3e1c1e1c1e1c1e1c1e1c1e1c1e1c1e1c1e1c1e # v4.0.1
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
         with:
           sarif_file: "trivy-results-${{ matrix.service }}.sarif"
           # One category per matrix leg; uploading them all as the default
