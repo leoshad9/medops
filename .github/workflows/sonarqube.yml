@@ -121,7 +121,12 @@ jobs:
           # purpose: untestable code (records, entities, config, generated
           # OpenAPI, the entrypoint) leaves the coverage denominator, but is
           # still scanned for real smells.
+          # sonar.organization is mandatory on SonarCloud and rejected by
+          # self-hosted SonarQube Server, which keys projects without it. The
+          # endpoint is a secret, so this is the one place the target platform
+          # has to be stated in the clear; change both together if you move.
           args: |
+            -Dsonar.organization=leoshad9
             -Dsonar.projectKey=medops
             -Dsonar.sources=medops-api/src/main/java,medops-ai/app,medops-ui/src
             -Dsonar.projectBaseDir=.
