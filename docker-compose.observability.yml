@@ -18,13 +18,23 @@ services:
     restart: unless-stopped
     # --storage.tsdb.retention.time keeps the on-disk series window to 15 days.
     # Unbounded retention on a small EC2 disk is the usual way this fills up.
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}"
-      - "--web.enable-lifecycle"
+    entrypoint:
+      - "/bin/sh"
+      - "-c"
+      - |
+        sed -e "s|\$${PROMETHEUS_REMOTE_WRITE_URL}|$${PROMETHEUS_REMOTE_WRITE_URL}|g" \
+            -e "s|\$${PROMETHEUS_REMOTE_WRITE_USER}|$${PROMETHEUS_REMOTE_WRITE_USER}|g" \
+            -e "s|\$${PROMETHEUS_REMOTE_WRITE_PASSWORD}|$${PROMETHEUS_REMOTE_WRITE_PASSWORD}|g" \
+            -e "s|\$${MEDOPS_ENV:-local}|$${MEDOPS_ENV:-local}|g" \
+            /etc/prometheus/prometheus.yml.tmpl > /etc/prometheus/prometheus.yml
+        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d} --web.enable-lifecycle
+    environment:
+      PROMETHEUS_REMOTE_WRITE_URL: ${PROMETHEUS_REMOTE_WRITE_URL:-}
+      PROMETHEUS_REMOTE_WRITE_USER: ${PROMETHEUS_REMOTE_WRITE_USER:-}
+      PROMETHEUS_REMOTE_WRITE_PASSWORD: ${PROMETHEUS_REMOTE_WRITE_PASSWORD:-}
+      MEDOPS_ENV: ${MEDOPS_ENV:-local}
     volumes:
-      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/prometheus.yml.tmpl:/etc/prometheus/prometheus.yml.tmpl:ro
       - ./ops/rules.yml:/etc/prometheus/rules.yml:ro
       - prometheus_data:/prometheus
     ports:

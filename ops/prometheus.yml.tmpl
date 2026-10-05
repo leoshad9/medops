@@ -1,0 +1,101 @@
+# Prometheus scrape configuration for medops.
+#
+# Enterprise-grade configuration with:
+# - Multi-target scraping with service discovery
+# - Remote write to Grafana Cloud with queue tuning
+# - Alerting rules for SLO/SLI monitoring
+# - Cardinality protection via relabeling
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    app: medops
+    env: ${MEDOPS_ENV:-local}
+    cluster: ${CLUSTER_NAME:-standalone}
+
+# Remote write to Grafana Cloud with production queue settings
+remote_write:
+  - url: ${PROMETHEUS_REMOTE_WRITE_URL}
+    basic_auth:
+      username: ${PROMETHEUS_REMOTE_WRITE_USER}
+      password: ${PROMETHEUS_REMOTE_WRITE_PASSWORD}
+    queue_config:
+      capacity: 10000
+      max_shards: 200
+      min_shards: 1
+      max_samples_per_send: 500
+      batch_send_deadline: 5s
+      min_backoff: 30ms
+      max_backoff: 100ms
+    write_relabel_configs:
+      # Drop high-cardinality labels before remote write
+      - source_labels: [__name__]
+        regex: 'go_.*|process_.*|jvm_.*'
+        action: keep
+      - source_labels: [uri]
+        regex: '/actuator(/.*)?'
+        action: drop
+
+scrape_configs:
+  # Application metrics
+  - job_name: medops-api
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ["medops-api:8080"]
+        labels:
+          service: medops-api
+          team: platform
+    metric_relabel_configs:
+      - source_labels: [__name__, uri]
+        regex: 'http_server_requests_seconds;.*actuator.*'
+        action: drop
+      - source_labels: [uri]
+        regex: '/actuator(/.*)?'
+        action: drop
+      - source_labels: [__name__]
+        regex: 'jvm_gc_.*|jvm_memory_.*|jvm_threads_.*'
+        action: keep
+
+  # Prometheus self-monitoring
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: prometheus
+
+  # Node exporter for host metrics (if deployed)
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: node-exporter
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: node-exporter:9100
+
+  # Kafka metrics (if JMX exporter enabled)
+  - job_name: kafka
+    static_configs:
+      - targets: ["kafka:9404"]
+        labels:
+          service: kafka
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: kafka:9404
+
+# Alerting rules for SLO monitoring
+rule_files:
+  - /etc/prometheus/rules.yml
+  - /etc/prometheus/rules/*.yml

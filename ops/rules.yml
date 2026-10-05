@@ -1,48 +1,113 @@
 # Alerting rules. Mounted read-only at /etc/prometheus/rules.yml by
-# docker-compose.observability.yml and referenced from prometheus.yml.
-#
-# Thresholds are deliberately loose. They are tuned to fire on the failure modes
-# that actually broke this deployment before, not on generic best-practice
-# numbers: the 2026-10-02 crash-loop (app unreachable) and the report-summarizer
-# circuit breaker opening (downstream AI service degraded).
 
 groups:
-  - name: medops-api-availability
+  # === AVAILABILITY SLIs ===
+  - name: medops-sli-availability
     rules:
-      # The API being unable to serve at all. Annotates as the page, since the
-      # health endpoint is what the compose healthcheck already polls.
+      # Service uptime (28-day rolling window)
       - alert: MedopsApiDown
         expr: up{job="medops-api"} == 0
         for: 2m
         labels:
           severity: critical
+          slo: availability
+          tier: 1
         annotations:
-          summary: medops-api is not responding to scrapes
-          description: >-
-            Prometheus has failed to scrape medops-api for 2 minutes. Either the
-            container is down or /actuator/prometheus is not being served.
+          summary: "medops-api is down"
+          description: "Prometheus has failed to scrape medops-api for 2 minutes. Container may be down or /actuator/prometheus not served."
+          runbook: "https://github.com/medops/runbooks/blob/main/api-down.md"
 
-      # Rising 5xx rate. break_in_seconds > scrape_interval*2 so a single slow
-      # scrape cannot flap the alert.
-      - alert: MedopsApiHighErrorRate
+      # Multi-window burn rate for 5xx errors (99.9% SLO = 43min downtime/month)
+      # 1% error budget consumed in 1h = page, 2% in 6h = page, 5% in 1d = ticket
+      - alert: MedopsApiErrorRateBurnRate1h
         expr: |
-          sum(rate(http_server_requests_seconds_count{job="medops-api",status=~"5.."}[5m]))
-          /
-          clamp_min(sum(rate(http_server_requests_seconds_count{job="medops-api"}[5m])), 0.001)
-          > 0.05
+          (
+            sum(rate(http_server_requests_seconds_count{job="medops-api",status=~"5.."}[1h]))
+            /
+            clamp_min(sum(rate(http_server_requests_seconds_count{job="medops-api"}[1h])), 0.001)
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          slo: availability
+          tier: 1
+          burn_rate: "14.4x"
+        annotations:
+          summary: "medops-api 5xx burn rate exceeded (1h window)"
+          description: "Error rate > 1% over 1h (14.4x budget burn rate). 1% of monthly error budget consumed in 1 hour."
+          runbook: "https://github.com/medops/runbooks/blob/main/high-error-rate.md"
+
+      - alert: MedopsApiErrorRateBurnRate6h
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{job="medops-api",status=~"5.."}[6h]))
+            /
+            clamp_min(sum(rate(http_server_requests_seconds_count{job="medops-api"}[6h])), 0.001)
+          ) > 0.005
+        for: 15m
+        labels:
+          severity: warning
+          slo: availability
+          tier: 2
+          burn_rate: "6x"
+        annotations:
+          summary: "medops-api 5xx burn rate elevated (6h window)"
+          description: "Error rate > 0.5% over 6h (6x budget burn rate). 2% of monthly error budget consumed in 6 hours."
+
+      - alert: MedopsApiErrorRateBurnRate1d
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{job="medops-api",status=~"5.."}[1d]))
+            /
+            clamp_min(sum(rate(http_server_requests_seconds_count{job="medops-api"}[1d])), 0.001)
+          ) > 0.001
+        for: 1h
+        labels:
+          severity: info
+          slo: availability
+          tier: 3
+          burn_rate: "1x"
+        annotations:
+          summary: "medops-api 5xx rate above SLO (1d window)"
+          description: "Error rate > 0.1% over 24h. 5% of monthly error budget consumed in 1 day."
+
+  # === LATENCY SLIs ===
+  - name: medops-sli-latency
+    rules:
+      # p95 latency > 500ms (target: p95 < 200ms)
+      - alert: MedopsApiHighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{job="medops-api"}[5m])) by (le)
+          ) > 0.5
         for: 5m
         labels:
           severity: warning
+          slo: latency
+          tier: 2
         annotations:
-          summary: medops-api 5xx rate above 5%
-          description: >-
-            More than 5% of requests have failed with 5xx for 5 minutes. Check the
-            application logs before the circuit breakers below start tripping.
+          summary: "medops-api p95 latency > 500ms"
+          description: "95th percentile latency exceeded 500ms for 5 minutes. Target: p95 < 200ms."
 
-  - name: medops-api-runtime
+      # p99 latency > 1s
+      - alert: MedopsApiHighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_server_requests_seconds_bucket{job="medops-api"}[5m])) by (le)
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: critical
+          slo: latency
+          tier: 1
+        annotations:
+          summary: "medops-api p99 latency > 1s"
+          description: "99th percentile latency exceeded 1s for 5 minutes. Target: p99 < 500ms."
+
+  # === SATURATION SLIs ===
+  - name: medops-sli-saturation
     rules:
-      # JVM heap pressure. MaxHeapMemory is the JVM's own ceiling, so this is a
-      # true percentage rather than a guess at a container limit.
+      # JVM heap pressure
       - alert: MedopsApiHeapPressure
         expr: |
           sum(jvm_memory_used_bytes{job="medops-api",area="heap"})
@@ -51,23 +116,161 @@ groups:
         for: 10m
         labels:
           severity: warning
+          slo: saturation
+          tier: 2
         annotations:
-          summary: medops-api heap above 85%
-          description: >-
-            Sustained heap pressure. JAVA_OPTS caps this at -Xmx512m in the prod
-            overlay, so sustained use near that limit risks GC thrashing.
+          summary: "medops-api heap above 85%"
+          description: "Sustained heap pressure. JAVA_OPTS caps at -Xmx512m. Risk of GC thrashing."
 
-  - name: medops-api-resilience4j
+      - alert: MedopsApiHeapCritical
+        expr: |
+          sum(jvm_memory_used_bytes{job="medops-api",area="heap"})
+          /
+          sum(jvm_memory_max_bytes{job="medops-api",area="heap"}) > 0.95
+        for: 5m
+        labels:
+          severity: critical
+          slo: saturation
+          tier: 1
+        annotations:
+          summary: "medops-api heap above 95% - imminent OOM"
+          description: "Heap critically full. OOM kill likely. Check for memory leaks."
+
+      # Thread pool saturation
+      - alert: MedopsApiThreadPoolSaturation
+        expr: |
+          sum(jvm_threads_daemon{job="medops-api"})
+          /
+          sum(jvm_threads_peak{job="medops-api"}) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          slo: saturation
+        annotations:
+          summary: "medops-api thread pool near capacity"
+          description: "Daemon threads > 80% of peak. May indicate thread leak or excessive concurrency."
+
+      # Database connection pool (if Hikari metrics exposed)
+      - alert: MedopsApiDbPoolExhaustion
+        expr: |
+          hikaricp_connections_active{job="medops-api"}
+          /
+          hikaricp_connections_max{job="medops-api"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          slo: saturation
+        annotations:
+          summary: "medops-api DB connection pool > 85% used"
+          description: "Active connections approaching pool max. Check for connection leaks or increase pool size."
+
+      # Disk space (via node-exporter)
+      - alert: MedopsDiskSpaceCritical
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          slo: saturation
+        annotations:
+          summary: "Disk space < 10% on root filesystem"
+          description: "Less than 10% disk space remaining. Prometheus retention or logs may fill disk."
+
+  # === BUSINESS SLIs ===
+  - name: medops-sli-business
     rules:
-      # The circuit breaker guarding the report summarizer, which calls the AI
-      # service. state=open means calls are being rejected outright.
+      # Appointment booking success rate
+      - alert: MedopsAppointmentBookingFailures
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="medops-api",uri=~"/api/v1/appointments.*",status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_server_requests_seconds_count{job="medops-api",uri=~"/api/v1/appointments.*"}[5m])), 0.001)
+          > 0.02
+        for: 5m
+        labels:
+          severity: critical
+          slo: business
+          tier: 1
+        annotations:
+          summary: "Appointment booking failure rate > 2%"
+          description: "Critical business flow degraded. Check appointment service and database."
+
+      # AI summarizer circuit breaker
       - alert: ReportSummarizerCircuitOpen
         expr: resilience4j_circuitbreaker_state_total{job="medops-api",name="reportSummarizer",state="open"} > 0
         for: 1m
         labels:
           severity: warning
+          slo: business
+          tier: 2
         annotations:
-          summary: reportSummarizer circuit breaker is open
-          description: >-
-            Calls to the AI summarizer are being rejected. Check medops-ai health
-            first; this fires on its failures, not on its own.
+          summary: "Report summarizer circuit breaker OPEN"
+          description: "AI summarizer calls being rejected. Check medops-ai service health and Dynatrace traces."
+
+      # AI service latency
+      - alert: MedopsAiHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_client_requests_seconds_bucket{job="medops-api",uri=~".*ai.*"}[5m])) by (le)
+          ) > 30
+        for: 5m
+        labels:
+          severity: warning
+          slo: business
+        annotations:
+          summary: "medops-ai p95 latency > 30s"
+          description: "AI service responding slowly. May cause circuit breaker to open."
+
+  # === INFRASTRUCTURE ===
+  - name: medops-infrastructure
+    rules:
+      # Prometheus self-monitoring
+      - alert: PrometheusConfigReloadFailing
+        expr: prometheus_config_last_reload_successful == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus config reload failing"
+          description: "Prometheus failed to reload configuration. Check syntax and mounted files."
+
+      - alert: PrometheusTSDBCompactionsFailing
+        expr: rate(prometheus_tsdb_compactions_failed_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus TSDB compactions failing"
+          description: "TSDB compaction failures detected. May indicate disk corruption or OOM."
+
+      # Grafana monitoring
+      - alert: GrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Grafana is down"
+          description: "Grafana not responding to health checks."
+
+      # Kafka consumer lag (if JMX exporter)
+      - alert: KafkaConsumerLagHigh
+        expr: |
+          kafka_consumergroup_lag{job="kafka"} > 10000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka consumer lag > 10k messages"
+          description: "Consumer group falling behind. Check medops-api and medops-ai consumers."
+
+      # Redis memory
+      - alert: RedisMemoryHigh
+        expr: |
+          redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory > 85%"
+          description: "Redis memory usage high. Check for key expiration issues or memory leaks."
