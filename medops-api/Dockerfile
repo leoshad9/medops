@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY pom.xml .
 COPY src ./src
-RUN mvn -B -Dmvn.test.skip=true package
+RUN mvn -B -Dmaven.test.skip=true package
 
 # Download and verify the OpenTelemetry Java agent while this stage still has a
 # full JDK. The runtime image is eclipse-temurin:25-jre-jammy, which ships no
