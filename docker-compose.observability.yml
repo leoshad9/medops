@@ -80,6 +80,10 @@ services:
   #
   # Requires membership of the docker group on the host, since OneAgent mounts
   # /var/run/docker.sock.
+  #
+  # Do NOT run this together with the OpenTelemetry path below. OneAgent
+  # auto-instruments the JVM by itself, so enabling both produces duplicate spans
+  # for every request - Dynatrace's own docs call this out explicitly.
   oneagent:
     image: public.ecr.aws/dynatrace/dynatrace-oneagent:latest
     profiles: ["dynatrace"]
@@ -94,6 +98,78 @@ services:
     # Deploy the OneAgent code modules into the API container.
     labels:
       oneagent-inject: "true"
+
+  # OpenTelemetry path. Preferred over OneAgent: instrumentation is explicit,
+  # portable to any OTLP backend, and reviewable in this repo.
+  #
+  # Behind the "otel" profile, so a plain `up -d` still starts only Prometheus and
+  # Grafana. Start it with:
+  #   docker compose ... --profile otel up -d
+  otel-collector:
+    image: ghcr.io/dynatrace/dynatrace-otel-collector/dynatrace-otel-collector:0.57.0
+    profiles: ["otel"]
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      # These are expanded by the collector's own config parser via ${env:...},
+      # not by compose, which is why the collector config references them rather
+      # than hardcoding a URL or a token.
+      DT_ENDPOINT: ${DT_ENDPOINT:-}
+      DT_API_TOKEN: ${DT_API_TOKEN:-}
+    volumes:
+      - ./ops/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    # Deliberately NOT published to the host. Only medops-api on this network
+    # needs to reach it, and an unauthenticated OTLP receiver on 0.0.0.0 would
+    # let anyone who can reach the host inject spans. Use `docker exec` or add a
+    # 127.0.0.1 mapping temporarily if you need to query it by hand.
+    expose:
+      - "4317"
+      - "4318"
+    # Hard cap matches the 2 GB box reality: this is a hard OOM-kill boundary, and
+    # the memory_limiter processor inside the config reacts well before it.
+    mem_limit: 256m
+
+  # Overrides for the base medops-api service. Compose merges per-service rather
+  # than replacing it, so the build context, depends_on and volumes from
+  # docker-compose.yml survive; only the keys below are added.
+  #
+  # OTEL_ENABLED=true is what makes the Dockerfile pass -javaagent. Everything
+  # else is read by the agent itself.
+  #
+  # Same "otel" profile as the collector, so the two always come up together. An
+  # agent pointed at a collector that was never started would retry exports
+  # against a dead endpoint indefinitely and quietly grow memory.
+  medops-api:
+    profiles: ["otel"]
+    # Base docker-compose.yml does not define medops-api (it lives in
+    # docker-compose.prod.yml), and a profiled service must be able to resolve
+    # itself without another overlay supplying the key. Same value as the prod
+    # overlay, so the two merge cleanly.
+    build: ./medops-api
+    depends_on:
+      otel-collector:
+        condition: service_started
+    environment:
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: medops-api
+      # http/protobuf over the compose network: cheaper than gRPC on a small box,
+      # and the collector's 4318 receiver is the one exposed here.
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      # Keep metrics local. Prometheus already scrapes /actuator/prometheus and
+      # Grafana already graphs it; shipping the same series to Dynatrace would
+      # double the ingestion cost for data you can already see. Traces are the
+      # gap that needs filling.
+      OTEL_METRICS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: none
+      # The default is parentbased_always_on, which on a busy endpoint generates
+      # far more spans than a small instance needs. 10% keeps request shapes
+      # visible while bounding ingestion cost.
+      OTEL_TRACES_SAMPLER: parentbased_traceidratio
+      OTEL_TRACES_SAMPLER_ARG: "0.1"
+      # Separates staging noise from real incidents on the Dynatrace side.
+      DEPLOYMENT_ENVIRONMENT: ${MEDOPS_ENV:-local}
 
 volumes:
   prometheus_data:
