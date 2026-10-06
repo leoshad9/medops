@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { DOCTOR_PATHS } from "../../lib/doctorRoutes";
@@ -32,6 +32,7 @@ export function DoctorPatientChartView() {
   const [rxInstructions, setRxInstructions] = useState("");
   const [rxRefills, setRxRefills] = useState(0);
   const [busy, setBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const reload = async () => {
     const [roster, reportItems, rxItems] = await Promise.all([
@@ -82,6 +83,9 @@ export function DoctorPatientChartView() {
       setReportTitle("");
       setReportNotes("");
       setReportFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       setNotice("Report uploaded.");
       await reload();
     } catch (err: unknown) {
@@ -153,11 +157,26 @@ export function DoctorPatientChartView() {
               rows={3}
               className="w-full rounded-lg border border-brand-line px-3 py-2 text-sm"
             />
-            <label className="block text-xs font-semibold text-brand-ink">
-              PDF file only (max {MAX_PDF_BYTES / (1024 * 1024)} MB)
+            <div className="space-y-1">
+              <span className="block text-xs font-semibold text-brand-ink">
+                PDF file only (max {MAX_PDF_BYTES / (1024 * 1024)} MB)
+              </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <label
+                  htmlFor={`report-file-${patientId}`}
+                  className={`inline-flex cursor-pointer items-center rounded-lg border border-brand-line bg-white px-4 py-2 text-xs font-semibold text-brand-primary-dark hover:border-brand-primary hover:text-brand-primary focus-visible-ring ${busy ? "opacity-60" : ""}`}
+                >
+                  Choose File
+                </label>
+                <span className="text-xs text-brand-muted">
+                  {reportFile ? reportFile.name : "No file chosen"}
+                </span>
+              </div>
               <input
-                required
+                id={`report-file-${patientId}`}
+                ref={fileInputRef}
                 type="file"
+                required
                 accept="application/pdf,.pdf"
                 onChange={(e) => {
                   const next = e.target.files?.[0] ?? null;
@@ -171,9 +190,9 @@ export function DoctorPatientChartView() {
                   setError(null);
                   setReportFile(next);
                 }}
-                className="mt-1 block w-full text-xs"
+                className="sr-only"
               />
-            </label>
+            </div>
             <button
               type="submit"
               disabled={busy}
