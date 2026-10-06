@@ -65,7 +65,7 @@ export async function getAIResponse(
   query: string,
   timeZone?: string,
   history?: AIMessage[],
-  profile?: AIProfile | null,
+  profile?: AIProfile,
 ): Promise<AIChatResponse> {
   const conversationHistory = (history ?? [])
     .filter((m) => m.role === "user" || m.role === "assistant")
