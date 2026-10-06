@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Checkout project source
-      - uses: actions/checkout@a5ac7e51b41094f92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@v4
 
       # Scan code using the Semgrep CLI, pinned.
       #
