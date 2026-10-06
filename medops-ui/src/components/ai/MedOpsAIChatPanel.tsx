@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AIChatInput } from "./AIChatInput";
 import { AIMessageList } from "./AIMessageList";
 import { ActionDispatcher } from "./ActionDispatcher";
-import type { AIMessage } from "../../services/aiAssistantService";
+import type { AIMessage, AIProfile } from "../../services/aiAssistantService";
 import type { ErrorResponse } from "../../types/api";
 import { getAIResponse } from "../../services/aiAssistantService";
 
@@ -13,6 +13,7 @@ interface MedOpsAIChatPanelProps {
   isOpen: boolean;
   onClose: () => void;
   firstName?: string;
+  profile?: AIProfile | null;
 }
 
 const CONVERSATION_STORAGE_KEY = "medops_ai_conv";
@@ -21,7 +22,7 @@ const CONVERSATION_STORAGE_KEY = "medops_ai_conv";
 const VISIT_MARKER_KEY = "medops_ai_chat_visit";
 
 /** Renders the assistant when open and retains its conversation while mounted. */
-export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Readonly<MedOpsAIChatPanelProps>) {
+export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there", profile = null }: Readonly<MedOpsAIChatPanelProps>) {
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -135,7 +136,7 @@ export function MedOpsAIChatPanel({ isOpen, onClose, firstName = "there" }: Read
     setIsLoading(true);
 
     try {
-      const response = await getAIResponse(query, timeZone, messages);
+      const response = await getAIResponse(query, timeZone, messages, profile);
       applyActionResolver(response);
       setMessages((prev) => [...prev, response.message]);
     } catch (error) {

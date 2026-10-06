@@ -33,10 +33,21 @@ interface AssistantChatResponseDto {
   suggestions?: AISuggestion[] | null;
 }
 
+export interface AIProfile {
+  name?: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  address?: string;
+  insuranceProvider?: string;
+  insuranceMemberId?: string;
+}
+
 /**
  * Sends a chat message to the MedOps assistant API and resolves with the reply.
  *
-* Identity is derived server-side from the authenticated session; this call
+ * Identity is derived server-side from the authenticated session; this call
  * intentionally carries nothing but the message text and prior turns. The optional
  * `timeZone` is the caller's IANA zone (e.g. `Intl.DateTimeFormat().resolvedOptions().timeZone`);
  * the backend renders appointment times in it. When omitted the server falls back to UTC.
@@ -44,6 +55,8 @@ interface AssistantChatResponseDto {
  * :param history: prior turns, oldest first, excluding the message being sent.
  *   Sent so the assistant can answer follow-ups in context; the server caps and
  *   validates them.
+ * :param profile: optional read-only snapshot of the signed-in user's profile.
+ *   When provided, the assistant can answer profile questions from it.
  *
  * :throws: when the API is unreachable or the assistant backend fails —
  *  callers show a user-facing error (see MedOpsAIChatPanel).
@@ -52,6 +65,7 @@ export async function getAIResponse(
   query: string,
   timeZone?: string,
   history?: AIMessage[],
+  profile?: AIProfile,
 ): Promise<AIChatResponse> {
   const conversationHistory = (history ?? [])
     .filter((m) => m.role === "user" || m.role === "assistant")
@@ -63,6 +77,7 @@ export async function getAIResponse(
       message: query,
       ...(timeZone ? { timeZone } : {}),
       ...(conversationHistory.length ? { conversationHistory } : {}),
+      ...(profile ? { profile } : {}),
     },
   );
 

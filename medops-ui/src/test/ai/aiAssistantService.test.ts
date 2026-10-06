@@ -38,4 +38,41 @@ describe("getAIResponse", () => {
 
     expect(mockedPost).toHaveBeenCalledWith("/v1/assistant/chat", { message: "hello" });
   });
+
+  it("sends profile in the request body when provided", async () => {
+    const profile = {
+      name: "John Doe",
+      email: "john@example.com",
+      phone: "123-456-7890",
+      dateOfBirth: "1990-01-01",
+      gender: "Male",
+      address: "123 Main St",
+      insuranceProvider: "Health Insurance Co",
+      insuranceMemberId: "MEM123456",
+    };
+
+    await getAIResponse("What is my name?", undefined, undefined, profile);
+
+    expect(mockedPost).toHaveBeenCalledWith(
+      "/v1/assistant/chat",
+      expect.objectContaining({
+        message: "What is my name?",
+        profile,
+      }),
+    );
+  });
+
+  it("omits profile from the body when not provided", async () => {
+    await getAIResponse("hello");
+
+    expect(mockedPost).toHaveBeenCalledWith(
+      "/v1/assistant/chat",
+      expect.objectContaining({
+        message: "hello",
+      }),
+    );
+
+    const callArgs = mockedPost.mock.calls[0];
+    expect(callArgs[1]).not.toHaveProperty("profile");
+  });
 });

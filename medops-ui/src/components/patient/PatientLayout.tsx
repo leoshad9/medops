@@ -141,6 +141,20 @@ export function PatientLayout() {
         isOpen={aiChatOpen}
         onClose={() => setAiChatOpen(false)}
         firstName={firstName}
+        profile={
+          profile
+            ? {
+                name: profile.name,
+                email: profile.email,
+                phone: profile.phoneNumber,
+                dateOfBirth: profile.dateOfBirth,
+                gender: profile.gender,
+                address: profile.address,
+                insuranceProvider: profile.insuranceProvider,
+                insuranceMemberId: profile.insurancePolicyNumber,
+              }
+            : null
+        }
       />
     </div>
   );
