@@ -171,7 +171,7 @@ export function DoctorPatientChartView() {
                   setError(null);
                   setReportFile(next);
                 }}
-                className="mt-1 w-full text-xs"
+                className="mt-1 block w-full text-xs"
               />
             </label>
             <button
