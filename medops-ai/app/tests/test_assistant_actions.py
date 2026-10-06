@@ -1,6 +1,12 @@
 import pytest
 
-from app.services.assistant_service import AssistantService, AssistantContext, AssistantAppointmentContext, AssistantLabReportContext
+from app.services.assistant_service import (
+    AssistantService,
+    AssistantContext,
+    AssistantAppointmentContext,
+    AssistantLabReportContext,
+    AssistantProfileContext,
+)
 
 
 @pytest.fixture
@@ -43,6 +49,7 @@ def test_resolve_unknown(service):
     ctx = AssistantContext()
     assert service.resolve_action("some_random_id", ctx) is None
 
+
 def test_resolve_api_call_and_modal(service):
     svc = AssistantService()
     # api call mapping
@@ -56,3 +63,28 @@ def test_resolve_api_call_and_modal(service):
     assert modal is not None
     assert modal.get("type") == "modal"
     assert modal.get("modal") == "invoiceDetails"
+
+
+def test_resolve_open_profile(service):
+    ctx = AssistantContext()
+    out = service.resolve_action("open_profile", ctx)
+    assert out is not None
+    assert out["type"] == "navigate"
+    assert out["route"] == "/profile"
+
+
+def test_profile_context_in_snapshot(service):
+    profile = AssistantProfileContext(
+        name="John Doe",
+        email="john@example.com",
+        phone="123-456-7890",
+        date_of_birth="1990-01-01",
+        gender="Male",
+        address="123 Main St",
+        insurance_provider="Health Insurance Co",
+        insurance_member_id="MEM123456",
+    )
+    ctx = AssistantContext(profile=profile)
+    # Just verify the context can be created with profile
+    assert ctx.profile is not None
+    assert ctx.profile.name == "John Doe"

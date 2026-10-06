@@ -24,6 +24,7 @@ from app.services.assistant_service import (
     AssistantLabReportContext,
     AssistantMedicalRecordContext,
     AssistantPrescriptionContext,
+    AssistantProfileContext,
     AssistantService,
     ConversationTurn,
 )
@@ -99,6 +100,10 @@ class AssistantChatRequest(BaseModel):
         default_factory=list,
         max_length=MAX_CONTEXT_ITEMS,
         description="Read-only snapshot of the user's own medical records",
+    )
+    profile: Optional[AssistantProfileContext] = Field(
+        default=None,
+        description="Read-only snapshot of the user's own profile",
     )
 
 
@@ -211,6 +216,7 @@ async def assistant_chat(body: AssistantChatRequest):
             prescriptions=body.prescriptions,
             invoices=body.invoices,
             medical_records=body.medical_records,
+            profile=body.profile,
             conversation_history=body.conversation_history,
         )
         raw = await assistant_service.chat(body.message, context, body.time_zone)

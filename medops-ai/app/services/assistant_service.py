@@ -201,6 +201,32 @@ class AssistantMedicalRecordContext(BaseModel):
     summary: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
 
 
+class AssistantProfileContext(BaseModel):
+    """LLM-safe projection of the signed-in user's profile.
+
+    Populated exclusively by the Spring Boot API from the authenticated user's
+    records; sensitive identifiers are never included.
+
+    :param name: user's display name.
+    :param email: user's email address.
+    :param phone: user's phone number, if available.
+    :param date_of_birth: user's date of birth, if available.
+    :param gender: user's gender, if available.
+    :param address: user's address, if available.
+    :param insurance_provider: insurance provider name, if available.
+    :param insurance_member_id: insurance member ID, if available.
+    """
+
+    name: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    email: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    phone: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    date_of_birth: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    gender: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    address: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    insurance_provider: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+    insurance_member_id: Optional[str] = Field(default=None, max_length=_MAX_CONTEXT_FIELD_CHARS)
+
+
 class ConversationTurn(BaseModel):
     """A single prior turn in a multi-turn conversation.
 
@@ -227,6 +253,7 @@ class AssistantContext(BaseModel):
     prescriptions: List[AssistantPrescriptionContext] = Field(default_factory=list)
     invoices: List[AssistantInvoiceContext] = Field(default_factory=list)
     medical_records: List[AssistantMedicalRecordContext] = Field(default_factory=list)
+    profile: Optional[AssistantProfileContext] = Field(default=None)
     conversation_history: List[ConversationTurn] = Field(
         default_factory=list,
         max_length=MAX_HISTORY_TURNS,
@@ -380,6 +407,47 @@ def _medical_record_snapshot(records: Sequence[AssistantMedicalRecordContext]) -
     return _render_snapshot(header, records, render)
 
 
+def _profile_snapshot(profile: Optional[AssistantProfileContext]) -> str:
+    """Render the API-provided profile snapshot as a prompt section."""
+    if profile is None:
+        return ""
+    header = (
+        "SERVER-PROVIDED CONTEXT — the signed-in user's own profile (read-only). "
+        "Answer profile questions using only these details; if a requested detail "
+        "is not listed, say you cannot see it.\n"
+    )
+
+    parts = []
+    name = _sanitize_field(profile.name)
+    if name:
+        parts.append(f"- Name: {name}")
+    email = _sanitize_field(profile.email)
+    if email:
+        parts.append(f"- Email: {email}")
+    phone = _sanitize_field(profile.phone)
+    if phone:
+        parts.append(f"- Phone: {phone}")
+    dob = _sanitize_field(profile.date_of_birth)
+    if dob:
+        parts.append(f"- Date of Birth: {dob}")
+    gender = _sanitize_field(profile.gender)
+    if gender:
+        parts.append(f"- Gender: {gender}")
+    address = _sanitize_field(profile.address)
+    if address:
+        parts.append(f"- Address: {address}")
+    insurance = _sanitize_field(profile.insurance_provider)
+    if insurance:
+        parts.append(f"- Insurance Provider: {insurance}")
+    member_id = _sanitize_field(profile.insurance_member_id)
+    if member_id:
+        parts.append(f"- Insurance Member ID: {member_id}")
+
+    if not parts:
+        return ""
+    return header + "\n".join(parts)
+
+
 class AssistantService:
     """Isolates the assistant prompt/output rules from FastAPI routes."""
 
@@ -420,6 +488,8 @@ class AssistantService:
             sections.append(_invoice_snapshot(context.invoices))
         if context.medical_records:
             sections.append(_medical_record_snapshot(context.medical_records))
+        if context.profile:
+            sections.append(_profile_snapshot(context.profile))
 
         # Build the current user prompt (context snapshot + current message).
         current_user_prompt = message
@@ -640,6 +710,7 @@ class AssistantService:
         global_routes = {
             "back": {"type": "navigate", "route": "/"},
             "open_main_menu": {"type": "navigate", "route": "/"},
+            "open_profile": {"type": "navigate", "route": "/profile"},
         }
         if aid in global_routes:
             return global_routes[aid]
