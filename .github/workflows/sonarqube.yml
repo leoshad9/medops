@@ -69,7 +69,7 @@ jobs:
       # JaCoCo report, and the scanner reads neither from git. Both steps below
       # were missing, which is why coverage had been reported as zero rather
       # than as absent.
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-java@2dfa2011c5b2a0f1489bf9e433881c92c1631f88 # v4.3.0
         with:
