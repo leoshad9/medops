@@ -1,14 +1,16 @@
 package com.medops.shared.exception;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -36,6 +38,19 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobalExceptionHandler {
 
     private static final String INVALID_ARGUMENT = "INVALID_ARGUMENT";
+
+    private static final Map<String, String> CONSTRAINT_MESSAGES = new LinkedHashMap<>();
+
+    static {
+        CONSTRAINT_MESSAGES.put("uq_patient_profiles_phone_number", "An account with this phone number already exists");
+        CONSTRAINT_MESSAGES.put("uq_doctor_profiles_phone_number",  "An account with this phone number already exists");
+        CONSTRAINT_MESSAGES.put("phone_number",                     "An account with this phone number already exists");
+        CONSTRAINT_MESSAGES.put("email",                            "An account with this email already exists");
+        CONSTRAINT_MESSAGES.put("license_number",                   "An account with this license number already exists");
+        CONSTRAINT_MESSAGES.put("uq_appointments",                  "That time is no longer available");
+        CONSTRAINT_MESSAGES.put("slot",                             "That time is no longer available");
+        CONSTRAINT_MESSAGES.put("appointment",                      "That time is no longer available");
+    }
 
     /**
      * Handles request body validation failures from {@code @Valid} annotations.
@@ -198,12 +213,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Maps uniqueness races (for example two patients booking the same doctor slot)
-     * onto the same 409 the use case throws after a pre-check.
+     * Maps database constraint violations onto 409 responses.
+     * Inspects the constraint name to return a user-friendly message for known
+     * uniqueness constraints (phone number, email, license number, appointment slot).
+     * Falls back to a generic conflict message for unknown constraints.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
-        return build(HttpStatus.CONFLICT, "ALREADY_EXISTS", "That time is no longer available", null);
+        String msg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+        String detail = CONSTRAINT_MESSAGES.entrySet().stream()
+                .filter(e -> msg.contains(e.getKey()))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse("A conflict occurred. The resource may already exist.");
+        return build(HttpStatus.CONFLICT, "ALREADY_EXISTS", detail, null);
     }
 
     /**
