@@ -10,7 +10,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
-import org.springframework.lang.NonNull;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -71,7 +70,7 @@ class DoctorControllerTest {
     @MockitoBean
     private DoctorDashboardService doctorDashboardService;
 
-    private @NonNull String json(Object value) throws Exception {
+    private String json(Object value) throws Exception {
         return Objects.requireNonNull(objectMapper.writeValueAsString(value));
     }
 
