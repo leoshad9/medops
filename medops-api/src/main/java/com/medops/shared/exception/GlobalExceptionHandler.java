@@ -1,8 +1,6 @@
 package com.medops.shared.exception;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -38,19 +36,6 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobalExceptionHandler {
 
     private static final String INVALID_ARGUMENT = "INVALID_ARGUMENT";
-
-    private static final Map<String, String> CONSTRAINT_MESSAGES = new LinkedHashMap<>();
-
-    static {
-        CONSTRAINT_MESSAGES.put("uq_patient_profiles_phone_number", "An account with this phone number already exists");
-        CONSTRAINT_MESSAGES.put("uq_doctor_profiles_phone_number",  "An account with this phone number already exists");
-        CONSTRAINT_MESSAGES.put("phone_number",                     "An account with this phone number already exists");
-        CONSTRAINT_MESSAGES.put("email",                            "An account with this email already exists");
-        CONSTRAINT_MESSAGES.put("license_number",                   "An account with this license number already exists");
-        CONSTRAINT_MESSAGES.put("uq_appointments",                  "That time is no longer available");
-        CONSTRAINT_MESSAGES.put("slot",                             "That time is no longer available");
-        CONSTRAINT_MESSAGES.put("appointment",                      "That time is no longer available");
-    }
 
     /**
      * Handles request body validation failures from {@code @Valid} annotations.
@@ -220,13 +205,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
-        String msg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
-        String detail = CONSTRAINT_MESSAGES.entrySet().stream()
-                .filter(e -> msg.contains(e.getKey()))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse("A conflict occurred. The resource may already exist.");
-        return build(HttpStatus.CONFLICT, "ALREADY_EXISTS", detail, null);
+        return build(HttpStatus.CONFLICT, "ALREADY_EXISTS",
+                ConstraintViolationMessages.resolve(ex.getMessage()), null);
     }
 
     /**
