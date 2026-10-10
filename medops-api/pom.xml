@@ -50,7 +50,7 @@
 		<!-- flyway 12.4.0 -> latest 12.x -->
 		<flyway.version>12.11.0</flyway.version>
 		<!-- lz4-java 1.10.1 (via kafka-clients): CVE-2026-59949. Not BOM-managed. -->
-		<lz4.version>1.11.1</lz4.version>
+		<lz4.version>1.11.4</lz4.version>
 
 		<!-- Test database, provisioned by sql-maven-plugin. Replaces the Zonky
 		     embedded-postgres bundles. The defaults mirror
