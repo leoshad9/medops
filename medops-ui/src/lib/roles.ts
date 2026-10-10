@@ -5,6 +5,10 @@ const DASHBOARD_PATHS: Record<Role, string> = {
   PATIENT: "/patient/dashboard",
 };
 
-export function roleDashboardPath(role: Role): string {
-  return DASHBOARD_PATHS[role];
+export function roleDashboardPath(role?: Role | null): string {
+  if (role && DASHBOARD_PATHS[role]) {
+    return DASHBOARD_PATHS[role];
+  }
+  return "/login";
 }
+

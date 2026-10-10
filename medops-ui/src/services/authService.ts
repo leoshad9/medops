@@ -12,18 +12,25 @@ export async function login(request: LoginRequest): Promise<AuthUser> {
   }
 }
 
-export async function registerPatient(request: RegisterPatientRequest): Promise<AuthUser> {
+export interface AuthTokensResponse {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
+}
+
+export async function registerPatient(request: RegisterPatientRequest): Promise<AuthTokensResponse> {
   try {
-    const response = await api.post<ApiResponse<AuthUser>>("/v1/patients", request);
+    const response = await api.post<ApiResponse<AuthTokensResponse>>("/v1/patients", request);
     return response.data.data;
   } catch (error) {
     throw new Error(messageFromApiError(error, "Unable to create your account. Please try again."));
   }
 }
 
-export async function registerDoctor(request: RegisterDoctorRequest): Promise<AuthUser> {
+export async function registerDoctor(request: RegisterDoctorRequest): Promise<AuthTokensResponse> {
   try {
-    const response = await api.post<ApiResponse<AuthUser>>("/v1/doctors", request);
+    const response = await api.post<ApiResponse<AuthTokensResponse>>("/v1/doctors", request);
     return response.data.data;
   } catch (error) {
     throw new Error(messageFromApiError(error, "Unable to create your doctor account. Please try again."));

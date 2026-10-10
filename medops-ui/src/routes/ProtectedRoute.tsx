@@ -15,7 +15,7 @@ export function ProtectedRoute({ allowedRoles }: Readonly<ProtectedRouteProps>) 
     return null;
   }
 
-  if (isSessionDead || !isAuthenticated || !user) {
+  if (isSessionDead || !isAuthenticated || !user || !user.role) {
     return <Navigate to="/login" replace />;
   }
 

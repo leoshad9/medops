@@ -40,33 +40,33 @@ export function AppRoutes() {
     return null;
   }
 
-  const homePath = isAuthenticated && user ? roleDashboardPath(user.role) : "/login";
+  const homePath = isAuthenticated && user?.role ? roleDashboardPath(user.role) : "/login";
 
   return (
     <Routes>
       <Route
         path="/login"
-        element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <Login />}
+        element={isAuthenticated && user?.role ? <Navigate to={roleDashboardPath(user.role)} replace /> : <Login />}
       />
       <Route
         path="/register"
-        element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <Register />}
+        element={isAuthenticated && user?.role ? <Navigate to={roleDashboardPath(user.role)} replace /> : <Register />}
       />
       <Route
         path="/forgot-password"
-        element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <ForgotPassword />}
+        element={isAuthenticated && user?.role ? <Navigate to={roleDashboardPath(user.role)} replace /> : <ForgotPassword />}
       />
       <Route
         path="/verify-otp"
-        element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <VerifyOtp />}
+        element={isAuthenticated && user?.role ? <Navigate to={roleDashboardPath(user.role)} replace /> : <VerifyOtp />}
       />
       <Route
         path="/reset-password"
-        element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <ResetPassword />}
+        element={isAuthenticated && user?.role ? <Navigate to={roleDashboardPath(user.role)} replace /> : <ResetPassword />}
       />
       <Route
         path="/password-reset-success"
-        element={isAuthenticated && user ? <Navigate to={roleDashboardPath(user.role)} replace /> : <PasswordResetSuccess />}
+        element={isAuthenticated && user?.role ? <Navigate to={roleDashboardPath(user.role)} replace /> : <PasswordResetSuccess />}
       />
 
       <Route element={<ProtectedRoute allowedRoles={["DOCTOR"]} />}>

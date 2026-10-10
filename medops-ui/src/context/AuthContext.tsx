@@ -89,20 +89,18 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   const registerPatient = useCallback(
     async (request: RegisterPatientRequest): Promise<AuthUser> => {
-      const registeredUser = await registerPatientRequest(request);
-      adoptIdentity(registeredUser);
-      return registeredUser;
+      await registerPatientRequest(request);
+      return login(request.email, request.password);
     },
-    [adoptIdentity],
+    [login],
   );
 
   const registerDoctor = useCallback(
     async (request: RegisterDoctorRequest): Promise<AuthUser> => {
-      const registeredUser = await registerDoctorRequest(request);
-      adoptIdentity(registeredUser);
-      return registeredUser;
+      await registerDoctorRequest(request);
+      return login(request.email, request.password);
     },
-    [adoptIdentity],
+    [login],
   );
 
   const logout = useCallback(async () => {
