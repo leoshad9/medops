@@ -1,6 +1,7 @@
 package com.medops.billing.infrastructure;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +13,8 @@ import com.medops.billing.domain.PaymentStatus;
 public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
     List<Payment> findByInvoiceIdOrderByCreatedAtDesc(UUID invoiceId);
+
+    Optional<Payment> findByReference(String reference);
 
     @Query("SELECT COALESCE(SUM(p.amountCents), 0) FROM Payment p"
             + " WHERE p.invoice.id = :invoiceId AND p.status = :status")
