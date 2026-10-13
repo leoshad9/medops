@@ -46,7 +46,10 @@ public class SecurityConfig {
             // host port in docker-compose.prod.yml, and nginx returns 404 for
             // /actuator/ (medops-ui/nginx.conf), so only containers on the
             // compose network and the local dev overlay can reach this.
-            "/actuator/prometheus"
+            "/actuator/prometheus",
+            // Stripe calls this without a user JWT. Signature verification inside
+            // the handler is the only authentication — do not add JWT here.
+            "/api/v1/webhooks/stripe"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -92,7 +95,7 @@ public class SecurityConfig {
         http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/auth/**")
+                        .ignoringRequestMatchers("/api/auth/**", "/api/v1/webhooks/stripe")
                         .csrfTokenRepository(csrfTokenRepository())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
                 .logout(logout -> logout.disable())

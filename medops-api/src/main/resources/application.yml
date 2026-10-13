@@ -175,6 +175,13 @@ medops:
     summary-cache-ttl: PT24H
     doctor-list-cache-ttl: PT1M
 
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:}
+  publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  currency: ${STRIPE_CURRENCY:inr}
+  return-url: ${STRIPE_RETURN_URL:https://medops.duckdns.org/patient/billing}
+
 password-reset:
   otp:
     ttl: 10m
@@ -249,6 +256,13 @@ jwt:
   refresh-token-expiry-ms: 28800000
   issuer: "medops-api"
   audience: "medops-web"
+
+stripe:
+  secret-key: sk_test_doesnotmatter
+  publishable-key: pk_test_doesnotmatter
+  webhook-secret: whsec_test_doesnotmatter
+  currency: inr
+  return-url: http://localhost:5173/patient/billing
 
 medops:
   security:
