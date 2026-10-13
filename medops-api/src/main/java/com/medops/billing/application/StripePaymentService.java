@@ -5,8 +5,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.medops.billing.api.dto.RecordPaymentRequest;
 import com.medops.billing.api.dto.StripeCheckoutSessionRequest;
@@ -19,9 +19,12 @@ import com.medops.billing.infrastructure.Payment;
 import com.medops.billing.infrastructure.PaymentRepository;
 import com.medops.billing.infrastructure.StripeClient;
 import com.medops.billing.infrastructure.StripeProperties;
+import com.medops.patients.infrastructure.PatientProfile;
+import com.medops.patients.infrastructure.PatientProfileRepository;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
 import com.medops.shared.exception.InvalidRequestException;
+import com.medops.shared.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +40,7 @@ public class StripePaymentService {
     private final StripeClient stripeClient;
     private final StripeProperties stripeProperties;
     private final AuditService auditService;
+    private final PatientProfileRepository patientProfileRepository;
 
     /**
      * Tx 1: validate invoice and read balance - transaction commits before HTTP call.
@@ -86,12 +90,15 @@ public class StripePaymentService {
         }
     }
 
-    @Transactional
+    // NOTE: no @Transactional here. These handlers are self-invoked from handleWebhook(),
+    // so a proxy-level annotation would be a no-op anyway; an outer transaction would also
+    // abort the whole unit when the unique idempotency_key constraint fires in settle().
+    // recordPayment runs in its own transaction, so a concurrent-duplicate constraint
+    // violation rolls back cleanly and is caught below to ack 200.
     public void handleCheckoutSessionCompleted(StripeWebhookEvent event) {
         settle(event, "checkout.session.completed");
     }
 
-    @Transactional
     public void handlePaymentIntentSucceeded(StripeWebhookEvent event) {
         settle(event, "payment_intent.succeeded");
     }
@@ -135,13 +142,17 @@ public class StripePaymentService {
             return;
         }
 
-        // Fallback to invoice patient user if actor_user_id not in metadata
+        // Fallback to the invoice patient user if actor_user_id not in metadata.
+        // Resolve the real user id: audit subject_id and recordPayment expect a User id,
+        // not the PatientProfile id stored on the invoice.
         UUID finalActorUserId = actorUserId;
         String finalActorEmail = "stripe-webhook";
         if (finalActorUserId == null) {
             Invoice invoice = invoiceService.requireInvoice(invoiceId);
-            finalActorUserId = invoice.getPatientProfileId();
-            finalActorEmail = "patient-" + invoice.getPatientProfileId();
+            PatientProfile profile = patientProfileRepository.findById(invoice.getPatientProfileId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
+            finalActorUserId = profile.getUserId();
+            finalActorEmail = "patient-" + profile.getUserId();
         }
 
         var recordRequest = new RecordPaymentRequest(
@@ -152,6 +163,11 @@ public class StripePaymentService {
         } catch (InvalidRequestException ex) {
             // Non-retryable business state: ack 200 so Stripe stops retrying
             log.warn("Ignoring non-retryable {}: referenceId={} reason={}", eventType, referenceId, ex.getMessage());
+            return;
+        } catch (DataIntegrityViolationException ex) {
+            // A concurrent Stripe retry already won the unique idempotency_key race and
+            // recorded this payment; ack 200 so Stripe stops retrying.
+            log.info("Duplicate {} absorbed by unique constraint: referenceId={}", eventType, referenceId);
             return;
         }
         auditService.recordEvent(AuditEventType.STRIPE_PAYMENT_SUCCEEDED, finalActorUserId, finalActorEmail);

@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import com.medops.billing.api.dto.RecordPaymentRequest;
 import com.medops.billing.api.dto.StripeCheckoutSessionRequest;
@@ -30,6 +31,8 @@ import com.medops.billing.infrastructure.Payment;
 import com.medops.billing.infrastructure.PaymentRepository;
 import com.medops.billing.infrastructure.StripeClient;
 import com.medops.billing.infrastructure.StripeProperties;
+import com.medops.patients.infrastructure.PatientProfile;
+import com.medops.patients.infrastructure.PatientProfileRepository;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
 import com.medops.shared.exception.InvalidRequestException;
@@ -45,6 +48,7 @@ class StripePaymentServiceTest {
     private static final UUID INVOICE_ID = UUID.fromString("11111111-2222-3333-4444-555555555555");
     private static final UUID PATIENT_PROFILE_ID = UUID.fromString("66666666-7777-8888-9999-000000000000");
     private static final UUID ACTOR_USER_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    private static final UUID PATIENT_USER_ID = UUID.fromString("ffffffff-0000-1111-2222-333333333333");
     private static final String ACTOR_EMAIL = "patient@medops.dev";
     private static final String SESSION_ID = "cs_test_checkout123";
     private static final String CLIENT_SECRET = "cs_test_checkout123_secret_abc";
@@ -59,6 +63,8 @@ class StripePaymentServiceTest {
     private StripeClient stripeClient;
     @Mock
     private AuditService auditService;
+    @Mock
+    private PatientProfileRepository patientProfileRepository;
 
     private StripePaymentService service;
 
@@ -69,7 +75,7 @@ class StripePaymentServiceTest {
                 "http://localhost:5173/patient/billing");
         service = new StripePaymentService(
                 invoiceService, paymentService, paymentRepository, stripeClient,
-                props, auditService);
+                props, auditService, patientProfileRepository);
     }
     // --- createCheckoutSession ---
 
@@ -229,12 +235,34 @@ class StripePaymentServiceTest {
         when(paymentRepository.findByReference(SESSION_ID)).thenReturn(Optional.empty());
         succeededCheckoutEvent(Map.of("invoice_id", INVOICE_ID.toString()));
         when(invoiceService.requireInvoice(INVOICE_ID)).thenReturn(payableInvoice());
+        when(patientProfileRepository.findById(PATIENT_PROFILE_ID))
+                .thenReturn(Optional.of(PatientProfile.builder()
+                        .id(PATIENT_PROFILE_ID)
+                        .userId(PATIENT_USER_ID)
+                        .build()));
 
         service.handleWebhook("payload", "t=sig");
 
+        // The actor must be the profile's real user id, not the patient-profile id.
         verify(paymentService).recordPayment(
                 eq(INVOICE_ID), eq(SESSION_ID), any(RecordPaymentRequest.class),
-                eq(PATIENT_PROFILE_ID), eq("patient-" + PATIENT_PROFILE_ID));
+                eq(PATIENT_USER_ID), eq("patient-" + PATIENT_USER_ID));
+    }
+
+    @Test
+    void webhookCheckoutCompleted_absorbsConcurrentDuplicateByUniqueConstraint() {
+        when(paymentRepository.findByReference(SESSION_ID)).thenReturn(Optional.empty());
+        succeededCheckoutEvent(Map.of(
+                "invoice_id", INVOICE_ID.toString(),
+                "actor_user_id", ACTOR_USER_ID.toString()));
+        when(paymentService.recordPayment(eq(INVOICE_ID), eq(SESSION_ID), any(), any(), any()))
+                .thenThrow(new DataIntegrityViolationException("uq_payments_idempotency_key"));
+
+        service.handleWebhook("payload", "t=sig");
+
+        // A concurrent Stripe retry already recorded this payment; ack 200 (no rethrow)
+        // and do not emit a success audit event.
+        verify(auditService, never()).recordEvent(eq(AuditEventType.STRIPE_PAYMENT_SUCCEEDED), any(), any());
     }
 
     @Test
