@@ -19,6 +19,7 @@ import com.medops.billing.infrastructure.InvoiceRepository;
 import com.medops.patients.infrastructure.PatientProfileRepository;
 import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
+import com.medops.shared.exception.InvalidRequestException;
 import com.medops.shared.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -93,6 +94,25 @@ public class InvoiceService {
     @Transactional(readOnly = true)
     public InvoiceResponse get(UUID invoiceId) {
         return assembler.toResponse(requireInvoice(invoiceId));
+    }
+
+    /**
+     * Total of a payable invoice that belongs to the given patient.
+     * <p>
+     * Transactional because {@code Invoice.items} is lazily loaded: the
+     * total must be computed while the persistence context is open, so
+     * callers outside a transaction (e.g. the Stripe payment-intent flow,
+     * whose external HTTP call must not run inside a transaction) can
+     * safely read it after this method returns.
+     */
+    @Transactional(readOnly = true)
+    public long payableTotal(UUID invoiceId, UUID patientProfileId) {
+        Invoice invoice = requireInvoice(invoiceId);
+        InvoicePolicy.requirePayable(invoice.getStatus());
+        if (!invoice.getPatientProfileId().equals(patientProfileId)) {
+            throw new InvalidRequestException("Invoice does not belong to this patient");
+        }
+        return invoice.totalCents();
     }
 
     @Transactional(readOnly = true)

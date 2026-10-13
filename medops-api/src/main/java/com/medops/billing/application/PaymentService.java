@@ -87,6 +87,11 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
+    public long completedPaidCents(UUID invoiceId) {
+        return paymentRepository.sumAmountCentsByInvoiceIdAndStatus(invoiceId, PaymentStatus.COMPLETED);
+    }
+
+    @Transactional(readOnly = true)
     public List<PaymentResponse> listForInvoice(UUID invoiceId) {
         invoiceService.requireInvoice(invoiceId);
         return paymentRepository.findByInvoiceIdOrderByCreatedAtDesc(invoiceId)

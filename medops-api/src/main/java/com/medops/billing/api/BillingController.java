@@ -11,13 +11,17 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.medops.appointments.application.AppointmentActorResolver;
 import com.medops.billing.api.dto.InvoiceResponse;
 import com.medops.billing.api.dto.PaymentResponse;
+import com.medops.billing.api.dto.StripeCheckoutSessionResponse;
 import com.medops.billing.application.InvoiceService;
 import com.medops.billing.application.PaymentService;
+import com.medops.billing.application.StripePaymentService;
 import com.medops.clinical.ClinicalAccessService;
 import com.medops.shared.response.ApiResponse;
 
@@ -30,7 +34,9 @@ public class BillingController {
 
     private final InvoiceService invoiceService;
     private final PaymentService paymentService;
+    private final StripePaymentService stripePaymentService;
     private final ClinicalAccessService clinicalAccess;
+    private final AppointmentActorResolver actorResolver;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN', 'STAFF')")
@@ -49,8 +55,7 @@ public class BillingController {
             @PathVariable UUID patientId,
             @PathVariable UUID invoiceId) {
         clinicalAccess.assertPatientOwns(patientId, auth.getName());
-        InvoiceResponse invoice = invoiceService.get(invoiceId);
-        return ResponseEntity.ok(ApiResponse.success(invoice));
+        return ResponseEntity.ok(ApiResponse.success(invoiceService.get(invoiceId)));
     }
 
     @GetMapping("/{invoiceId}/payments")
@@ -61,5 +66,18 @@ public class BillingController {
             @PathVariable UUID invoiceId) {
         clinicalAccess.assertPatientOwns(patientId, auth.getName());
         return ResponseEntity.ok(ApiResponse.success(paymentService.listForInvoice(invoiceId)));
+    }
+
+    @PostMapping("/{invoiceId}/stripe/checkout-session")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<ApiResponse<StripeCheckoutSessionResponse>> createStripeCheckoutSession(
+            Authentication auth,
+            @PathVariable UUID patientId,
+            @PathVariable UUID invoiceId) {
+        clinicalAccess.assertPatientOwns(patientId, auth.getName());
+        var patient = actorResolver.requirePatient(auth.getName());
+        StripeCheckoutSessionResponse session = stripePaymentService.createCheckoutSession(
+                invoiceId, patient.getId(), patient.getUserId(), auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(session));
     }
 }
