@@ -3,7 +3,7 @@ import { messageFromApiError } from "../lib/apiError";
 import { api } from "./api";
 
 export type InvoiceStatus = "DRAFT" | "ISSUED" | "PARTIALLY_PAID" | "PAID" | "VOID";
-export type PaymentMethod = "CASH" | "CARD" | "INSURANCE" | "BANK_TRANSFER";
+export type PaymentMethod = "CASH" | "CARD" | "INSURANCE" | "BANK_TRANSFER" | "STRIPE";
 export type PaymentStatus = "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
 
 export interface InvoiceItemDto {
@@ -80,6 +80,37 @@ export async function listPayments(patientId: string, invoiceId: string): Promis
   }
 }
 
-export function formatCents(cents: number): string {
-  return `₹${(cents / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export interface StripeCheckoutSessionResponse {
+  clientSecret: string;
+  sessionId: string;
+  amountCents: number;
+  currency: string;
+  publishableKey: string;
+}
+
+export async function createStripeCheckoutSession(
+  patientId: string,
+  invoiceId: string
+): Promise<StripeCheckoutSessionResponse> {
+  try {
+    const response = await api.post<ApiResponse<StripeCheckoutSessionResponse>>(
+      `/v1/patients/${patientId}/billing/invoices/${invoiceId}/stripe/checkout-session`,
+      {}
+    );
+    return response.data.data;
+  } catch (error) {
+    throw new Error(messageFromApiError(error, "Unable to start checkout. Please try again."));
+  }
+}
+
+export function formatCents(cents: number, currency: string = "inr"): string {
+  const normalized = currency.toLowerCase();
+  const locale = normalized === "usd" ? "en-US" : "en-IN";
+  const currencyCode = normalized.toUpperCase();
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: currencyCode,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100);
 }

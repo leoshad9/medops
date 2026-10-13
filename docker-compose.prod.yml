@@ -78,6 +78,18 @@ services:
       # sizes off host RAM (1.5 GB on a 2 GB t4g.small), which collides with
       # Kafka's JVM. Tune from .env if needed.
       JAVA_OPTS: ${MEDOPS_API_JAVA_OPTS:--Xms128m -Xmx512m}
+      # Stripe billing. Spring relaxed binding maps these env vars straight onto
+      # StripeProperties (STRIPE_SECRET_KEY -> stripe.secret-key, etc.), so no
+      # yaml block is needed in application-prod.yml. Without STRIPE_SECRET_KEY
+      # the API calls Stripe with no key and every "Pay Now" 503s with
+      # "No API key provided". The publishable key is reused from the frontend's
+      # VITE_ var so the API can hand it back to BillingView (which prefers the
+      # backend value). Currency defaults to inr to match the INR invoice
+      # amounts; override with STRIPE_CURRENCY in .env if needed.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?Set STRIPE_SECRET_KEY in .env}
+      STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_CURRENCY: ${STRIPE_CURRENCY:-inr}
     volumes:
       - clinical_files:/data/clinical-files
     # Asserts the application is serving, not merely that a socket is open.
