@@ -33,7 +33,7 @@
 		<checkstyle.version>14.3.0</checkstyle.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
 		<maven-failsafe-plugin.version>3.6.0</maven-failsafe-plugin.version>
-		<jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
+		<jacoco-maven-plugin.version>0.8.16</jacoco-maven-plugin.version>
 		<!-- Single exec file shared by surefire and failsafe; see the plugin below. -->
 		<jacoco.destFile>${project.build.directory}/jacoco.exec</jacoco.destFile>
 		<lombok.version>1.18.48</lombok.version>
