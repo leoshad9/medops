@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.1</version>
+		<version>4.1.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.medops</groupId>
@@ -13,40 +13,22 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<name>medops-api</name>
 	<description>Modern healthcare management platform for patients, doctors, appointments, billing, analytics, and AI-assisted medical reports.</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+
 	<properties>
 		<java.version>21</java.version>
 		<jjwt.version>0.13.0</jjwt.version>
+		<stripe.version>33.4.2</stripe.version>
+		<resilience4j.version>2.4.0</resilience4j.version>
 		<owasp.dependency-check.version>13.0.0</owasp.dependency-check.version>
 		<checkstyle.version>14.3.0</checkstyle.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+		<maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
 		<maven-failsafe-plugin.version>3.6.0</maven-failsafe-plugin.version>
 		<jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
 		<!-- Single exec file shared by surefire and failsafe; see the plugin below. -->
 		<jacoco.destFile>${project.build.directory}/jacoco.exec</jacoco.destFile>
 		<lombok.version>1.18.48</lombok.version>
-		<!-- Overrides for versions pinned by spring-boot-dependencies 4.1.1.
-		     Remove these once the Spring Boot BOM ships the fixed versions. -->
-		<!-- tomcat-embed 11.0.24: CVE-2026-65905, CVE-2026-65182, CVE-2026-68525 -->
-		<tomcat.version>11.0.26</tomcat.version>
-		<!-- jackson2 2.21.5: CVE-2026-91777, CVE-2026-91776, CVE-2026-83557,
-		     CVE-2026-68497, CVE-2026-19032, CVE-2026-89425, CVE-2026-89407 -->
-		<jackson-2-bom.version>2.21.7</jackson-2-bom.version>
-		<!-- jackson3 3.1.5 (pulled in by flyway-core): same 5 databind CVEs as
-		     jackson2 above plus CVE-2026-89425 and CVE-2026-89407 on jackson-core -->
-		<jackson-bom.version>3.1.7</jackson-bom.version>
+
 		<!-- flyway 12.4.0 -> latest 12.x -->
 		<flyway.version>12.11.0</flyway.version>
 		<!-- lz4-java (via kafka-clients): insecure temp file extraction. Not BOM-managed. -->
@@ -99,13 +81,14 @@
 		<dependency>
 			<groupId>com.stripe</groupId>
 			<artifactId>stripe-java</artifactId>
-			<version>33.4.2</version>
+			<version>${stripe.version}</version>
 		</dependency>
 		<!-- Metrics -->
 		<dependency>
 			<groupId>io.micrometer</groupId>
 			<artifactId>micrometer-registry-prometheus</artifactId>
 		</dependency>
+		<!-- JSON -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-jackson2</artifactId>
@@ -130,12 +113,8 @@
 
 		<!-- Flyway -->
 		<!-- Spring Boot 4 moved FlywayAutoConfiguration out of spring-boot-autoconfigure
-		     (verified: spring-boot-autoconfigure-4.1.1.jar contains no flyway classes)
-		     into this module. flyway-core alone is therefore inert, and the 9c528b1
-		     Boot 4 upgrade silently stopped db/migration from running: V6 was never
-		     applied, messaging.domain_event_outbox was never created, and prod's
-		     ddl-auto: validate then failed on it, crash-looping the API. Restore the
-		     module. Version is managed by the Boot parent. -->
+		     into this module. flyway-core alone is therefore inert, and the Boot 4 upgrade
+		     silently stopped db/migration from running without spring-boot-flyway. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-flyway</artifactId>
@@ -153,18 +132,18 @@
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
-			<version>0.13.0</version>
+			<version>${jjwt.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-impl</artifactId>
-			<version>0.13.0</version>
+			<version>${jjwt.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-jackson</artifactId>
-			<version>0.13.0</version>
+			<version>${jjwt.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 
@@ -188,12 +167,12 @@
 		<dependency>
 			<groupId>io.github.resilience4j</groupId>
 			<artifactId>resilience4j-spring-boot4</artifactId>
-			<version>2.4.0</version>
+			<version>${resilience4j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.github.resilience4j</groupId>
 			<artifactId>resilience4j-micrometer</artifactId>
-			<version>2.4.0</version>
+			<version>${resilience4j.version}</version>
 		</dependency>
 
 		<!-- Email -->
@@ -235,16 +214,67 @@
 			<artifactId>spring-kafka-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<!-- The Zonky embedded-postgres dependencies that used to live here are
-		     gone. They dragged in a 14-28MB Postgres binary bundle per platform
-		     and needed four exclusions plus three OS profiles just to keep the
-		     image build from downloading binaries for the wrong host. Tests now
-		     run against a real Postgres provisioned by sql-maven-plugin below. -->
 
 	</dependencies>
 
 	<build>
+		<pluginManagement>
+			<plugins>
+				<!-- Tells Eclipse / VS Code Java (m2e) to ignore sql-maven-plugin
+				     during IDE incremental/full workspace builds so missing local
+				     Postgres instances do not report errors in the IDE editor. -->
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.codehaus.mojo</groupId>
+										<artifactId>sql-maven-plugin</artifactId>
+										<versionRange>[0,)</versionRange>
+										<goals>
+											<goal>execute</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore/>
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+
 		<plugins>
+			<!-- Enforcer: guarantee build environment standards -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>enforce-versions</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireMavenVersion>
+									<version>[3.9.0,)</version>
+								</requireMavenVersion>
+								<requireJavaVersion>
+									<version>[21,)</version>
+								</requireJavaVersion>
+								<banDuplicatePomDependencyVersions/>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
@@ -260,227 +290,199 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</path>
+						<path>
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-configuration-processor</artifactId>
+						</path>
+					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
+
+			<!-- Test database. Replaces io.zonky.test:embedded-postgres.
+
+			     3.0.0 has only the `execute` goal; the old create-db/drop-db goals
+			     were removed in the 3.x line, so provisioning is sqlCommand
+			     executions instead.
+
+			     Phases: process-test-resources runs before surefire's `test`, which
+			     is why the create lands there and not in pre-integration-test.
+			     MedopsApiApplicationTests is a plain @SpringBootTest, so it runs
+			     under surefire; binding the create to pre-integration-test would
+			     leave it without a database.
+
+			     drop-then-create makes every build idempotent: CREATE DATABASE has no
+			     IF NOT EXISTS form, and a leftover database from an interrupted run
+			     would otherwise fail the gate before the tests ever start. WITH
+			     (FORCE) evicts connections the previous run's JVM left behind
+			     (Postgres 13+; CI pins 17, the compose overlay pins 17-alpine).
+			     Executions in one phase run in declaration order. -->
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>sql-maven-plugin</artifactId>
+				<version>${sql-maven-plugin.version}</version>
+				<dependencies>
+					<!-- Not inherited from the project: plugin dependencies do not
+					     see project dependencies, so the driver must be repeated. -->
+					<dependency>
+						<groupId>org.postgresql</groupId>
+						<artifactId>postgresql</artifactId>
+						<version>${postgresql.version}</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<driver>org.postgresql.Driver</driver>
+					<username>${test.db.username}</username>
+					<password>${test.db.password}</password>
+					<!-- Connected to the maintenance database, not the test one: the
+					     database being created cannot be the one we are connected to. -->
+					<url>jdbc:postgresql://${test.db.host}:${test.db.port}/postgres</url>
+					<!-- DDL is committed immediately. Under the plugin's default
+					     transactional mode CREATE DATABASE and the DROP at the end of
+					     the build can be rolled back, leaving the database behind. -->
+					<autocommit>true</autocommit>
+					<!-- Skip all executions when tests are skipped (e.g. Docker build
+					     uses -Dmaven.test.skip=true; no Postgres is available there).
+					     maven.test.skip is the standard Maven flag honoured by surefire
+					     and failsafe; mirroring it here keeps build-time behaviour
+					     consistent: tests off → no DB provisioning attempted. -->
+					<skip>${maven.test.skip}</skip>
+				</configuration>
 				<executions>
 					<execution>
-						<id>default-compile</id>
-						<phase>compile</phase>
+						<id>drop-stale-test-db</id>
+						<phase>process-test-resources</phase>
 						<goals>
-							<goal>compile</goal>
+							<goal>execute</goal>
 						</goals>
 						<configuration>
-							<annotationProcessorPaths>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok</artifactId>
-								</path>
-								<path>
-									<groupId>org.springframework.boot</groupId>
-									<artifactId>spring-boot-configuration-processor</artifactId>
-								</path>
-							</annotationProcessorPaths>
+							<sqlCommand>DROP DATABASE IF EXISTS ${test.db.name} WITH (FORCE)</sqlCommand>
+							<skip>${maven.test.skip}</skip>
 						</configuration>
 					</execution>
 					<execution>
-						<id>default-testCompile</id>
-						<phase>test-compile</phase>
+						<id>create-test-db</id>
+						<phase>process-test-resources</phase>
 						<goals>
-							<goal>testCompile</goal>
+							<goal>execute</goal>
 						</goals>
 						<configuration>
-							<annotationProcessorPaths>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok</artifactId>
-								</path>
-								<path>
-									<groupId>org.springframework.boot</groupId>
-									<artifactId>spring-boot-configuration-processor</artifactId>
-								</path>
-							</annotationProcessorPaths>
+							<sqlCommand>CREATE DATABASE ${test.db.name}</sqlCommand>
+							<skip>${maven.test.skip}</skip>
+						</configuration>
+					</execution>
+					<execution>
+						<id>drop-test-db</id>
+						<phase>post-integration-test</phase>
+						<goals>
+							<goal>execute</goal>
+						</goals>
+						<configuration>
+							<sqlCommand>DROP DATABASE IF EXISTS ${test.db.name} WITH (FORCE)</sqlCommand>
+							<skip>${maven.test.skip}</skip>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 
-<!-- Test database. Replaces io.zonky.test:embedded-postgres.
+			<!-- Coverage. Both test JVMs write one exec file: surefire creates it,
+			     failsafe appends to it, and jacoco:report then needs no file selection
+			     at all. (Two files plus <dataFileIncludes> was tried first; the
+			     patterns never matched and the goal skipped silently.)
 
-		     3.0.0 has only the `execute` goal; the old create-db/drop-db goals
-		     were removed in the 3.x line, so provisioning is sqlCommand
-		     executions instead.
+			     propertyName is set explicitly on both executions. prepare-agent
+			     defaults it to "argLine", so without this both executions write the
+			     same property, the second silently wins, and any surefire/failsafe
+			     argLine referencing a name of its own expands to nothing: the agent is
+			     never attached and no .exec file appears, with no warning. -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco-maven-plugin.version}</version>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+						<configuration>
+							<propertyName>surefireArgLine</propertyName>
+							<destFile>${jacoco.destFile}</destFile>
+						</configuration>
+					</execution>
+					<execution>
+						<id>prepare-agent-integration</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+						<configuration>
+							<propertyName>failsafeArgLine</propertyName>
+							<destFile>${jacoco.destFile}</destFile>
+							<append>true</append>
+						</configuration>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+						<configuration>
+							<dataFile>${jacoco.destFile}</dataFile>
+							<outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 
-		     Phases: process-test-resources runs before surefire's `test`, which
-		     is why the create lands there and not in pre-integration-test.
-		     MedopsApiApplicationTests is a plain @SpringBootTest, so it runs
-		     under surefire; binding the create to pre-integration-test would
-		     leave it without a database.
+			<!-- argLine is declared exactly once per plugin. Maven keeps only the last
+			     <argLine> element in a <configuration> block and silently discards the
+			     others, which is how a JaCoCo agent goes missing while the build still
+			     looks configured. Note the \${...} form: @{...} late replacement was
+			     tried and surefire passed it to the forked JVM verbatim. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>${maven-surefire-plugin.version}</version>
+				<configuration>
+					<argLine>${surefireArgLine}</argLine>
+				</configuration>
+			</plugin>
 
-		     drop-then-create makes every build idempotent: CREATE DATABASE has no
-		     IF NOT EXISTS form, and a leftover database from an interrupted run
-		     would otherwise fail the gate before the tests ever start. WITH
-		     (FORCE) evicts connections the previous run's JVM left behind
-		     (Postgres 13+; CI pins 17, the compose overlay pins 17-alpine).
-		     Executions in one phase run in declaration order. -->
-		<plugin>
-			<groupId>org.codehaus.mojo</groupId>
-			<artifactId>sql-maven-plugin</artifactId>
-			<version>${sql-maven-plugin.version}</version>
-			<dependencies>
-				<!-- Not inherited from the project: plugin dependencies do not
-				     see project dependencies, so the driver must be repeated. -->
-				<dependency>
-					<groupId>org.postgresql</groupId>
-					<artifactId>postgresql</artifactId>
-					<version>${postgresql.version}</version>
-				</dependency>
-			</dependencies>
-			<configuration>
-				<driver>org.postgresql.Driver</driver>
-				<username>${test.db.username}</username>
-				<password>${test.db.password}</password>
-				<!-- Connected to the maintenance database, not the test one: the
-				     database being created cannot be the one we are connected to. -->
-				<url>jdbc:postgresql://${test.db.host}:${test.db.port}/postgres</url>
-				<!-- DDL is committed immediately. Under the plugin's default
-				     transactional mode CREATE DATABASE and the DROP at the end of
-				     the build can be rolled back, leaving the database behind. -->
-				<autocommit>true</autocommit>
-				<!-- Skip all executions when tests are skipped (e.g. Docker build
-				     uses -Dmaven.test.skip=true; no Postgres is available there).
-				     maven.test.skip is the standard Maven flag honoured by surefire
-				     and failsafe; mirroring it here keeps build-time behaviour
-				     consistent: tests off → no DB provisioning attempted. -->
-				<skip>${maven.test.skip}</skip>
-			</configuration>
-			<executions>
-				<execution>
-					<id>drop-stale-test-db</id>
-					<phase>process-test-resources</phase>
-					<goals>
-						<goal>execute</goal>
-					</goals>
-					<configuration>
-						<sqlCommand>DROP DATABASE IF EXISTS ${test.db.name} WITH (FORCE)</sqlCommand>
-						<skip>${maven.test.skip}</skip>
-					</configuration>
-				</execution>
-				<execution>
-					<id>create-test-db</id>
-					<phase>process-test-resources</phase>
-					<goals>
-						<goal>execute</goal>
-					</goals>
-					<configuration>
-						<sqlCommand>CREATE DATABASE ${test.db.name}</sqlCommand>
-						<skip>${maven.test.skip}</skip>
-					</configuration>
-				</execution>
-				<execution>
-					<id>drop-test-db</id>
-					<phase>post-integration-test</phase>
-					<goals>
-						<goal>execute</goal>
-					</goals>
-					<configuration>
-						<sqlCommand>DROP DATABASE IF EXISTS ${test.db.name} WITH (FORCE)</sqlCommand>
-						<skip>${maven.test.skip}</skip>
-					</configuration>
-				</execution>
-			</executions>
-		</plugin>
+			<!-- Integration tests (*IT). Not bound explicitly: the default lifecycle
+			     already maps integration-test/verify onto the verify phase, so `mvn verify`
+			     runs them. Without this plugin they were never executed by any phase.
+			     forkCount/reuseForks give each IT class its own JVM, so a cached
+			     EntityManagerFactory or static state from one class cannot leak into the
+			     next; these tests each build a Spring context against the database. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<version>${maven-failsafe-plugin.version}</version>
+				<configuration>
+					<argLine>${failsafeArgLine}</argLine>
+					<forkCount>1</forkCount>
+					<reuseForks>false</reuseForks>
+				</configuration>
+			</plugin>
 
-<!-- Coverage. Both test JVMs write one exec file: surefire creates it,
-		     failsafe appends to it, and jacoco:report then needs no file selection
-		     at all. (Two files plus <dataFileIncludes> was tried first; the
-		     patterns never matched and the goal skipped silently.)
-
-		     propertyName is set explicitly on both executions. prepare-agent
-		     defaults it to "argLine", so without this both executions write the
-		     same property, the second silently wins, and any surefire/failsafe
-		     argLine referencing a name of its own expands to nothing: the agent is
-		     never attached and no .exec file appears, with no warning. -->
-		<plugin>
-			<groupId>org.jacoco</groupId>
-			<artifactId>jacoco-maven-plugin</artifactId>
-			<version>${jacoco-maven-plugin.version}</version>
-			<executions>
-				<execution>
-					<id>prepare-agent</id>
-					<goals>
-						<goal>prepare-agent</goal>
-					</goals>
-					<configuration>
-						<propertyName>surefireArgLine</propertyName>
-						<destFile>${jacoco.destFile}</destFile>
-					</configuration>
-				</execution>
-				<execution>
-					<id>prepare-agent-integration</id>
-					<goals>
-						<goal>prepare-agent</goal>
-					</goals>
-					<configuration>
-						<propertyName>failsafeArgLine</propertyName>
-						<destFile>${jacoco.destFile}</destFile>
-						<append>true</append>
-					</configuration>
-				</execution>
-				<execution>
-					<id>report</id>
-					<phase>verify</phase>
-					<goals>
-						<goal>report</goal>
-					</goals>
-					<configuration>
-						<dataFile>${jacoco.destFile}</dataFile>
-						<outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
-					</configuration>
-				</execution>
-			</executions>
-		</plugin>
-
-		<!-- argLine is declared exactly once per plugin. Maven keeps only the last
-		     <argLine> element in a <configuration> block and silently discards the
-		     others, which is how a JaCoCo agent goes missing while the build still
-		     looks configured. Note the \${...} form: @{...} late replacement was
-		     tried and surefire passed it to the forked JVM verbatim. -->
-		<plugin>
-			<groupId>org.apache.maven.plugins</groupId>
-			<artifactId>maven-surefire-plugin</artifactId>
-			<version>3.6.0</version>
-			<configuration>
-				<argLine>${surefireArgLine}</argLine>
-			</configuration>
-		</plugin>
-
-		<!-- Integration tests (*IT). Not bound explicitly: the default lifecycle
-		     already maps integration-test/verify onto the verify phase, so `mvn verify`
-		     runs them. Without this plugin they were never executed by any phase.
-		     forkCount/reuseForks give each IT class its own JVM, so a cached
-		     EntityManagerFactory or static state from one class cannot leak into the
-		     next; these tests each build a Spring context against the database. -->
-		<plugin>
-			<groupId>org.apache.maven.plugins</groupId>
-			<artifactId>maven-failsafe-plugin</artifactId>
-			<version>${maven-failsafe-plugin.version}</version>
-			<configuration>
-				<argLine>${failsafeArgLine}</argLine>
-				<forkCount>1</forkCount>
-				<reuseForks>false</reuseForks>
-			</configuration>
-		</plugin>
-
-		<!-- Checkstyle -->
-		<plugin>
-			<groupId>org.apache.maven.plugins</groupId>
-			<artifactId>maven-checkstyle-plugin</artifactId>
-			<version>${maven-checkstyle-plugin.version}</version>
-			<dependencies>
-				<dependency>
-					<groupId>com.puppycrawl.tools</groupId>
-					<artifactId>checkstyle</artifactId>
-					<version>${checkstyle.version}</version>
-				</dependency>
-			</dependencies>
+			<!-- Checkstyle -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>${maven-checkstyle-plugin.version}</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>${checkstyle.version}</version>
+					</dependency>
+				</dependencies>
 				<configuration>
 					<configLocation>checkstyle.xml</configLocation>
 					<consoleOutput>true</consoleOutput>
