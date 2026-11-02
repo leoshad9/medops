@@ -25,20 +25,14 @@
 		<maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
 		<maven-failsafe-plugin.version>3.6.0</maven-failsafe-plugin.version>
 		<jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
-		<!-- Single exec file shared by surefire and failsafe; see the plugin below. -->
 		<jacoco.destFile>${project.build.directory}/jacoco.exec</jacoco.destFile>
 		<lombok.version>1.18.48</lombok.version>
 
-		<!-- flyway 12.4.0 -> latest 12.x -->
+		<!-- Dependencies not managed by Spring Boot BOM -->
 		<flyway.version>12.11.0</flyway.version>
-		<!-- lz4-java (via kafka-clients): insecure temp file extraction. Not BOM-managed. -->
 		<lz4.version>1.12.0</lz4.version>
 
-		<!-- Test database, provisioned by sql-maven-plugin. Replaces the Zonky
-		     embedded-postgres bundles. The defaults mirror
-		     docker-compose.override.yml and the native Postgres a developer
-		     runs locally, so `mvn verify` needs no arguments; CI overrides
-		     them with -Dtest.db.* or the TEST_DB_* variables the tests read. -->
+		<!-- Test database provisioned by sql-maven-plugin -->
 		<sql-maven-plugin.version>3.0.0</sql-maven-plugin.version>
 		<test.db.host>localhost</test.db.host>
 		<test.db.port>5432</test.db.port>
@@ -112,9 +106,6 @@
 		</dependency>
 
 		<!-- Flyway -->
-		<!-- Spring Boot 4 moved FlywayAutoConfiguration out of spring-boot-autoconfigure
-		     into this module. flyway-core alone is therefore inert, and the Boot 4 upgrade
-		     silently stopped db/migration from running without spring-boot-flyway. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-flyway</artifactId>
@@ -220,9 +211,7 @@
 	<build>
 		<pluginManagement>
 			<plugins>
-				<!-- Tells Eclipse / VS Code Java (m2e) to ignore sql-maven-plugin
-				     during IDE incremental/full workspace builds so missing local
-				     Postgres instances do not report errors in the IDE editor. -->
+				<!-- Ignore sql-maven-plugin during IDE/m2e incremental builds -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
 					<artifactId>lifecycle-mapping</artifactId>
@@ -251,7 +240,7 @@
 		</pluginManagement>
 
 		<plugins>
-			<!-- Enforcer: guarantee build environment standards -->
+			<!-- Enforcer: build environment standards -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-enforcer-plugin</artifactId>
@@ -304,31 +293,13 @@
 				</configuration>
 			</plugin>
 
-			<!-- Test database. Replaces io.zonky.test:embedded-postgres.
-
-			     3.0.0 has only the `execute` goal; the old create-db/drop-db goals
-			     were removed in the 3.x line, so provisioning is sqlCommand
-			     executions instead.
-
-			     Phases: process-test-resources runs before surefire's `test`, which
-			     is why the create lands there and not in pre-integration-test.
-			     MedopsApiApplicationTests is a plain @SpringBootTest, so it runs
-			     under surefire; binding the create to pre-integration-test would
-			     leave it without a database.
-
-			     drop-then-create makes every build idempotent: CREATE DATABASE has no
-			     IF NOT EXISTS form, and a leftover database from an interrupted run
-			     would otherwise fail the gate before the tests ever start. WITH
-			     (FORCE) evicts connections the previous run's JVM left behind
-			     (Postgres 13+; CI pins 17, the compose overlay pins 17-alpine).
-			     Executions in one phase run in declaration order. -->
+			<!-- Test database lifecycle -->
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>sql-maven-plugin</artifactId>
 				<version>${sql-maven-plugin.version}</version>
 				<dependencies>
-					<!-- Not inherited from the project: plugin dependencies do not
-					     see project dependencies, so the driver must be repeated. -->
+					<!-- Postgres driver for sql-maven-plugin -->
 					<dependency>
 						<groupId>org.postgresql</groupId>
 						<artifactId>postgresql</artifactId>
@@ -339,18 +310,11 @@
 					<driver>org.postgresql.Driver</driver>
 					<username>${test.db.username}</username>
 					<password>${test.db.password}</password>
-					<!-- Connected to the maintenance database, not the test one: the
-					     database being created cannot be the one we are connected to. -->
+					<!-- Connect to maintenance db to manage test db -->
 					<url>jdbc:postgresql://${test.db.host}:${test.db.port}/postgres</url>
-					<!-- DDL is committed immediately. Under the plugin's default
-					     transactional mode CREATE DATABASE and the DROP at the end of
-					     the build can be rolled back, leaving the database behind. -->
+					<!-- Commit DDL immediately without rollback -->
 					<autocommit>true</autocommit>
-					<!-- Skip all executions when tests are skipped (e.g. Docker build
-					     uses -Dmaven.test.skip=true; no Postgres is available there).
-					     maven.test.skip is the standard Maven flag honoured by surefire
-					     and failsafe; mirroring it here keeps build-time behaviour
-					     consistent: tests off → no DB provisioning attempted. -->
+					<!-- Skip provisioning when tests are skipped -->
 					<skip>${maven.test.skip}</skip>
 				</configuration>
 				<executions>
@@ -390,16 +354,7 @@
 				</executions>
 			</plugin>
 
-			<!-- Coverage. Both test JVMs write one exec file: surefire creates it,
-			     failsafe appends to it, and jacoco:report then needs no file selection
-			     at all. (Two files plus <dataFileIncludes> was tried first; the
-			     patterns never matched and the goal skipped silently.)
-
-			     propertyName is set explicitly on both executions. prepare-agent
-			     defaults it to "argLine", so without this both executions write the
-			     same property, the second silently wins, and any surefire/failsafe
-			     argLine referencing a name of its own expands to nothing: the agent is
-			     never attached and no .exec file appears, with no warning. -->
+			<!-- JaCoCo test coverage for unit and integration tests -->
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
@@ -440,11 +395,7 @@
 				</executions>
 			</plugin>
 
-			<!-- argLine is declared exactly once per plugin. Maven keeps only the last
-			     <argLine> element in a <configuration> block and silently discards the
-			     others, which is how a JaCoCo agent goes missing while the build still
-			     looks configured. Note the \${...} form: @{...} late replacement was
-			     tried and surefire passed it to the forked JVM verbatim. -->
+			<!-- Unit tests -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
@@ -454,12 +405,7 @@
 				</configuration>
 			</plugin>
 
-			<!-- Integration tests (*IT). Not bound explicitly: the default lifecycle
-			     already maps integration-test/verify onto the verify phase, so `mvn verify`
-			     runs them. Without this plugin they were never executed by any phase.
-			     forkCount/reuseForks give each IT class its own JVM, so a cached
-			     EntityManagerFactory or static state from one class cannot leak into the
-			     next; these tests each build a Spring context against the database. -->
+			<!-- Integration tests (*IT) in isolated JVMs -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
@@ -500,22 +446,14 @@
 				</executions>
 			</plugin>
 
-			<!-- OWASP -->
+			<!-- OWASP dependency vulnerability check -->
 			<plugin>
 				<groupId>org.owasp</groupId>
 				<artifactId>dependency-check-maven</artifactId>
 				<version>${owasp.dependency-check.version}</version>
-				<!-- Deliberately NOT bound to a lifecycle phase. The first NVD feed
-				     download needs an API key and takes a long time, so it must not sit
-				     in the per-push `mvn verify` gate. .github/workflows/security-scan.yml
-				     invokes `dependency-check-maven:check` directly on a weekly schedule
-				     with secrets.NVD_API_KEY, and picks up the configuration below. -->
 				<configuration>
-					<!-- Fail on High severity vulnerabilities (CVSS >= 7). -->
 					<failBuildOnCVSS>7</failBuildOnCVSS>
-					<!-- Skip test-scoped dependencies. -->
 					<skipTestScope>true</skipTestScope>
-					<!-- HTML + JSON reports for CI artifact collection. -->
 					<formats>
 						<format>HTML</format>
 						<format>JSON</format>

@@ -65,6 +65,7 @@ public class BillingController {
             @PathVariable UUID patientId,
             @PathVariable UUID invoiceId) {
         clinicalAccess.assertPatientOwns(patientId, auth.getName());
+        invoiceService.assertInvoiceBelongsToPatient(invoiceId, patientId);
         return ResponseEntity.ok(ApiResponse.success(paymentService.listForInvoice(invoiceId)));
     }
 

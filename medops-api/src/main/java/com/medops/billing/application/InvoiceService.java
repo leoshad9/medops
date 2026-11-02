@@ -116,6 +116,14 @@ public class InvoiceService {
     }
 
     @Transactional(readOnly = true)
+    public void assertInvoiceBelongsToPatient(UUID invoiceId, UUID patientProfileId) {
+        Invoice invoice = requireInvoice(invoiceId);
+        if (!invoice.getPatientProfileId().equals(patientProfileId)) {
+            throw new InvalidRequestException("Invoice does not belong to this patient");
+        }
+    }
+
+    @Transactional(readOnly = true)
     public Page<InvoiceResponse> listForPatient(UUID patientProfileId, Pageable pageable) {
         return invoiceRepository
                 .findByPatientProfileIdOrderByCreatedAtDesc(patientProfileId, pageable)
