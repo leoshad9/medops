@@ -110,8 +110,8 @@ services:
       test: ["CMD", "curl", "--fail", "--silent", "--show-error", "--max-time", "4", "http://127.0.0.1:8080/actuator/health/readiness"]
       interval: 10s
       timeout: 5s
-      retries: 18
-      start_period: 60s
+      retries: 30
+      start_period: 120s
 
   medops-ui:
     build: ./medops-ui
