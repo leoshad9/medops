@@ -8,7 +8,7 @@ ALTER TABLE billing.payments
     ADD CONSTRAINT payments_method_check
         CHECK (method IN ('CASH', 'CARD', 'INSURANCE', 'BANK_TRANSFER', 'STRIPE'));
 
--- 2. Add new audit event types for Stripe checkout session creation and payment verification.
+-- 2. Add new audit event types for Stripe payment intent creation and payment verification.
 ALTER TABLE audit.audit_events
     DROP CONSTRAINT audit_events_event_type_check;
 
@@ -24,9 +24,5 @@ ALTER TABLE audit.audit_events
             'REPORT_SUMMARIZED', 'ASSISTANT_CHAT', 'PRESCRIPTION_CREATED',
             'INVOICE_CREATED', 'INVOICE_ISSUED', 'INVOICE_VOIDED',
             'PAYMENT_RECORDED', 'PAYMENT_REFUNDED',
-            'STRIPE_CHECKOUT_SESSION_CREATED', 'STRIPE_PAYMENT_SUCCEEDED', 'STRIPE_WEBHOOK_RECEIVED'
+            'STRIPE_PAYMENT_INTENT_CREATED', 'STRIPE_PAYMENT_SUCCEEDED', 'STRIPE_WEBHOOK_RECEIVED'
         ));
-
--- 3. Index the webhook dedup lookup: handleWebhook queries findByReference
--- on every Stripe event, and reference has no index today.
-CREATE INDEX IF NOT EXISTS idx_payments_reference ON billing.payments (reference);
