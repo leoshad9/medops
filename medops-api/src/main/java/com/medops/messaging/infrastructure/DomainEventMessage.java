@@ -25,5 +25,13 @@ public record DomainEventMessage(
     public static DomainEventMessage reportUploaded(UUID reportId, Instant occurredAt) {
         return new DomainEventMessage("ReportUploaded", UUID.randomUUID(), null, reportId, occurredAt);
     }
+
+    public static DomainEventMessage appointmentCancelled(UUID appointmentId, Instant occurredAt) {
+        return new DomainEventMessage("AppointmentCancelled", UUID.randomUUID(), appointmentId, null, occurredAt);
+    }
+
+    public static DomainEventMessage appointmentRescheduled(UUID appointmentId, Instant occurredAt) {
+        return new DomainEventMessage("AppointmentRescheduled", UUID.randomUUID(), appointmentId, null, occurredAt);
+    }
 }
 

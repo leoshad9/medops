@@ -53,7 +53,7 @@ public class Payment {
     @JoinColumn(name = "invoice_id", nullable = false)
     private Invoice invoice;
 
-    @Column(name = "idempotency_key", nullable = false, unique = true, length = 64)
+    @Column(name = "idempotency_key", nullable = false, unique = true, length = 128)
     private String idempotencyKey;
 
     @Column(name = "amount_cents", nullable = false)

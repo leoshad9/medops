@@ -1,5 +1,6 @@
 package com.medops.messaging.infrastructure;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
@@ -65,5 +66,49 @@ class DomainEventOutboxDispatcherTest {
         org.mockito.ArgumentCaptor<String> error = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(operations).failed(org.mockito.ArgumentMatchers.eq(eventId), error.capture());
         org.assertj.core.api.Assertions.assertThat(error.getValue()).contains("broker unavailable");
+    }
+
+    @Test
+    void routesAppointmentCancelledToAppointmentsTopic() throws Exception {
+        UUID eventId = UUID.randomUUID();
+        UUID appointmentId = UUID.randomUUID();
+        var row = new DomainEventOutboxEntity(
+                eventId, "AppointmentCancelled", appointmentId.toString(),
+                new ObjectMapper().readTree("{\"appointmentId\":\"" + appointmentId + "\"}"), Instant.now());
+        when(operations.claim(10)).thenReturn(List.of(row));
+        when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        var properties = new MessagingProperties(true, "appointments", "reports", 10, 1000, 3, 1000);
+        var dispatcher = new DomainEventOutboxDispatcher(
+                operations, kafkaTemplate, properties, new SimpleMeterRegistry());
+
+        dispatcher.dispatchPending();
+
+        org.mockito.ArgumentCaptor<String> topic = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(kafkaTemplate).send(topic.capture(), anyString(), any());
+        assertThat(topic.getValue()).isEqualTo("appointments");
+        verify(operations).published(eventId);
+    }
+
+    @Test
+    void routesAppointmentRescheduledToAppointmentsTopic() throws Exception {
+        UUID eventId = UUID.randomUUID();
+        UUID appointmentId = UUID.randomUUID();
+        var row = new DomainEventOutboxEntity(
+                eventId, "AppointmentRescheduled", appointmentId.toString(),
+                new ObjectMapper().readTree("{\"appointmentId\":\"" + appointmentId + "\"}"), Instant.now());
+        when(operations.claim(10)).thenReturn(List.of(row));
+        when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        var properties = new MessagingProperties(true, "appointments", "reports", 10, 1000, 3, 1000);
+        var dispatcher = new DomainEventOutboxDispatcher(
+                operations, kafkaTemplate, properties, new SimpleMeterRegistry());
+
+        dispatcher.dispatchPending();
+
+        org.mockito.ArgumentCaptor<String> topic = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(kafkaTemplate).send(topic.capture(), anyString(), any());
+        assertThat(topic.getValue()).isEqualTo("appointments");
+        verify(operations).published(eventId);
     }
 }

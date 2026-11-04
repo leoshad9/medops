@@ -167,4 +167,86 @@ class NotificationEventConsumerTest {
         verifyNoInteractions(clinicalReportRepository);
         verifyNoInteractions(notificationService);
     }
+
+    @Test
+    void appointmentCancelledNotifiesPatientAndDoctor() {
+        UUID appointmentId = UUID.randomUUID();
+        UUID patientProfileId = UUID.randomUUID();
+        UUID doctorProfileId = UUID.randomUUID();
+        UUID patientUserId = UUID.randomUUID();
+        UUID doctorUserId = UUID.randomUUID();
+        UUID eventId = UUID.randomUUID();
+        Appointment appointment = Appointment.builder()
+                .id(appointmentId)
+                .patientProfileId(patientProfileId)
+                .doctorProfileId(doctorProfileId)
+                .startsAt(Instant.parse("2026-08-31T04:30:00Z"))
+                .endsAt(Instant.parse("2026-08-31T05:00:00Z"))
+                .status(AppointmentStatus.CANCELLED)
+                .build();
+        PatientProfile patient = PatientProfile.builder()
+                .id(patientProfileId).userId(patientUserId).fullName("Ananya Rao").build();
+        DoctorProfile doctor = DoctorProfile.builder()
+                .id(doctorProfileId).userId(doctorUserId).fullName("Dr. Khan").build();
+        when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment));
+        when(patientProfileRepository.findById(patientProfileId)).thenReturn(Optional.of(patient));
+        when(doctorProfileRepository.findById(doctorProfileId)).thenReturn(Optional.of(doctor));
+
+        consumer.onAppointmentCancelled(
+                new DomainEventMessage("AppointmentCancelled", eventId, appointmentId, null, Instant.now()));
+
+        ArgumentCaptor<CreateNotification> captor = ArgumentCaptor.forClass(CreateNotification.class);
+        verify(notificationService, times(2)).create(captor.capture());
+        List<CreateNotification> created = captor.getAllValues();
+        assertThat(created).extracting(CreateNotification::userId)
+                .containsExactlyInAnyOrder(patientUserId, doctorUserId);
+        assertThat(created).extracting(CreateNotification::title)
+                .containsExactlyInAnyOrder("Appointment cancelled", "Appointment cancelled");
+        assertThat(created)
+                .allMatch(n -> n.type() == NotificationType.APPOINTMENT_CANCELLED)
+                .allMatch(n -> "APPOINTMENT".equals(n.referenceType()))
+                .allMatch(n -> n.referenceId().equals(appointmentId))
+                .allMatch(n -> n.sourceEventId().equals(eventId));
+    }
+
+    @Test
+    void appointmentRescheduledNotifiesPatientAndDoctor() {
+        UUID appointmentId = UUID.randomUUID();
+        UUID patientProfileId = UUID.randomUUID();
+        UUID doctorProfileId = UUID.randomUUID();
+        UUID patientUserId = UUID.randomUUID();
+        UUID doctorUserId = UUID.randomUUID();
+        UUID eventId = UUID.randomUUID();
+        Appointment appointment = Appointment.builder()
+                .id(appointmentId)
+                .patientProfileId(patientProfileId)
+                .doctorProfileId(doctorProfileId)
+                .startsAt(Instant.parse("2026-08-31T05:00:00Z"))
+                .endsAt(Instant.parse("2026-08-31T05:30:00Z"))
+                .status(AppointmentStatus.BOOKED)
+                .build();
+        PatientProfile patient = PatientProfile.builder()
+                .id(patientProfileId).userId(patientUserId).fullName("Ananya Rao").build();
+        DoctorProfile doctor = DoctorProfile.builder()
+                .id(doctorProfileId).userId(doctorUserId).fullName("Dr. Khan").build();
+        when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment));
+        when(patientProfileRepository.findById(patientProfileId)).thenReturn(Optional.of(patient));
+        when(doctorProfileRepository.findById(doctorProfileId)).thenReturn(Optional.of(doctor));
+
+        consumer.onAppointmentRescheduled(
+                new DomainEventMessage("AppointmentRescheduled", eventId, appointmentId, null, Instant.now()));
+
+        ArgumentCaptor<CreateNotification> captor = ArgumentCaptor.forClass(CreateNotification.class);
+        verify(notificationService, times(2)).create(captor.capture());
+        List<CreateNotification> created = captor.getAllValues();
+        assertThat(created).extracting(CreateNotification::userId)
+                .containsExactlyInAnyOrder(patientUserId, doctorUserId);
+        assertThat(created).extracting(CreateNotification::title)
+                .containsExactlyInAnyOrder("Appointment rescheduled", "Appointment rescheduled");
+        assertThat(created)
+                .allMatch(n -> n.type() == NotificationType.APPOINTMENT_RESCHEDULED)
+                .allMatch(n -> "APPOINTMENT".equals(n.referenceType()))
+                .allMatch(n -> n.referenceId().equals(appointmentId))
+                .allMatch(n -> n.sourceEventId().equals(eventId));
+    }
 }

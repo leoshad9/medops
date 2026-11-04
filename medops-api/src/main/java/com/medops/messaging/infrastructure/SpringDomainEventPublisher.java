@@ -39,6 +39,10 @@ public class SpringDomainEventPublisher implements DomainEventPublisher {
             node.put("appointmentId", booked.appointmentId().toString());
         } else if (event instanceof com.medops.messaging.events.ReportUploadedEvent uploaded) {
             node.put("reportId", uploaded.reportId().toString());
+        } else if (event instanceof com.medops.messaging.events.AppointmentCancelledEvent cancelled) {
+            node.put("appointmentId", cancelled.appointmentId().toString());
+        } else if (event instanceof com.medops.messaging.events.AppointmentRescheduledEvent rescheduled) {
+            node.put("appointmentId", rescheduled.appointmentId().toString());
         } else {
             throw new IllegalArgumentException("Unsupported domain event: " + event.eventType());
         }

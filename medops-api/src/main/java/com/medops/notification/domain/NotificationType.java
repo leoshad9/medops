@@ -5,5 +5,7 @@ package com.medops.notification.domain;
  */
 public enum NotificationType {
     APPOINTMENT_BOOKED,
+    APPOINTMENT_CANCELLED,
+    APPOINTMENT_RESCHEDULED,
     REPORT_UPLOADED
 }

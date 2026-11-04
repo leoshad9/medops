@@ -67,6 +67,36 @@ public class NotificationEventConsumer {
     }
 
     @KafkaListener(
+            topics = "${medops.messaging.appointments-topic}",
+            groupId = "medops-api-notifications",
+            containerFactory = "domainEventKafkaListenerContainerFactory")
+    public void onAppointmentCancelled(DomainEventMessage message) {
+        if (message == null
+                || !"AppointmentCancelled".equals(message.eventType())
+                || message.appointmentId() == null) {
+            return;
+        }
+        log.info("Consuming AppointmentCancelled for notifications appointmentId={}", message.appointmentId());
+        appointmentRepository.findById(message.appointmentId())
+                .ifPresent(appointment -> notifyAppointmentCancelled(appointment, message.eventId()));
+    }
+
+    @KafkaListener(
+            topics = "${medops.messaging.appointments-topic}",
+            groupId = "medops-api-notifications",
+            containerFactory = "domainEventKafkaListenerContainerFactory")
+    public void onAppointmentRescheduled(DomainEventMessage message) {
+        if (message == null
+                || !"AppointmentRescheduled".equals(message.eventType())
+                || message.appointmentId() == null) {
+            return;
+        }
+        log.info("Consuming AppointmentRescheduled for notifications appointmentId={}", message.appointmentId());
+        appointmentRepository.findById(message.appointmentId())
+                .ifPresent(appointment -> notifyAppointmentRescheduled(appointment, message.eventId()));
+    }
+
+    @KafkaListener(
             topics = "${medops.messaging.reports-topic}",
             groupId = "medops-api-notifications",
             containerFactory = "domainEventKafkaListenerContainerFactory")
@@ -96,6 +126,46 @@ public class NotificationEventConsumer {
                 doctor.getUserId(), NotificationType.APPOINTMENT_BOOKED,
                 "New appointment",
                 "Appointment with " + patient.getFullName() + " on " + startsAt + ".",
+                "APPOINTMENT", appointment.getId(), sourceEventId));
+    }
+
+    private void notifyAppointmentCancelled(Appointment appointment, UUID sourceEventId) {
+        DoctorProfile doctor = doctorProfileRepository.findById(appointment.getDoctorProfileId()).orElse(null);
+        PatientProfile patient = patientProfileRepository.findById(appointment.getPatientProfileId()).orElse(null);
+        if (doctor == null || patient == null) {
+            log.warn("Cannot enrich AppointmentCancelled appointmentId={}", appointment.getId());
+            return;
+        }
+        String startsAt = formatStart(appointment.getStartsAt());
+        notificationService.create(new CreateNotification(
+                patient.getUserId(), NotificationType.APPOINTMENT_CANCELLED,
+                "Appointment cancelled",
+                "Your appointment with " + doctor.getFullName() + " on " + startsAt + " has been cancelled.",
+                "APPOINTMENT", appointment.getId(), sourceEventId));
+        notificationService.create(new CreateNotification(
+                doctor.getUserId(), NotificationType.APPOINTMENT_CANCELLED,
+                "Appointment cancelled",
+                "Appointment with " + patient.getFullName() + " on " + startsAt + " has been cancelled.",
+                "APPOINTMENT", appointment.getId(), sourceEventId));
+    }
+
+    private void notifyAppointmentRescheduled(Appointment appointment, UUID sourceEventId) {
+        DoctorProfile doctor = doctorProfileRepository.findById(appointment.getDoctorProfileId()).orElse(null);
+        PatientProfile patient = patientProfileRepository.findById(appointment.getPatientProfileId()).orElse(null);
+        if (doctor == null || patient == null) {
+            log.warn("Cannot enrich AppointmentRescheduled appointmentId={}", appointment.getId());
+            return;
+        }
+        String startsAt = formatStart(appointment.getStartsAt());
+        notificationService.create(new CreateNotification(
+                patient.getUserId(), NotificationType.APPOINTMENT_RESCHEDULED,
+                "Appointment rescheduled",
+                "Your appointment with " + doctor.getFullName() + " is now on " + startsAt + ".",
+                "APPOINTMENT", appointment.getId(), sourceEventId));
+        notificationService.create(new CreateNotification(
+                doctor.getUserId(), NotificationType.APPOINTMENT_RESCHEDULED,
+                "Appointment rescheduled",
+                "Appointment with " + patient.getFullName() + " is now on " + startsAt + ".",
                 "APPOINTMENT", appointment.getId(), sourceEventId));
     }
 

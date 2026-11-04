@@ -15,6 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medops.messaging.events.AppointmentBookedEvent;
+import com.medops.messaging.events.AppointmentCancelledEvent;
+import com.medops.messaging.events.AppointmentRescheduledEvent;
 
 @ExtendWith(MockitoExtension.class)
 class SpringDomainEventPublisherTest {
@@ -40,5 +42,43 @@ class SpringDomainEventPublisherTest {
         assertThat(row.getPayload().fieldNames()).toIterable().containsExactly("appointmentId");
         assertThat(row.getPayload().get("appointmentId").asText()).isEqualTo(appointmentId.toString());
         assertThat(row.getId()).isNotNull();
+    }
+
+    @Test
+    void persistsCancelledEventPayload() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        SpringDomainEventPublisher publisher = new SpringDomainEventPublisher(outboxRepository, objectMapper);
+        UUID appointmentId = UUID.randomUUID();
+        when(outboxRepository.save(any(DomainEventOutboxEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        publisher.publishAfterCommit(new AppointmentCancelledEvent(appointmentId, Instant.parse("2026-04-01T00:00:00Z")));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(DomainEventOutboxEntity.class);
+        verify(outboxRepository).save(captor.capture());
+        DomainEventOutboxEntity row = captor.getValue();
+        assertThat(row.getEventType()).isEqualTo("AppointmentCancelled");
+        assertThat(row.getEventKey()).isEqualTo(appointmentId.toString());
+        assertThat(row.getPayload().fieldNames()).toIterable().containsExactly("appointmentId");
+        assertThat(row.getPayload().get("appointmentId").asText()).isEqualTo(appointmentId.toString());
+    }
+
+    @Test
+    void persistsRescheduledEventPayload() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        SpringDomainEventPublisher publisher = new SpringDomainEventPublisher(outboxRepository, objectMapper);
+        UUID appointmentId = UUID.randomUUID();
+        when(outboxRepository.save(any(DomainEventOutboxEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        publisher.publishAfterCommit(new AppointmentRescheduledEvent(appointmentId, Instant.parse("2026-04-01T00:00:00Z")));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(DomainEventOutboxEntity.class);
+        verify(outboxRepository).save(captor.capture());
+        DomainEventOutboxEntity row = captor.getValue();
+        assertThat(row.getEventType()).isEqualTo("AppointmentRescheduled");
+        assertThat(row.getEventKey()).isEqualTo(appointmentId.toString());
+        assertThat(row.getPayload().fieldNames()).toIterable().containsExactly("appointmentId");
+        assertThat(row.getPayload().get("appointmentId").asText()).isEqualTo(appointmentId.toString());
     }
 }

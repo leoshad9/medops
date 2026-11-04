@@ -23,6 +23,8 @@ import org.springframework.security.access.AccessDeniedException;
 import com.medops.appointments.infrastructure.Appointment;
 import com.medops.appointments.infrastructure.AppointmentRepository;
 import com.medops.appointments.infrastructure.AppointmentScheduleProperties;
+import com.medops.messaging.domain.DomainEventPublisher;
+import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +40,8 @@ class AppointmentTransitionServiceAuthorizationTest {
     private BookAppointmentService bookAppointmentService;
     @Mock
     private AuditService auditService;
+    @Mock
+    private DomainEventPublisher domainEventPublisher;
 
     private Appointment otherPatientsAppointment;
 
@@ -58,6 +62,7 @@ class AppointmentTransitionServiceAuthorizationTest {
                 bookAppointmentService,
                 schedule,
                 auditService,
+                domainEventPublisher,
                 Clock.fixed(Instant.parse("2026-08-31T03:00:00Z"), ZoneOffset.UTC));
         when(appointmentRepository.findById(otherPatientsAppointment.getId()))
                 .thenReturn(Optional.of(otherPatientsAppointment));

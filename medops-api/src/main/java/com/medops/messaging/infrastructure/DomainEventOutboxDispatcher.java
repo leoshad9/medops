@@ -70,7 +70,8 @@ public class DomainEventOutboxDispatcher {
 
     private String topicFor(String eventType) {
         return switch (eventType) {
-            case "AppointmentBooked" -> properties.appointmentsTopic();
+            case "AppointmentBooked", "AppointmentCancelled",
+                 "AppointmentRescheduled" -> properties.appointmentsTopic();
             case "ReportUploaded" -> properties.reportsTopic();
             default -> throw new IllegalArgumentException("Unsupported outbox event type: " + eventType);
         };

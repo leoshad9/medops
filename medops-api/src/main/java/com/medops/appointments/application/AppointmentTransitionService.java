@@ -19,6 +19,9 @@ import com.medops.shared.audit.AuditEventType;
 import com.medops.shared.audit.AuditService;
 import com.medops.shared.exception.ConflictException;
 import com.medops.shared.exception.ResourceNotFoundException;
+import com.medops.messaging.domain.DomainEventPublisher;
+import com.medops.messaging.events.AppointmentCancelledEvent;
+import com.medops.messaging.events.AppointmentRescheduledEvent;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,6 +35,7 @@ public class AppointmentTransitionService {
     private final BookAppointmentService bookAppointmentService;
     private final AppointmentScheduleProperties schedule;
     private final AuditService auditService;
+    private final DomainEventPublisher domainEventPublisher;
     private final Clock clock;
 
     @Transactional
@@ -40,6 +44,7 @@ public class AppointmentTransitionService {
         Instant now = clock.instant();
         visible.appointment().cancel(now);
         auditService.recordEvent(AuditEventType.APPOINTMENT_CANCELLED, visible.actorUserId(), email);
+        domainEventPublisher.publishAfterCommit(AppointmentCancelledEvent.of(appointmentId));
         return assembler.toResponse(appointmentRepository.save(visible.appointment()));
     }
 
@@ -64,6 +69,7 @@ public class AppointmentTransitionService {
 
         appointment.reschedule(newStart, schedule.slotLength(), now);
         auditService.recordEvent(AuditEventType.APPOINTMENT_RESCHEDULED, visible.actorUserId(), email);
+        domainEventPublisher.publishAfterCommit(AppointmentRescheduledEvent.of(appointmentId));
         return assembler.toResponse(appointmentRepository.saveAndFlush(appointment));
     }
 
