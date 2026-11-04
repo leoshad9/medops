@@ -57,6 +57,8 @@ public class DomainEventOutboxDispatcher {
                 row.getId(),
                 uuidField(row, "appointmentId"),
                 uuidField(row, "reportId"),
+                uuidField(row, "invoiceId"),
+                uuidField(row, "patientProfileId"),
                 row.getOccurredAt() == null ? Instant.now() : row.getOccurredAt());
     }
 
@@ -73,6 +75,7 @@ public class DomainEventOutboxDispatcher {
             case "AppointmentBooked", "AppointmentCancelled",
                  "AppointmentRescheduled" -> properties.appointmentsTopic();
             case "ReportUploaded" -> properties.reportsTopic();
+            case "PaymentConfirmed" -> properties.billingTopic();
             default -> throw new IllegalArgumentException("Unsupported outbox event type: " + eventType);
         };
     }

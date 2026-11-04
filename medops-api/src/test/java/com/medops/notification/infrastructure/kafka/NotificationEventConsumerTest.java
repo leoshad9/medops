@@ -86,7 +86,7 @@ class NotificationEventConsumerTest {
         when(doctorProfileRepository.findById(doctorProfileId)).thenReturn(Optional.of(doctor));
 
         consumer.onAppointmentBooked(
-                new DomainEventMessage("AppointmentBooked", eventId, appointmentId, null, Instant.now()));
+                new DomainEventMessage("AppointmentBooked", eventId, appointmentId, null, null, null, Instant.now()));
 
         ArgumentCaptor<CreateNotification> captor = ArgumentCaptor.forClass(CreateNotification.class);
         verify(notificationService, times(2)).create(captor.capture());
@@ -108,7 +108,7 @@ class NotificationEventConsumerTest {
         UUID reportId = UUID.randomUUID();
 
         consumer.onAppointmentBooked(
-                new DomainEventMessage("ReportUploaded", eventId, null, reportId, Instant.now()));
+                new DomainEventMessage("ReportUploaded", eventId, null, reportId, null, null, Instant.now()));
 
         verifyNoInteractions(appointmentRepository);
         verifyNoInteractions(notificationService);
@@ -142,7 +142,7 @@ class NotificationEventConsumerTest {
         when(doctorProfileRepository.findById(doctorProfileId)).thenReturn(Optional.of(doctor));
 
         consumer.onReportUploaded(
-                new DomainEventMessage("ReportUploaded", eventId, null, reportId, Instant.now()));
+                new DomainEventMessage("ReportUploaded", eventId, null, reportId, null, null, Instant.now()));
 
         ArgumentCaptor<CreateNotification> captor = ArgumentCaptor.forClass(CreateNotification.class);
         verify(notificationService, times(2)).create(captor.capture());
@@ -162,7 +162,7 @@ class NotificationEventConsumerTest {
         UUID appointmentId = UUID.randomUUID();
 
         consumer.onReportUploaded(
-                new DomainEventMessage("AppointmentBooked", eventId, appointmentId, null, Instant.now()));
+                new DomainEventMessage("AppointmentBooked", eventId, appointmentId, null, null, null, Instant.now()));
 
         verifyNoInteractions(clinicalReportRepository);
         verifyNoInteractions(notificationService);
@@ -193,7 +193,7 @@ class NotificationEventConsumerTest {
         when(doctorProfileRepository.findById(doctorProfileId)).thenReturn(Optional.of(doctor));
 
         consumer.onAppointmentCancelled(
-                new DomainEventMessage("AppointmentCancelled", eventId, appointmentId, null, Instant.now()));
+                new DomainEventMessage("AppointmentCancelled", eventId, appointmentId, null, null, null, Instant.now()));
 
         ArgumentCaptor<CreateNotification> captor = ArgumentCaptor.forClass(CreateNotification.class);
         verify(notificationService, times(2)).create(captor.capture());
@@ -234,7 +234,7 @@ class NotificationEventConsumerTest {
         when(doctorProfileRepository.findById(doctorProfileId)).thenReturn(Optional.of(doctor));
 
         consumer.onAppointmentRescheduled(
-                new DomainEventMessage("AppointmentRescheduled", eventId, appointmentId, null, Instant.now()));
+                new DomainEventMessage("AppointmentRescheduled", eventId, appointmentId, null, null, null, Instant.now()));
 
         ArgumentCaptor<CreateNotification> captor = ArgumentCaptor.forClass(CreateNotification.class);
         verify(notificationService, times(2)).create(captor.capture());

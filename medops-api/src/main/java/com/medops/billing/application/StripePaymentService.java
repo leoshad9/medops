@@ -19,6 +19,8 @@ import com.medops.billing.infrastructure.Payment;
 import com.medops.billing.infrastructure.PaymentRepository;
 import com.medops.billing.infrastructure.StripeClient;
 import com.medops.billing.infrastructure.StripeProperties;
+import com.medops.messaging.domain.DomainEventPublisher;
+import com.medops.messaging.events.PaymentConfirmedEvent;
 import com.medops.patients.infrastructure.PatientProfile;
 import com.medops.patients.infrastructure.PatientProfileRepository;
 import com.medops.shared.audit.AuditEventType;
@@ -41,6 +43,7 @@ public class StripePaymentService {
     private final StripeProperties stripeProperties;
     private final AuditService auditService;
     private final PatientProfileRepository patientProfileRepository;
+    private final DomainEventPublisher domainEventPublisher;
 
     /**
      * Tx 1: validate invoice and read balance - transaction commits before HTTP call.
@@ -142,17 +145,34 @@ public class StripePaymentService {
             return;
         }
 
+        // Resolve patientProfileId from metadata (set at checkout creation) or fall back to invoice.
+        String patientProfileIdStr = event.metadata().get("patient_profile_id");
+        UUID patientProfileId = null;
+        if (patientProfileIdStr != null) {
+            try {
+                patientProfileId = UUID.fromString(patientProfileIdStr);
+            } catch (IllegalArgumentException ex) {
+                log.warn("Invalid patient_profile_id in {} metadata: referenceId={}", eventType, referenceId);
+            }
+        }
+
         // Fallback to the invoice patient user if actor_user_id not in metadata.
         // Resolve the real user id: audit subject_id and recordPayment expect a User id,
         // not the PatientProfile id stored on the invoice.
         UUID finalActorUserId = actorUserId;
         String finalActorEmail = "stripe-webhook";
-        if (finalActorUserId == null) {
+        UUID finalPatientProfileId = patientProfileId;
+        if (finalActorUserId == null || finalPatientProfileId == null) {
             Invoice invoice = invoiceService.requireInvoice(invoiceId);
             PatientProfile profile = patientProfileRepository.findById(invoice.getPatientProfileId())
                     .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
-            finalActorUserId = profile.getUserId();
-            finalActorEmail = "patient-" + profile.getUserId();
+            if (finalActorUserId == null) {
+                finalActorUserId = profile.getUserId();
+                finalActorEmail = "patient-" + profile.getUserId();
+            }
+            if (finalPatientProfileId == null) {
+                finalPatientProfileId = profile.getId();
+            }
         }
 
         var recordRequest = new RecordPaymentRequest(
@@ -170,6 +190,8 @@ public class StripePaymentService {
             log.info("Duplicate {} absorbed by unique constraint: referenceId={}", eventType, referenceId);
             return;
         }
+        domainEventPublisher.publishAfterCommit(
+                PaymentConfirmedEvent.of(invoiceId, finalPatientProfileId));
         auditService.recordEvent(AuditEventType.STRIPE_PAYMENT_SUCCEEDED, finalActorUserId, finalActorEmail);
     }
     // --- private ---

@@ -31,6 +31,7 @@ import com.medops.billing.infrastructure.Payment;
 import com.medops.billing.infrastructure.PaymentRepository;
 import com.medops.billing.infrastructure.StripeClient;
 import com.medops.billing.infrastructure.StripeProperties;
+import com.medops.messaging.domain.DomainEventPublisher;
 import com.medops.patients.infrastructure.PatientProfile;
 import com.medops.patients.infrastructure.PatientProfileRepository;
 import com.medops.shared.audit.AuditEventType;
@@ -65,6 +66,8 @@ class StripePaymentServiceTest {
     private AuditService auditService;
     @Mock
     private PatientProfileRepository patientProfileRepository;
+    @Mock
+    private DomainEventPublisher domainEventPublisher;
 
     private StripePaymentService service;
 
@@ -75,7 +78,7 @@ class StripePaymentServiceTest {
                 "http://localhost:5173/patient/billing");
         service = new StripePaymentService(
                 invoiceService, paymentService, paymentRepository, stripeClient,
-                props, auditService, patientProfileRepository);
+                props, auditService, patientProfileRepository, domainEventPublisher);
     }
     // --- createCheckoutSession ---
 
@@ -172,6 +175,12 @@ class StripePaymentServiceTest {
         succeededCheckoutEvent(Map.of(
                 "invoice_id", INVOICE_ID.toString(),
                 "actor_user_id", ACTOR_USER_ID.toString()));
+        when(invoiceService.requireInvoice(INVOICE_ID)).thenReturn(payableInvoice());
+        when(patientProfileRepository.findById(PATIENT_PROFILE_ID))
+                .thenReturn(Optional.of(PatientProfile.builder()
+                        .id(PATIENT_PROFILE_ID)
+                        .userId(PATIENT_USER_ID)
+                        .build()));
 
         service.handleWebhook("payload", "t=sig");
 
@@ -197,6 +206,12 @@ class StripePaymentServiceTest {
                         "invoice_id", INVOICE_ID.toString(),
                         "actor_user_id", ACTOR_USER_ID.toString()));
         when(stripeClient.constructEvent("payload", "t=sig")).thenReturn(event);
+        when(invoiceService.requireInvoice(INVOICE_ID)).thenReturn(payableInvoice());
+        when(patientProfileRepository.findById(PATIENT_PROFILE_ID))
+                .thenReturn(Optional.of(PatientProfile.builder()
+                        .id(PATIENT_PROFILE_ID)
+                        .userId(PATIENT_USER_ID)
+                        .build()));
 
         service.handleWebhook("payload", "t=sig");
 
@@ -211,6 +226,12 @@ class StripePaymentServiceTest {
         succeededCheckoutEvent(Map.of(
                 "invoice_id", INVOICE_ID.toString(),
                 "actor_user_id", ACTOR_USER_ID.toString()));
+        when(invoiceService.requireInvoice(INVOICE_ID)).thenReturn(payableInvoice());
+        when(patientProfileRepository.findById(PATIENT_PROFILE_ID))
+                .thenReturn(Optional.of(PatientProfile.builder()
+                        .id(PATIENT_PROFILE_ID)
+                        .userId(PATIENT_USER_ID)
+                        .build()));
         when(paymentService.recordPayment(eq(INVOICE_ID), eq(SESSION_ID), any(), any(), any()))
                 .thenThrow(new InvalidRequestException("Payment exceeds outstanding balance"));
 
@@ -255,6 +276,12 @@ class StripePaymentServiceTest {
         succeededCheckoutEvent(Map.of(
                 "invoice_id", INVOICE_ID.toString(),
                 "actor_user_id", ACTOR_USER_ID.toString()));
+        when(invoiceService.requireInvoice(INVOICE_ID)).thenReturn(payableInvoice());
+        when(patientProfileRepository.findById(PATIENT_PROFILE_ID))
+                .thenReturn(Optional.of(PatientProfile.builder()
+                        .id(PATIENT_PROFILE_ID)
+                        .userId(PATIENT_USER_ID)
+                        .build()));
         when(paymentService.recordPayment(eq(INVOICE_ID), eq(SESSION_ID), any(), any(), any()))
                 .thenThrow(new DataIntegrityViolationException("uq_payments_idempotency_key"));
 

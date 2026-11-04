@@ -13,6 +13,7 @@ public record MessagingProperties(
         boolean enabled,
         @NotBlank String appointmentsTopic,
         @NotBlank String reportsTopic,
+        @NotBlank String billingTopic,
         @Positive @DefaultValue("100") int outboxBatchSize,
         @Positive @DefaultValue("1000") long outboxFixedDelayMs,
         @Positive @DefaultValue("3") int consumerRetryAttempts,

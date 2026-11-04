@@ -109,6 +109,23 @@ public class NotificationEventConsumer {
                 .ifPresent(report -> notifyReportParties(report, message.eventId()));
     }
 
+    @KafkaListener(
+            topics = "${medops.messaging.billing-topic}",
+            groupId = "medops-api-notifications",
+            containerFactory = "domainEventKafkaListenerContainerFactory")
+    public void onPaymentConfirmed(DomainEventMessage message) {
+        if (message == null || !"PaymentConfirmed".equals(message.eventType()) || message.invoiceId() == null) {
+            return;
+        }
+        log.info("Consuming PaymentConfirmed for notifications invoiceId={}", message.invoiceId());
+        patientProfileRepository.findById(message.patientProfileId()).ifPresent(patient ->
+                notificationService.create(new CreateNotification(
+                        patient.getUserId(), NotificationType.PAYMENT_CONFIRMED,
+                        "Payment confirmed",
+                        "Your payment for invoice " + message.invoiceId() + " has been received.",
+                        "INVOICE", message.invoiceId(), message.eventId())));
+    }
+
     private void notifyAppointmentParties(Appointment appointment, UUID sourceEventId) {
         DoctorProfile doctor = doctorProfileRepository.findById(appointment.getDoctorProfileId()).orElse(null);
         PatientProfile patient = patientProfileRepository.findById(appointment.getPatientProfileId()).orElse(null);

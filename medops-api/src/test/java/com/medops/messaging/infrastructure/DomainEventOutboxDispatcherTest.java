@@ -37,7 +37,7 @@ class DomainEventOutboxDispatcherTest {
         when(operations.claim(10)).thenReturn(List.of(row));
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        var properties = new MessagingProperties(true, "appointments", "reports", 10, 1000, 3, 1000);
+        var properties = new MessagingProperties(true, "appointments", "reports", "billing", 10, 1000, 3, 1000);
         var dispatcher = new DomainEventOutboxDispatcher(
                 operations, kafkaTemplate, properties, new SimpleMeterRegistry());
 
@@ -57,7 +57,7 @@ class DomainEventOutboxDispatcherTest {
         when(operations.claim(10)).thenReturn(List.of(row));
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("broker unavailable")));
-        var properties = new MessagingProperties(true, "appointments", "reports", 10, 1000, 3, 1000);
+        var properties = new MessagingProperties(true, "appointments", "reports", "billing", 10, 1000, 3, 1000);
         var dispatcher = new DomainEventOutboxDispatcher(
                 operations, kafkaTemplate, properties, new SimpleMeterRegistry());
 
@@ -78,7 +78,7 @@ class DomainEventOutboxDispatcherTest {
         when(operations.claim(10)).thenReturn(List.of(row));
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        var properties = new MessagingProperties(true, "appointments", "reports", 10, 1000, 3, 1000);
+        var properties = new MessagingProperties(true, "appointments", "reports", "billing", 10, 1000, 3, 1000);
         var dispatcher = new DomainEventOutboxDispatcher(
                 operations, kafkaTemplate, properties, new SimpleMeterRegistry());
 
@@ -100,7 +100,7 @@ class DomainEventOutboxDispatcherTest {
         when(operations.claim(10)).thenReturn(List.of(row));
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        var properties = new MessagingProperties(true, "appointments", "reports", 10, 1000, 3, 1000);
+        var properties = new MessagingProperties(true, "appointments", "reports", "billing", 10, 1000, 3, 1000);
         var dispatcher = new DomainEventOutboxDispatcher(
                 operations, kafkaTemplate, properties, new SimpleMeterRegistry());
 

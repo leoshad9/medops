@@ -164,6 +164,7 @@ medops:
     enabled: ${MEDOPS_MESSAGING_ENABLED:true}
     appointments-topic: medops.appointments
     reports-topic: medops.reports
+    billing-topic: medops.billing
     outbox-batch-size: 100
     outbox-fixed-delay-ms: 1000
     consumer-retry-attempts: 3
